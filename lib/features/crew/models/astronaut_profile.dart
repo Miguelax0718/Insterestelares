@@ -34,6 +34,10 @@ class AstronautProfile {
   final String riskDescription;
   final List<String> activeAlerts;
 
+  // Máquinas de telemetría vinculadas y última sincronización
+  final List<String> linkedMachineIds;
+  final DateTime? lastTelemetrySync;
+
   const AstronautProfile({
     required this.id,
     required this.name,
@@ -52,6 +56,8 @@ class AstronautProfile {
     required this.riskTitle,
     required this.riskDescription,
     required this.activeAlerts,
+    this.linkedMachineIds = const [],
+    this.lastTelemetrySync,
   });
 
   AstronautProfile copyWith({
@@ -72,6 +78,8 @@ class AstronautProfile {
     String? riskTitle,
     String? riskDescription,
     List<String>? activeAlerts,
+    List<String>? linkedMachineIds,
+    DateTime? lastTelemetrySync,
   }) {
     return AstronautProfile(
       id: id ?? this.id,
@@ -91,6 +99,147 @@ class AstronautProfile {
       riskTitle: riskTitle ?? this.riskTitle,
       riskDescription: riskDescription ?? this.riskDescription,
       activeAlerts: activeAlerts ?? this.activeAlerts,
+      linkedMachineIds: linkedMachineIds ?? this.linkedMachineIds,
+      lastTelemetrySync: lastTelemetrySync ?? this.lastTelemetrySync,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'role': role,
+      'rank': rank,
+      'callsign': callsign,
+      'avatarInitials': avatarInitials,
+      'age': age,
+      'bloodType': bloodType,
+      'currentZone': currentZone,
+      'vitals': vitals.toJson(),
+      'radiation': radiation.toJson(),
+      'sleep': sleep.toJson(),
+      'exercise': exercise.toJson(),
+      'riskLevel': riskLevel.name,
+      'riskTitle': riskTitle,
+      'riskDescription': riskDescription,
+      'activeAlerts': activeAlerts,
+      'linkedMachineIds': linkedMachineIds,
+      if (lastTelemetrySync != null) ...{
+        'lastTelemetrySync': lastTelemetrySync!.toIso8601String(),
+        'lastUpdated': lastTelemetrySync!.toIso8601String(),
+      },
+    };
+  }
+
+  factory AstronautProfile.fromJson(Map<String, dynamic> json) {
+    final riskStr = json['riskLevel']?.toString().toLowerCase();
+    final parsedRisk = CrewRiskLevel.values.firstWhere(
+      (e) => e.name.toLowerCase() == riskStr,
+      orElse: () => CrewRiskLevel.nominal,
+    );
+    final astronautId = json['id']?.toString() ?? '';
+
+    VitalsRecord parsedVitals;
+    if (json['vitals'] != null) {
+      parsedVitals =
+          VitalsRecord.fromJson(Map<String, dynamic>.from(json['vitals'] as Map));
+      if (astronautId.isNotEmpty) {
+        parsedVitals = parsedVitals.copyWith(astronautId: astronautId);
+      }
+    } else {
+      parsedVitals = VitalsRecord(
+        timestamp: DateTime.now(),
+        astronautId: astronautId.isNotEmpty ? astronautId : 'AST-01',
+        heartRate: 70,
+        systolicBP: 120,
+        diastolicBP: 80,
+        spO2: 98,
+        bodyTemp: 36.5,
+        bloodGlucose: 90,
+      );
+    }
+
+    RadiationDose parsedRadiation;
+    if (json['radiation'] != null) {
+      parsedRadiation = RadiationDose.fromJson(
+          Map<String, dynamic>.from(json['radiation'] as Map));
+      if (astronautId.isNotEmpty) {
+        parsedRadiation = parsedRadiation.copyWith(astronautId: astronautId);
+      }
+    } else {
+      parsedRadiation = RadiationDose(
+        timestamp: DateTime.now(),
+        astronautId: astronautId.isNotEmpty ? astronautId : 'AST-01',
+        doseRateMicroSvPerHour: 50.0,
+        cumulativeDoseMilliSv: 15.0,
+        severity: RadiationSeverity.normal,
+      );
+    }
+
+    SleepRecord parsedSleep;
+    if (json['sleep'] != null) {
+      parsedSleep =
+          SleepRecord.fromJson(Map<String, dynamic>.from(json['sleep'] as Map));
+      if (astronautId.isNotEmpty) {
+        parsedSleep = parsedSleep.copyWith(astronautId: astronautId);
+      }
+    } else {
+      parsedSleep = SleepRecord(
+        date: DateTime.now(),
+        astronautId: astronautId.isNotEmpty ? astronautId : 'AST-01',
+        sleepHours: 7.0,
+        wakeEpisodes: 0,
+        morningMood: MoodLevel.good,
+      );
+    }
+
+    ExerciseSession parsedExercise;
+    if (json['exercise'] != null) {
+      parsedExercise = ExerciseSession.fromJson(
+          Map<String, dynamic>.from(json['exercise'] as Map));
+      if (astronautId.isNotEmpty) {
+        parsedExercise = parsedExercise.copyWith(astronautId: astronautId);
+      }
+    } else {
+      parsedExercise = ExerciseSession(
+        date: DateTime.now(),
+        astronautId: astronautId.isNotEmpty ? astronautId : 'AST-01',
+        deviceName: 'ARED',
+        durationMinutes: 30,
+        caloriesBurned: 300,
+        targetReached: true,
+      );
+    }
+
+    final syncRaw = json['lastTelemetrySync'] ?? json['lastUpdated'];
+
+    return AstronautProfile(
+      id: astronautId,
+      name: json['name']?.toString() ?? '',
+      role: json['role']?.toString() ?? '',
+      rank: json['rank']?.toString() ?? '',
+      callsign: json['callsign']?.toString() ?? '',
+      avatarInitials: json['avatarInitials']?.toString() ?? '',
+      age: (json['age'] as num?)?.toInt() ?? 35,
+      bloodType: json['bloodType']?.toString() ?? 'O+',
+      currentZone: json['currentZone']?.toString() ?? 'Módulo Central',
+      vitals: parsedVitals,
+      radiation: parsedRadiation,
+      sleep: parsedSleep,
+      exercise: parsedExercise,
+      riskLevel: parsedRisk,
+      riskTitle: json['riskTitle']?.toString() ?? 'Estado Nominal',
+      riskDescription:
+          json['riskDescription']?.toString() ?? 'Sin alertas registradas.',
+      activeAlerts:
+          (json['activeAlerts'] as List?)?.map((e) => e.toString()).toList() ??
+              const [],
+      linkedMachineIds: (json['linkedMachineIds'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      lastTelemetrySync:
+          syncRaw != null ? DateTime.tryParse(syncRaw.toString()) : null,
     );
   }
 }
