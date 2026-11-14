@@ -6,6 +6,9 @@ import 'package:astramed/core/theme/space_theme.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 
+import '../widgets/biomarker_panel.dart';
+import '../widgets/radiation_symptoms_card.dart';
+
 class RadiationView extends ConsumerWidget {
   const RadiationView({super.key});
 
@@ -143,6 +146,10 @@ class RadiationView extends ConsumerWidget {
             ),
           ),
         ),
+        const SizedBox(height: 16),
+        const BiomarkerPanel(),
+        const SizedBox(height: 16),
+        const RadiationSymptomsCard(),
       ],
     );
   }

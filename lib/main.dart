@@ -10,6 +10,8 @@ import 'package:astramed/features/05_clinical_triage/presentation/triage_view.da
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 import 'package:astramed/features/crew/presentation/widgets/crew_sidebar_drawer.dart';
+import 'package:astramed/features/telemetry/presentation/providers/telemetry_provider.dart';
+import 'package:astramed/features/telemetry/presentation/widgets/telemetry_config_modal.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -60,9 +62,21 @@ class _AstraMedDashboardState extends ConsumerState<AstraMedDashboard> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    Future.microtask(() async {
+      await ref.read(crewMembersProvider.notifier).initializeFromDatabase();
+      final crew = ref.read(crewMembersProvider);
+      ref.read(telemetryProvider.notifier).syncWithCrewData(crew);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final activeAstronaut = ref.watch(selectedAstronautProvider);
     final criticalCount = ref.watch(criticalCrewCountProvider);
+    final connectedCount = ref.watch(connectedMachinesForSelectedProvider).length;
+    final isStreaming = ref.watch(isTelemetryStreamingProvider);
 
     final statusColor = activeAstronaut.riskLevel == CrewRiskLevel.critical
         ? SpaceTheme.dangerRed
@@ -191,6 +205,31 @@ class _AstraMedDashboardState extends ConsumerState<AstraMedDashboard> {
                 ),
               ],
             ),
+          ),
+
+          // Botón de configuración de máquinas de telemetría por tripulante
+          IconButton(
+            tooltip: 'Configurar Máquinas de Telemetría (${activeAstronaut.callsign})',
+            icon: Badge(
+              isLabelVisible: true,
+              backgroundColor: isStreaming ? SpaceTheme.green : SpaceTheme.cyan,
+              textColor: Colors.black,
+              label: Text(
+                '$connectedCount',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              child: Icon(
+                Icons.settings_input_antenna,
+                color: isStreaming ? SpaceTheme.green : SpaceTheme.cyan,
+                size: 21,
+              ),
+            ),
+            onPressed: () {
+              TelemetryConfigModal.show(
+                context,
+                initialAstronautId: activeAstronaut.id,
+              );
+            },
           ),
 
           // Indicador de modo 100% Offline

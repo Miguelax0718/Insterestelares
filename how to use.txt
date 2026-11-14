@@ -190,6 +190,11 @@ proyecto:
    flutter clean
    flutter pub get
 
+4. Ejecutar en Web con Puerto Fijo (http://localhost:8080):
+   -> En terminal: `.\run_web.bat` o `.\run_web.ps1`
+   -> O con comando directo: `flutter run -d chrome --web-port=8080`
+   -> En VS Code: Presiona F5 y selecciona la configuración "AstraMed Web (Puerto 8080)"
+
 ===============================================================================
 9. SOLUCIÓN A ERRORES COMUNES
 ===============================================================================

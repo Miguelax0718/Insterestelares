@@ -1,0 +1,153 @@
+{
+  "version": "1.0.0",
+  "catalogTitle": "Catálogo Maestro de Dispositivos de Telemetría Médica y Soporte Vital - AstraMed",
+  "updatedAt": "2026-11-14T20:45:00Z",
+  "totalDevices": 7,
+  "devices": [
+    {
+      "id": "DEV-ASTROSKIN",
+      "name": "Bio-Monitor Astroskin (Smart Shirt)",
+      "category": "biometrics",
+      "protocol": "ANT+ / BLE SpaceBus v3.2",
+      "measurementMethod": "ECG textil de 3 derivaciones, fotopletismografía óptica y pletismografía inductiva torácica",
+      "defaultActivityState": "active_duty",
+      "defaultRecordType": "instrumental",
+      "algorithm": "NASA-HRP BioSignalKalman v3.2",
+      "criterionReference": "NASA-STD-3001 Vol. 1 & Vol. 2 / MedicalThresholds",
+      "manufacturer": "Carré Technologies / CSA / NASA",
+      "flightHeritage": "ISS Expedition 58/59 / Artemis Flight Kit",
+      "description": "Prenda textil inteligente con sensores biomédicos continuos integrados para monitoreo cardiovascular, respiratorio y térmico no invasivo.",
+      "telemetryRateHz": 100,
+      "metrics": [
+        "heartRate",
+        "spO2",
+        "respiratoryRate",
+        "bodyTemp"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "DEV-HERA",
+      "name": "HERA Radiation Assay",
+      "category": "dosimetry",
+      "protocol": "MIL-STD-1553B / Timepix bus",
+      "measurementMethod": "Espectrometría activa en silicio híbrido Timepix3 (LET)",
+      "defaultActivityState": "active_duty",
+      "defaultRecordType": "instrumental",
+      "algorithm": "SRAG-LET-Dosimetry v2.4",
+      "criterionReference": "NASA-STD-3001 Permissible Exposure Limits (PEL)",
+      "manufacturer": "NASA Johnson Space Center / SRAG",
+      "flightHeritage": "Orion Artemis I & ISS Columbus Dosimetry Array",
+      "description": "Unidad compacta de espectrometría de radiación ionizante para medir tasas de dosis en tiempo real por partículas solares energéticas (SEP) y rayos cósmicos galácticos (GCR).",
+      "telemetryRateHz": 1,
+      "metrics": [
+        "doseRateMicroSvPerHour",
+        "cumulativeDoseMilliSv"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "DEV-EPM",
+      "name": "EPM Cardiocavity Module",
+      "category": "hemodynamics",
+      "protocol": "SpaceWire / ISS-LAN",
+      "measurementMethod": "Fotopletismografía arterial de dedo y tonometría cardiovascular no invasiva",
+      "defaultActivityState": "resting",
+      "defaultRecordType": "instrumental",
+      "algorithm": "ESA-EPM HemodynamicPulseWave v2.0",
+      "criterionReference": "NASA-STD-3001 Cardiovascular Health Monitoring",
+      "manufacturer": "ESA / CNES European Physiology Modules",
+      "flightHeritage": "ISS Columbus Laboratory / EPM Rack",
+      "description": "Sistema de fotopletismografía vascular y manguito continuo para análisis de presión arterial latido a latido, gasto cardíaco y perfusión capilar distal.",
+      "telemetryRateHz": 50,
+      "metrics": [
+        "systolicBP",
+        "diastolicBP",
+        "capillaryRefillSeconds"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "DEV-ARED",
+      "name": "ARED Advanced Resistive Device",
+      "category": "countermeasure",
+      "protocol": "CAN-Bus / Space Wireless",
+      "measurementMethod": "Dinamometría en cilindros de vacío y telemetría cinemática triaxial",
+      "defaultActivityState": "exercise",
+      "defaultRecordType": "estimación",
+      "algorithm": "NASA-CountermeasureMetabolicKinematics v1.8",
+      "criterionReference": "NASA-STD-3001 Musculoskeletal Countermeasure Protocol",
+      "manufacturer": "NASA Engineering / Glenn Research Center",
+      "flightHeritage": "ISS Node 3 (Tranquility)",
+      "description": "Dispositivo de cilindros de vacío para ejercicio resistivo pesado (hasta 270 kgf) destinado a mitigar la osteopenia y la atrofia muscular por microgravedad.",
+      "telemetryRateHz": 10,
+      "metrics": [
+        "durationMinutes",
+        "caloriesBurned",
+        "targetReached"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "DEV-CEVIS",
+      "name": "CEVIS Cycle Ergometer",
+      "category": "countermeasure",
+      "protocol": "RS-422 / BLE 5.0",
+      "measurementMethod": "Ergometría electromagnética de cadencia/potencia y estimación de VO2",
+      "defaultActivityState": "exercise",
+      "defaultRecordType": "estimación",
+      "algorithm": "NASA-CEVIS AerobicVO2Estimator v1.5",
+      "criterionReference": "NASA-STD-3001 Aerobic Countermeasure Protocol",
+      "manufacturer": "NASA / ESA Human Adaptation and Countermeasures",
+      "flightHeritage": "ISS Node 3 & US Lab Destiny",
+      "description": "Ergómetro de ciclo y cinta rodante con arnés de carga axial para entrenamiento aeróbico cardiovascular y prevención de desacondicionamiento hemodinámico.",
+      "telemetryRateHz": 10,
+      "metrics": [
+        "durationMinutes",
+        "caloriesBurned",
+        "heartRate"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "DEV-ISTAT",
+      "name": "Abbott i-STAT 1 Analyzer",
+      "category": "bloodLab",
+      "protocol": "Infrared Data / USB Secure Bus",
+      "measurementMethod": "Electroquímica amperométrica/potenciométrica en cartucho capilar desechable",
+      "defaultActivityState": "resting",
+      "defaultRecordType": "instrumental",
+      "algorithm": "PointOfCare-Chem8 CalibrationCurve v4.1",
+      "criterionReference": "NASA-ISS CHeCS Clinical Blood Lab Standards",
+      "manufacturer": "Abbott Point of Care / NASA HRP",
+      "flightHeritage": "ISS Crew Health Care System (CHeCS)",
+      "description": "Analizador bioquímico de sangre capilar en cartuchos desechables para electrolitos, glucosa, gases sanguíneos y biomarcadores de estrés metabólico.",
+      "telemetryRateHz": 0.1,
+      "metrics": [
+        "bloodGlucose"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "DEV-ACTIWATCH",
+      "name": "Actiwatch Plus Circadian Sensor",
+      "category": "circadian",
+      "protocol": "NFC / Optical Sync",
+      "measurementMethod": "Actigrafía triaxial de muñeca, fotometría ambiental y escala subjetiva matutina",
+      "defaultActivityState": "sleep",
+      "defaultRecordType": "instrumental",
+      "algorithm": "BHP-CircadianColeKripke v2.1",
+      "criterionReference": "NASA-STD-3001 Behavioral Health & Circadian Standard",
+      "manufacturer": "Philips Respironics / NASA Behavioral Health & Performance",
+      "flightHeritage": "ISS Long-Duration Missions / Sleep-Wake Actigraphy",
+      "description": "Dispositivo de muñeca con acelerometría triaxial y fotosensores multiespectrales para evaluación de higiene de sueño, desincronosis circadiana y episodios de vigilia.",
+      "telemetryRateHz": 1,
+      "metrics": [
+        "sleepHours",
+        "wakeEpisodes",
+        "morningMood"
+      ],
+      "status": "active"
+    }
+  ]
+}
