@@ -1,0 +1,34 @@
+[
+  {
+    "id": "AST-01",
+    "name": "Alex Vega",
+    "ageYears": 34,
+    "sex": "female",
+    "priorCareerEffectiveDoseMsv": 40,
+    "dataType": "synthetic_demo"
+  },
+  {
+    "id": "AST-02",
+    "name": "Sam Rivera",
+    "ageYears": 41,
+    "sex": "male",
+    "priorCareerEffectiveDoseMsv": 120,
+    "dataType": "synthetic_demo"
+  },
+  {
+    "id": "AST-03",
+    "name": "Taylor Cruz",
+    "ageYears": 37,
+    "sex": "female",
+    "priorCareerEffectiveDoseMsv": 80,
+    "dataType": "synthetic_demo"
+  },
+  {
+    "id": "AST-04",
+    "name": "Jordan Sol",
+    "ageYears": 45,
+    "sex": "male",
+    "priorCareerEffectiveDoseMsv": 300,
+    "dataType": "synthetic_demo"
+  }
+]
