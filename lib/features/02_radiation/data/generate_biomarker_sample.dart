@@ -2,6 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'biomarker_simulator.dart';
+import 'example_mission.dart';
+
+export 'example_mission.dart';
 
 /// Genera las muestras de orina y sangre de ejemplo para la demo.
 ///
@@ -11,9 +14,9 @@ import 'biomarker_simulator.dart';
 ///
 /// Escribe en DB/samples/biomarkers/ (o la carpeta indicada), para cada
 /// escenario (realistic / extreme):
-///   biomarker_baselines_<escenario>.json
-///   urine_samples_<escenario>.csv
-///   blood_samples_<escenario>.csv
+///   `biomarker_baselines_ESCENARIO.json`
+///   `urine_samples_ESCENARIO.csv`
+///   `blood_samples_ESCENARIO.csv`
 void main(List<String> args) {
   final dir = Directory(args.isEmpty ? 'DB/samples/biomarkers' : args.first)
     ..createSync(recursive: true);
@@ -33,18 +36,6 @@ void main(List<String> args) {
         'orina y ${sim.blood.length} de sangre en ${dir.path}');
   }
 }
-
-/// Entrada de dosis de EJEMPLO (no medida): una tormenta solar el día 95 de
-/// una misión de 180 días. Dos astronautas fuera del refugio y dos dentro.
-/// Cuando la dosimetría de María esté lista, se reemplaza por sus valores.
-const int exampleSpeDay = 95;
-const Map<String, double> exampleSpeDoseMsv = {
-  'AST-01': 50,
-  'AST-02': 10,
-  'AST-03': 50,
-  'AST-04': 10,
-};
-const Set<String> exampleSheltered = {'AST-02', 'AST-04'};
 
 void writeSimulation(Directory dir, String name, BiomarkerSimulation sim) {
   final type = sim.scenario.dataType;
