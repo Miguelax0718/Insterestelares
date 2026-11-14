@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:astramed/core/theme/space_theme.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
+import 'package:astramed/features/telemetry/presentation/providers/telemetry_provider.dart';
+import 'package:astramed/features/telemetry/presentation/widgets/telemetry_config_modal.dart';
 
 /// Sidebar (Drawer) lateral izquierdo para alternar entre los 5 perfiles de astronautas
 /// y visualizar de un vistazo el estado de riesgo y telemetría de cada uno.
@@ -14,6 +16,7 @@ class CrewSidebarDrawer extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final crew = ref.watch(crewMembersProvider);
     final selectedId = ref.watch(selectedAstronautIdProvider);
+    final telemetryState = ref.watch(telemetryProvider);
 
     final criticalCount = ref.watch(criticalCrewCountProvider);
     final warningCount = ref.watch(warningCrewCountProvider);
@@ -36,7 +39,16 @@ class CrewSidebarDrawer extends ConsumerWidget {
                 itemBuilder: (context, index) {
                   final astronaut = crew[index];
                   final isSelected = astronaut.id == selectedId;
-                  return _buildAstronautCard(context, ref, astronaut, isSelected);
+                  final connectedCount = telemetryState.machines
+                      .where((m) => m.isConnectedFor(astronaut.id))
+                      .length;
+                  return _buildAstronautCard(
+                    context,
+                    ref,
+                    astronaut,
+                    isSelected,
+                    connectedCount,
+                  );
                 },
               ),
             ),
@@ -44,7 +56,7 @@ class CrewSidebarDrawer extends ConsumerWidget {
             const Divider(color: Colors.white24, height: 1),
 
             // ── PIE DE PÁGINA / ACCIONES RÁPIDAS ──
-            _buildDrawerFooter(context, ref),
+            _buildDrawerFooter(context, ref, selectedId),
           ],
         ),
       ),
@@ -133,6 +145,7 @@ class CrewSidebarDrawer extends ConsumerWidget {
     WidgetRef ref,
     AstronautProfile astronaut,
     bool isSelected,
+    int connectedMachinesCount,
   ) {
     final statusColor = _getRiskColor(astronaut.riskLevel);
 
@@ -357,6 +370,79 @@ class CrewSidebarDrawer extends ConsumerWidget {
                   ],
                 ),
               ],
+
+              const SizedBox(height: 6),
+
+              // ── FILA DE TELEMETRÍA Y ACCESO RÁPIDO A CONFIGURACIÓN ──
+              Row(
+                children: [
+                  Icon(
+                    Icons.sensors,
+                    size: 13,
+                    color: connectedMachinesCount > 0
+                        ? SpaceTheme.cyan
+                        : Colors.white38,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      '$connectedMachinesCount máq. activas • ${astronaut.vitals.source.toUpperCase()}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: connectedMachinesCount > 0
+                            ? SpaceTheme.cyan
+                            : Colors.white54,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(6),
+                    onTap: () {
+                      final rootContext =
+                          Navigator.of(context, rootNavigator: true).context;
+                      Navigator.of(context).pop();
+                      TelemetryConfigModal.show(
+                        rootContext,
+                        initialAstronautId: astronaut.id,
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: SpaceTheme.cyan.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: SpaceTheme.cyan.withValues(alpha: 0.45),
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.settings_input_antenna,
+                            size: 11,
+                            color: SpaceTheme.cyan,
+                          ),
+                          SizedBox(width: 3),
+                          Text(
+                            'Config',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: SpaceTheme.cyan,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -424,12 +510,38 @@ class CrewSidebarDrawer extends ConsumerWidget {
     );
   }
 
-  /// Pie del drawer con controles de simulación o asistencia
-  Widget _buildDrawerFooter(BuildContext context, WidgetRef ref) {
+  /// Pie del drawer con controles de telemetría y simulación
+  Widget _buildDrawerFooter(
+    BuildContext context,
+    WidgetRef ref,
+    String selectedId,
+  ) {
     return Padding(
       padding: const EdgeInsets.all(12.0),
       child: Column(
         children: [
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: SpaceTheme.cyan,
+              foregroundColor: Colors.black,
+              minimumSize: const Size(double.infinity, 38),
+            ),
+            icon: const Icon(Icons.settings_input_antenna, size: 16),
+            label: const Text(
+              'Configurar Máquinas de Telemetría',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+            onPressed: () {
+              final rootContext =
+                  Navigator.of(context, rootNavigator: true).context;
+              Navigator.of(context).pop();
+              TelemetryConfigModal.show(
+                rootContext,
+                initialAstronautId: selectedId,
+              );
+            },
+          ),
+          const SizedBox(height: 8),
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
               foregroundColor: SpaceTheme.cyan,
@@ -443,9 +555,12 @@ class CrewSidebarDrawer extends ConsumerWidget {
             ),
             onPressed: () {
               ref.read(crewMembersProvider.notifier).resetToInitial();
+              ref.read(telemetryProvider.notifier).resetToInitial();
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Telemetría de la tripulación reiniciada a valores base'),
+                  content: Text(
+                    'Telemetría de la tripulación reiniciada a valores base',
+                  ),
                   duration: Duration(seconds: 2),
                 ),
               );
