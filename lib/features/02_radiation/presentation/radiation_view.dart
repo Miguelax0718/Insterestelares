@@ -1,54 +1,99 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class RadiationView extends StatelessWidget {
+import '../../../core/constants/medical_thresholds.dart';
+import '../../../core/theme/space_theme.dart';
+import '../../crew/models/astronaut_profile.dart';
+import '../../crew/presentation/providers/crew_provider.dart';
+
+class RadiationView extends ConsumerWidget {
   const RadiationView({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final astronaut = ref.watch(selectedAstronautProvider);
+    final radiation = astronaut.radiation;
+
+    final isHigh = radiation.doseRateMicroSvPerHour > 100.0;
+    final progress = (radiation.cumulativeDoseMilliSv / MedicalThresholds.radiationCareerLimitMax)
+        .clamp(0.0, 1.0);
+
     return ListView(
       padding: const EdgeInsets.all(16.0),
       children: [
-        const Text(
-          'Dosímetro de Radiación Espacial',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Monitoreo GCR (Rayos Cósmicos) y SPE (Eventos de Partículas Solares)',
-          style: TextStyle(color: Colors.white70),
+        // Tag del astronauta
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Dosímetro de Radiación Espacial',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  'Monitoreando: ${astronaut.name} [${astronaut.callsign}]',
+                  style: const TextStyle(fontSize: 12, color: SpaceTheme.cyan),
+                ),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white10,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                astronaut.currentZone,
+                style: const TextStyle(fontSize: 11, color: Colors.white70),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
+
         Card(
-          color: const Color(0xFF141D2B),
+          color: SpaceTheme.card,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: const BorderSide(color: Color(0xFF00E5FF), width: 1.5),
+            side: BorderSide(
+              color: isHigh ? SpaceTheme.dangerRed : SpaceTheme.cyan,
+              width: 1.5,
+            ),
           ),
-          child: const Padding(
-            padding: EdgeInsets.all(16.0),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                Icon(Icons.shield_outlined, size: 50, color: Color(0xFF00E5FF)),
-                SizedBox(height: 12),
-                Text(
-                  'Tasa de Dosis Actual',
-                  style: TextStyle(fontSize: 14, color: Colors.white70),
+                Icon(
+                  Icons.shield_outlined,
+                  size: 48,
+                  color: isHigh ? SpaceTheme.dangerRed : SpaceTheme.cyan,
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 10),
+                const Text(
+                  'Tasa de Dosis Actual (Dosímetro Personal)',
+                  style: TextStyle(fontSize: 13, color: Colors.white70),
+                ),
+                const SizedBox(height: 4),
                 Text(
-                  '62.4 uSv/h',
+                  '${radiation.doseRateMicroSvPerHour.toStringAsFixed(1)} uSv/h',
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF00E5FF),
+                    color: isHigh ? SpaceTheme.dangerRed : SpaceTheme.cyan,
                   ),
                 ),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Text(
-                  'ESTADO: NIVEL BASAL NOMINAL',
+                  isHigh
+                      ? '⚠️ ALERTA: TASA DE DOSIS ELEVADA (>100 uSv/h)'
+                      : 'ESTADO: NIVEL BASAL NOMINAL (<100 uSv/h)',
                   style: TextStyle(
-                    color: Colors.greenAccent,
+                    color: isHigh ? SpaceTheme.dangerRed : Colors.greenAccent,
                     fontWeight: FontWeight.bold,
+                    fontSize: 12,
                   ),
                 ),
               ],
@@ -56,29 +101,42 @@ class RadiationView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
+
         Card(
+          color: SpaceTheme.card,
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Exposición Acumulada de la Misión',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  'Exposición Acumulada del Astronauta en Misión',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                 ),
-                const SizedBox(height: 8),
-                const LinearProgressIndicator(
-                  value: 0.18,
+                const SizedBox(height: 10),
+                LinearProgressIndicator(
+                  value: progress,
                   backgroundColor: Colors.white12,
-                  color: Color(0xFF00E5FF),
-                  minHeight: 10,
+                  color: isHigh ? SpaceTheme.warningYellow : SpaceTheme.cyan,
+                  minHeight: 12,
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: const [
-                    Text('108 mSv acumulados', style: TextStyle(color: Colors.white70)),
-                    Text('Límite de Carrera: 600 mSv', style: TextStyle(color: Colors.white54)),
+                  children: [
+                    Text(
+                      '${radiation.cumulativeDoseMilliSv.toStringAsFixed(1)} mSv acumulados',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                    Text(
+                      'Límite Carrera NASA: ${MedicalThresholds.radiationCareerLimitMax.toInt()} mSv',
+                      style: const TextStyle(color: Colors.white54, fontSize: 11),
+                    ),
                   ],
                 ),
               ],

@@ -7,14 +7,13 @@ import 'features/02_radiation/presentation/radiation_view.dart';
 import 'features/03_microgravity/presentation/microgravity_view.dart';
 import 'features/04_mental_health/presentation/mental_health_view.dart';
 import 'features/05_clinical_triage/presentation/triage_view.dart';
+import 'features/crew/models/astronaut_profile.dart';
+import 'features/crew/presentation/providers/crew_provider.dart';
+import 'features/crew/presentation/widgets/crew_sidebar_drawer.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(
-    const ProviderScope(
-      child: AstraMedApp(),
-    ),
-  );
+  runApp(const AstraMedApp());
 }
 
 class AstraMedApp extends StatelessWidget {
@@ -22,24 +21,26 @@ class AstraMedApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'AstraMed | Space Health Engine',
-      debugShowCheckedModeBanner: false,
-      themeMode: ThemeMode.dark,
-      darkTheme: SpaceTheme.darkTheme,
-      home: const AstraMedDashboard(),
+    return ProviderScope(
+      child: MaterialApp(
+        title: 'AstraMed | Space Health Engine',
+        debugShowCheckedModeBanner: false,
+        themeMode: ThemeMode.dark,
+        darkTheme: SpaceTheme.darkTheme,
+        home: const AstraMedDashboard(),
+      ),
     );
   }
 }
 
-class AstraMedDashboard extends StatefulWidget {
+class AstraMedDashboard extends ConsumerStatefulWidget {
   const AstraMedDashboard({super.key});
 
   @override
-  State<AstraMedDashboard> createState() => _AstraMedDashboardState();
+  ConsumerState<AstraMedDashboard> createState() => _AstraMedDashboardState();
 }
 
-class _AstraMedDashboardState extends State<AstraMedDashboard> {
+class _AstraMedDashboardState extends ConsumerState<AstraMedDashboard> {
   int _currentIndex = 0;
 
   final List<Widget> _views = const [
@@ -60,26 +61,147 @@ class _AstraMedDashboardState extends State<AstraMedDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    final activeAstronaut = ref.watch(selectedAstronautProvider);
+    final criticalCount = ref.watch(criticalCrewCountProvider);
+
+    final statusColor = activeAstronaut.riskLevel == CrewRiskLevel.critical
+        ? SpaceTheme.dangerRed
+        : (activeAstronaut.riskLevel == CrewRiskLevel.warning
+            ? SpaceTheme.warningYellow
+            : SpaceTheme.green);
+
     return Scaffold(
+      // ── SIDEBAR IZQUIERDO PARA GESTIÓN DE LOS 5 PERFILES ──
+      drawer: const CrewSidebarDrawer(),
+
       appBar: AppBar(
-        title: Row(
-          children: [
-            const Icon(Icons.rocket_launch, color: SpaceTheme.cyan),
-            const SizedBox(width: 10),
-            Text(
-              _titles[_currentIndex],
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        leading: Builder(
+          builder: (drawerContext) => IconButton(
+            tooltip: 'Abrir Crew Hub (5 Tripulantes)',
+            icon: Badge(
+              isLabelVisible: criticalCount > 0,
+              backgroundColor: SpaceTheme.dangerRed,
+              label: Text(
+                '$criticalCount',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              child: const Icon(Icons.menu, color: SpaceTheme.cyan),
             ),
-          ],
+            onPressed: () {
+              Scaffold.of(drawerContext).openDrawer();
+            },
+          ),
+        ),
+        title: Builder(
+          builder: (drawerContext) => InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: () {
+              Scaffold.of(drawerContext).openDrawer();
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircleAvatar(
+                    radius: 15,
+                    backgroundColor: statusColor.withValues(alpha: 0.2),
+                    child: Text(
+                      activeAstronaut.avatarInitials,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: statusColor,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                activeAstronaut.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 2),
+                            const Icon(
+                              Icons.arrow_drop_down,
+                              size: 18,
+                              color: SpaceTheme.cyan,
+                            ),
+                          ],
+                        ),
+                        Text(
+                          _titles[_currentIndex],
+                          style: const TextStyle(fontSize: 10, color: Colors.white70),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
         actions: [
+          // Badge rápido de estado de riesgo del astronauta activo
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: statusColor.withValues(alpha: 0.6)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  activeAstronaut.riskLevel == CrewRiskLevel.critical
+                      ? Icons.emergency
+                      : (activeAstronaut.riskLevel == CrewRiskLevel.warning
+                          ? Icons.warning_amber
+                          : Icons.check_circle),
+                  size: 12,
+                  color: statusColor,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  activeAstronaut.riskLevel == CrewRiskLevel.critical
+                      ? 'CRÍTICO'
+                      : (activeAstronaut.riskLevel == CrewRiskLevel.warning
+                          ? 'ATENCIÓN'
+                          : 'NOMINAL'),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: statusColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Indicador de modo 100% Offline
           IconButton(
-            tooltip: 'Estado de Conectividad',
-            icon: const Icon(Icons.wifi_off, color: Colors.amberAccent),
+            tooltip: 'Estado de Conectividad (100% Offline)',
+            icon: const Icon(Icons.wifi_off, color: Colors.amberAccent, size: 20),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Modo 100% Offline activo - Espacio Profundo'),
+                  content: Text('AstraMed opera 100% Offline en Espacio Profundo'),
+                  duration: Duration(seconds: 2),
                 ),
               );
             },
