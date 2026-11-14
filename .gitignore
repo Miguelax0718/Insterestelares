@@ -24,6 +24,7 @@ Desktop.ini
 *.cert
 
 # MCP & Google Drive Credentials / OAuth Tokens
+.mcp
 mcp/credentials.json
 mcp/token.json
 mcp/gdrive-credentials.json
