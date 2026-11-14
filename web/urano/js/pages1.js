@@ -131,7 +131,7 @@ function crewModal(fromShell){
     if(!(f.age>=18&&f.age<=80)||!(f.weight>=30&&f.weight<=200)||!(f.height>=1&&f.height<=2.3)){err.textContent='Revisa edad, peso y estatura.';return}
     const slug=name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,20);
     const c={id:`${slug||'trip'}-${Date.now().toString(36).slice(-4)}`,name:esc(name),role:esc(role),initials:ini(name),color:f.color,age:f.age,weight:f.weight,height:f.height,
-      dose:0,hr:70,bp:'120/80',water:0,waterGoal:Math.round(f.waterGoal||2500),sleep:7,sessions:0,energy:0,protein:0,mood:2};
+      dose:0,hr:70,bp:'120/80',water:0,waterGoal:Math.round(f.waterGoal||2500),sleep:7,sessions:0,energy:0,protein:0,mood:2,exMin:0,exGoal:90};
     const btn=$('#savecrew',sc);btn.disabled=true;btn.textContent='Guardando…';
     try{ await DB.addCrew(c); close(); toast(`${c.name} se unió a la tripulación`,'user');
       DB.use(c.id);S.edit=false;go('panel'); }
@@ -165,20 +165,26 @@ function glassSVG(w=150,id='g'){
    <path d="M30 24 L38 150" stroke="#F0FFF1" stroke-opacity=".35" stroke-width="4" stroke-linecap="round"/>
    <path d="M18 10 h104" stroke="#F0FFF1" stroke-width="3" stroke-linecap="round"/></svg>`;
 }
-function bindGlass(root,id,onUpdate){
-  const g=$('#'+id,root); if(!g) return;
-  g.onclick=()=>{ const before=U.water<U.waterGoal; U.water=Math.min(U.waterGoal+500,U.water+250); DB.run('addWater',U.id,250);
-    const frac=Math.min(1,U.water/U.waterGoal), y=14+(1-frac)*158; $('.water',g).style.transform=`translateY(${y}px)`;
-    g.classList.add('fill');setTimeout(()=>g.classList.remove('fill'),900);
-    onUpdate&&onUpdate();
-    if(before&&U.water>=U.waterGoal){ burst(g.parentElement,12,'#B3E9C7',true);
-      U.alerts.filter(a=>a.module==='hidratacion'&&a.status==='active').forEach(a=>{a.status='resolved';DB.run('resolveAlert',a.id)});
-      const wr=U.recs.find(r=>r.module==='hidratacion'&&!r.done); if(wr){wr.done=true;DB.run('setRec',wr.id,true)}
-      toast(status('hidratacion')==='ok'?'¡Meta de agua cumplida! Hidratación vuelve a Estable':'¡Meta de agua cumplida!'); setTimeout(()=>{ if(route()==='panel'||route()==='m-hidratacion') rerender(); },1300); }
-    else burst(g.parentElement,5,'#A994E0');
-  };
+// Sumar agua (vaso = 250 ml, o cualquier cantidad personalizada)
+function addWaterMl(ml,g,onUpdate){ const before=U.water<U.waterGoal; U.water=Math.min(U.waterGoal+3000,U.water+ml); DB.run('addWater',U.id,ml);
+  if(g){const frac=Math.min(1,U.water/U.waterGoal), y=14+(1-frac)*158; $('.water',g).style.transform=`translateY(${y}px)`;g.classList.add('fill');setTimeout(()=>g.classList.remove('fill'),900)}
+  onUpdate&&onUpdate(); const host=g?g.parentElement:document.body;
+  if(before&&U.water>=U.waterGoal){ burst(host,12,SC.ok,true);
+    U.alerts.filter(a=>a.module==='hidratacion'&&a.status==='active').forEach(a=>{a.status='resolved';DB.run('resolveAlert',a.id)});
+    const wr=U.recs.find(r=>r.module==='hidratacion'&&!r.done); if(wr){wr.done=true;DB.run('setRec',wr.id,true)}
+    toast(status('hidratacion')==='ok'?'¡Meta de agua cumplida! Hidratación vuelve a Estable':'¡Meta de agua cumplida!'); setTimeout(()=>{ if(route()==='panel'||route()==='m-hidratacion') rerender(); },1300); }
+  else { if(g)burst(host,5,'#A994E0'); toast(`+${ml} ml registrados`,'drop'); }
 }
-
+function bindGlass(root,id,onUpdate){ const g=$('#'+id,root); if(g) g.onclick=()=>addWaterMl(250,g,onUpdate); }
+// Sumar ejercicio (minutos personalizados)
+const EX_TYPES=[['fuerza','Fuerza','dumb'],['bici','Bicicleta','bike'],['cinta','Cinta','run']];
+function addExerciseMin(min,type){const before=U.exMin<U.exGoal;U.exMin+=min;if(type==='fuerza')U.sessions=Math.min(7,(U.sessions||0)+1);DB.run('addExercise',U.id,{type,min});
+  if(before&&U.exMin>=U.exGoal)toast('¡Meta de ejercicio cumplida!','dumb');else toast(`+${min} min de ${EX_TYPES.find(t=>t[0]===type)[1].toLowerCase()}`,'dumb')}
+function exRing(size=96){const r=size/2-7,C=2*Math.PI*r,f=Math.min(1,U.exMin/U.exGoal);
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true" style="flex:none"><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--bg)" stroke-width="9"/><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${f>=1?SC.ok:'#A994E0'}" stroke-width="9" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-f)}" transform="rotate(-90 ${size/2} ${size/2})" style="transition:stroke-dashoffset .8s var(--ease)"/>
+  <g transform="translate(${size/2-12} ${size/2-12})" fill="none" stroke="var(--text)" stroke-width="2" stroke-linecap="round">${ICONS.dumb}</g></svg>`}
+// Campo numérico con validación y teclado numérico en celular
+const numField=(id,label,unit,ph)=>`<label class="numf"><span class="sr">${label}</span><input id="${id}" class="inp" type="number" inputmode="numeric" enterkeyhint="done" min="1" placeholder="${ph}"><span class="unit">${unit}</span></label>`;
 // ---------- P02 Panel ----------
 function healthScore(){const w=MODS.filter(m=>status(m.id)==='warn').length,c=MODS.filter(m=>status(m.id)==='crit').length;return {s:Math.max(5,100-w*12-c*30),w:w+c,c}}
 function todayLabel(){const d=new Date(MISSION.start+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+MISSION.day-1);const t=d.toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'});return t[0].toUpperCase()+t.slice(1)}
@@ -194,22 +200,36 @@ function bindRecs(root,after){
     if(r.done){comet(b);burst(b,8,'#B3E9C7');toast('¡Bien hecho! Recomendación completada'); after&&setTimeout(after,700);} });
 }
 const ORGANS={estres:'Cerebro',inmunidad:'Ganglios',cardio:'Corazón',metabolismo:'Estómago',renal:'Riñones',hidratacion:'Vejiga',osea:'Huesos',radiacion:'Piel y ADN'};
-// Cuerpo humano interactivo: cada órgano toma el color del estado de su módulo
-function bodyMap(sel){const col=id=>SC[status(id)],al=id=>status(id)!=='ok'?'organ-alert':'';
-  const o=(id,shape)=>`<g class="organ ${al(id)} ${sel===id?'sel':''}" data-mod="${id}" tabindex="0" role="button" aria-label="${ORGANS[id]} · ${MOD[id].name}: ${ST[status(id)][2]}" style="--oc:${col(id)}">${shape}</g>`;
-  return `<svg class="bodymap" viewBox="0 0 200 360" width="210" role="group" aria-label="Mapa del cuerpo: toca un órgano para ver su estado">
-    <defs><filter id="aura" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5"/></filter></defs>
-    <g class="silh-aura" style="--oc:${col('radiacion')}" filter="url(#aura)"><circle cx="100" cy="40" r="27"/><path d="M60 80Q100 66 140 80L152 150Q148 200 140 214L60 214Q52 200 48 150Z"/><path d="M58 84Q38 94 32 150L28 214M142 84Q162 94 168 150L172 214M80 214L74 334M120 214L126 334"/></g>
-    <g class="silh"><circle cx="100" cy="40" r="26"/><rect x="91" y="64" width="18" height="14" rx="4"/><path d="M60 80Q100 66 140 80L152 150Q148 200 140 214L60 214Q52 200 48 150Z"/>
-      <path class="limb" d="M58 84Q38 94 32 150L28 214M142 84Q162 94 168 150L172 214"/><path class="limb leg" d="M80 214L74 334M120 214L126 334"/></g>
-    ${o('estres','<path d="M84 38c-2-10 6-17 16-17s18 7 16 17c3 4 0 11-6 11H90c-6 0-9-7-6-11z"/><path class="ln" d="M92 30q4 4 0 8M104 27q-3 5 2 9M110 36q-4 2-2 6"/>')}
-    ${o('inmunidad','<circle class="hit" cx="88" cy="74" r="10"/><circle class="hit" cx="112" cy="74" r="10"/><circle class="hit" cx="68" cy="100" r="10"/><circle class="hit" cx="132" cy="100" r="10"/><circle cx="88" cy="74" r="4.5"/><circle cx="112" cy="74" r="4.5"/><circle cx="68" cy="100" r="4.5"/><circle cx="132" cy="100" r="4.5"/><circle cx="84" cy="206" r="4"/><circle cx="116" cy="206" r="4"/>')}
-    ${o('cardio','<path class="beat" d="M113 102c4-6 14-4 14 4 0 8-14 16-14 16s-14-8-14-16c0-8 10-10 14-4z"/>')}
-    ${o('metabolismo','<path d="M80 132c8-6 22-4 24 4 2 10-6 20-18 20-8 0-12-6-10-12 1-4 6-4 6-8 0-2-3-3-2-4z"/>')}
-    ${o('renal','<ellipse cx="80" cy="170" rx="8" ry="13"/><ellipse cx="120" cy="170" rx="8" ry="13"/>')}
-    ${o('hidratacion','<path d="M88 196c0-6 6-8 12-8s12 2 12 8c0 7-6 11-12 11s-12-4-12-11z"/>')}
-     ${o('osea','<rect class="hit" x="66" y="216" width="68" height="96" rx="12"/><path class="bone" d="M81 228L77 300M119 228L123 300"/><circle cx="81" cy="226" r="5"/><circle cx="119" cy="226" r="5"/><circle cx="77" cy="302" r="5"/><circle cx="123" cy="302" r="5"/>')}
-    ${o('radiacion','<circle class="hit" cx="158" cy="56" r="24"/><circle cx="158" cy="56" r="11"/><path class="ln" d="M158 38v-5M158 79v-5M140 56h-5M181 56h-5M146 44l-3-3M173 71l-3-3M146 68l-3 3M173 41l-3 3"/>')}
+// Cuerpo humano interactivo: silueta anatómica con órganos en su lugar y etiquetas con línea guía
+const BODY_HALF='M180 14C164 14 154 26 154 44C154 58 160 70 168 76L168 88C158 92 144 94 132 98C118 102 110 112 108 126L102 190C100 206 96 222 94 238C92 250 88 262 86 272C84 282 86 292 92 294C98 296 102 288 102 280L108 244C112 226 116 210 120 194L126 150C128 168 130 190 134 208C136 226 132 244 130 260C128 280 130 300 134 320L142 384C142 396 138 408 134 414C132 420 140 422 152 420C158 418 160 410 160 400L164 330C166 310 170 296 176 284L180 278Z';
+const ORGAN_SPOTS={ // [lado, y de la etiqueta, x,y del órgano]
+  estres:['l',36,163,36], inmunidad:['l',128,134,132], renal:['l',216,155,216], osea:['l',336,156,334],
+  radiacion:['r',40,240,40], cardio:['r',140,198,138], metabolismo:['r',188,206,186], hidratacion:['r',262,192,262]};
+function bodyMap(sel){const col=id=>SC[status(id)];
+  const shapes={
+    estres:'<path d="M162 38c-2-12 8-22 18-22s20 10 18 22c3 6-1 12-8 12h-20c-7 0-11-6-8-12z"/><path class="ln" d="M172 26q4 4 0 9M184 22q-4 5 1 10M192 32q-5 2-2 7M168 40q5-2 9 1"/>',
+    inmunidad:'<circle class="hit" cx="134" cy="132" r="12"/><circle class="hit" cx="226" cy="132" r="12"/><circle cx="170" cy="84" r="4"/><circle cx="190" cy="84" r="4"/><circle cx="134" cy="132" r="4.5"/><circle cx="226" cy="132" r="4.5"/><circle cx="163" cy="272" r="4"/><circle cx="197" cy="272" r="4"/>',
+    cardio:'<path class="beat" d="M190 154c-11-7-18-13-18-21 0-6 5-10 10-10 3 0 6 2 8 5 2-3 5-5 8-5 5 0 10 4 10 10 0 8-7 14-18 21z"/>',
+    metabolismo:'<path d="M188 174c8-6 21-4 23 6 2 10-5 19-16 20-7 1-12-3-12-8 0-4 4-5 5-9 0-3-2-5 0-9z"/>',
+    renal:'<ellipse cx="162" cy="218" rx="8" ry="13"/><ellipse cx="198" cy="218" rx="8" ry="13"/><path class="ln" d="M166 228l8 30M194 228l-8 30"/>',
+    hidratacion:'<path d="M168 260c0-7 6-10 12-10s12 3 12 10c0 8-6 12-12 12s-12-4-12-12z"/>',
+    osea:'<rect class="hit" x="138" y="286" width="84" height="96" rx="14"/><path class="bone" d="M158 292L152 370M202 292L208 370"/><circle cx="158" cy="290" r="5.5"/><circle cx="202" cy="290" r="5.5"/><circle cx="152" cy="372" r="5"/><circle cx="208" cy="372" r="5"/>',
+    radiacion:'<circle class="hit" cx="252" cy="40" r="24"/><circle cx="252" cy="40" r="10"/><path class="ln" d="M252 22v-5M252 63v-5M234 40h-5M275 40h-5M239 27l-3-3M268 56l-3-3M239 53l-3 3M268 24l-3 3"/>'};
+  const organ=id=>{const [side,ly,ox,oy]=ORGAN_SPOTS[id],s=status(id),L=side==='l';const tx=L?14:346,lx=L?92:268;
+    return `<g class="organ ${s!=='ok'?'organ-alert':''} ${sel===id?'sel':''}" data-mod="${id}" tabindex="0" role="button" aria-label="${ORGANS[id]}, ${MOD[id].name}: ${ST[s][2]}" style="--oc:${col(id)}">
+      <path class="lead" d="M${lx} ${ly}H${L?lx+10:lx-10}L${ox} ${oy}"/><circle class="leaddot" cx="${ox}" cy="${oy}" r="2.2"/>
+      <g class="org">${shapes[id]}</g>
+      <g class="lbl"><rect class="lblbg" x="${L?6:260}" y="${ly-18}" width="94" height="36" rx="9"/><text x="${tx}" y="${ly-3}" text-anchor="${L?'start':'end'}" class="lname">${ORGANS[id]}</text>
+        <text x="${tx}" y="${ly+12}" text-anchor="${L?'start':'end'}" class="lstat">${s==='ok'?'●':s==='warn'?'▲':'◆'} ${ST[s][2]}</text></g></g>`};
+  return `<svg class="bodymap" viewBox="0 0 360 430" role="group" aria-label="Mapa del cuerpo. Toca un órgano o su nombre para ver su estado.">
+    <defs><linearGradient id="skin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3E4182"/><stop offset="1" stop-color="#2A2B5A"/></linearGradient>
+      <radialGradient id="skinhl" cx=".5" cy=".28" r=".55"><stop offset="0" stop-color="#F0FFF1" stop-opacity=".09"/><stop offset="1" stop-color="#F0FFF1" stop-opacity="0"/></radialGradient>
+      <filter id="aura" x="-20%" y="-10%" width="140%" height="120%"><feGaussianBlur stdDeviation="7"/></filter><path id="bhalf" d="${BODY_HALF}"/></defs>
+    <g class="aura" style="--oc:${col('radiacion')}" filter="url(#aura)"><use href="#bhalf"/><use href="#bhalf" transform="matrix(-1 0 0 1 360 0)"/></g>
+    <g class="skin"><use href="#bhalf"/><use href="#bhalf" transform="matrix(-1 0 0 1 360 0)"/></g>
+    <g fill="url(#skinhl)"><use href="#bhalf"/><use href="#bhalf" transform="matrix(-1 0 0 1 360 0)"/></g>
+    <g class="anat" aria-hidden="true"><path d="M176 106c-12 0-24 14-26 34-2 18 2 32 10 32 9 0 16-7 16-16z"/><path d="M184 106c12 0 24 14 26 34 2 18-2 32-10 32-9 0-16-7-16-16z"/><path class="spine" d="M180 96V250"/><path class="ln" d="M150 104q30-8 60 0"/></g>
+    ${Object.keys(ORGAN_SPOTS).map(organ).join('')}
   </svg>`}
 function organDetail(id){const m=MOD[id],s=status(id);
   return `<div class="row" style="gap:10px;flex-wrap:wrap"><span style="color:${SC[s]}">${ic(m.icon,22)}</span><b>${ORGANS[id]}</b><span class="small muted">· ${m.name}</span>${chip(s)}</div>
@@ -225,20 +245,26 @@ const PANEL_W={
     const worstId=[...MODS].sort((a,b)=>sevOrder[status(a.id)]-sevOrder[status(b.id)])[0].id; S.organ=S.organ&&MOD[S.organ]?S.organ:worstId;
     return `<div class="card stk" style="display:flex;gap:28px;align-items:flex-start;padding:24px 28px">
       <div style="text-align:center;flex:none"><div id="bodywrap">${bodyMap(S.organ)}</div>${legend()}</div>
-      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:16px">
+      <div class="estado-sum" style="flex:1;min-width:0;display:flex;flex-direction:column;gap:16px;width:100%">
         <div class="row" style="gap:14px"><svg width="56" height="56" viewBox="0 0 56 56" aria-label="Puntaje ${hs.s} de 100" role="img" style="flex:none"><circle cx="28" cy="28" r="23" fill="none" stroke="var(--bg)" stroke-width="6"/><circle class="ringfg" cx="28" cy="28" r="23" fill="none" stroke="${SC[hs.c?'crit':hs.w?'warn':'ok']}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${2*Math.PI*23}" stroke-dashoffset="${2*Math.PI*23}" data-off="${2*Math.PI*23*(1-hs.s/100)}" transform="rotate(-90 28 28)"/><text x="28" y="33" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="16" fill="var(--text)">${hs.s}</text></svg>
           <div><h2 style="font-size:22px;line-height:28px">${hs.w?`${hs.w} ${hs.w>1?'sistemas necesitan':'sistema necesita'} atención`:'Todo tu cuerpo está estable'}</h2><p class="muted small">Toca un órgano para ver su estado · última muestra: día ${U.samples.at(-1).day}</p></div></div>
         ${al?`<div class="row" style="gap:12px;padding:12px 14px;border-radius:14px;background:${al.severity==='crit'?'rgba(255,90,95,.14)':'rgba(255,210,63,.12)'};flex-wrap:wrap">${chip(al.severity)}<span style="flex:1;min-width:160px;font-weight:600">${al.title}</span><button class="btn ghost m" onclick="go('m-${al.module}')">Ver qué hacer ${ic('right',16)}</button></div>`:''}
         <div class="organcard" id="orgcard" aria-live="polite">${organDetail(S.organ)}</div>
       </div></div>`}},
-  hoy:{name:'Qué hacer hoy',span:1,html(){const top3=U.recs.filter(r=>!r.done).sort((a,b)=>PRIO[a.priority]-PRIO[b.priority]).slice(0,3);
+  hoy:{name:'Qué hacer hoy',span:2,html(){const top3=U.recs.filter(r=>!r.done).sort((a,b)=>PRIO[a.priority]-PRIO[b.priority]).slice(0,3);
     return `<div class="card"><div class="between" style="margin-bottom:12px"><h3>Qué hacer hoy</h3><a href="#recomendaciones" class="small" style="color:var(--lav2);min-height:44px;display:flex;align-items:center">Ver todo</a></div>
-      <div class="grid" style="gap:10px">${top3.map(r=>recCard(r,true)).join('')||'<p class="muted small">¡Todo hecho por hoy!</p>'}</div></div>`}},
+      <div class="grid rg" style="gap:10px;grid-template-columns:repeat(3,minmax(0,1fr))">${top3.map(r=>recCard(r,true)).join('')||'<p class="muted small">¡Todo hecho por hoy!</p>'}</div></div>`}},
   agua:{name:'Agua de hoy',span:1,html(){return `<div class="card"><div class="between"><h3>Agua de hoy</h3><span class="cap muted">Toca el vaso: +250 ml</span></div>
       <div class="row" style="gap:20px;margin-top:12px"><div class="glass-wrap">${glassSVG(120,'pg')}</div>
       <div><div class="num" style="font:700 32px var(--ff-h)" id="wtxt">${(U.water/1000).toFixed(2)} L</div><div class="muted small">de ${(U.waterGoal/1000).toFixed(1)} L</div>
        <div class="range" style="margin-top:14px;width:140px"><div class="band" id="wbar" style="left:0;width:${Math.min(100,U.water/U.waterGoal*100)}%;background:var(--lav2);transition:width .8s var(--ease)"></div></div>
-       <div class="cap muted" style="margin-top:8px" id="wleft">${U.water>=U.waterGoal?'¡Meta cumplida!':`Faltan ${U.waterGoal-U.water} ml`}</div></div></div></div>`}},
+       <div class="cap muted" style="margin-top:8px" id="wleft">${U.water>=U.waterGoal?'¡Meta cumplida!':`Faltan ${U.waterGoal-U.water} ml`}</div></div></div>
+      <div class="hr"></div><div class="small muted" style="margin-bottom:8px">Registrar otra cantidad</div>
+      <form class="logrow" id="wform" novalidate><div class="row" style="gap:6px">${[150,330,500].map(v=>`<button type="button" class="tog qv" data-v="${v}">${v}</button>`).join('')}</div>${numField('wml','Mililitros de agua','ml','Otra')}<button class="btn secondary m" type="submit">${ic('plus',18)}Agregar</button></form><p class="small ferr" id="werr" role="alert"></p></div>`}},
+  ejercicio:{name:'Ejercicio de hoy',span:1,html(){return `<div class="card"><div class="between"><h3>Ejercicio de hoy</h3><span class="cap muted">Meta: ${U.exGoal} min</span></div>
+      <div class="row" style="gap:18px;margin-top:12px"><span id="exring">${exRing()}</span><div><div class="num" style="font:700 32px var(--ff-h)" id="extxt">${U.exMin} min</div><div class="muted small" id="exleft">${U.exMin>=U.exGoal?'¡Meta cumplida!':`Faltan ${U.exGoal-U.exMin} min`}</div><div class="cap muted" style="margin-top:6px">Fuerza esta semana: <b id="exsess">${U.sessions||0}</b> de 4</div></div></div>
+      <div class="hr"></div><div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:8px" role="radiogroup" aria-label="Tipo de ejercicio">${EX_TYPES.map(([k,l,i],n)=>`<button type="button" class="tog extype ${n===0?'on':''}" data-t="${k}" role="radio" aria-checked="${n===0}">${ic(i,16)}${l}</button>`).join('')}</div>
+      <form class="logrow" id="exform" novalidate><div class="row" style="gap:6px">${[15,30,45].map(v=>`<button type="button" class="tog qv" data-v="${v}">${v}</button>`).join('')}</div>${numField('exmin','Minutos de ejercicio','min','Otro')}<button class="btn secondary m" type="submit">${ic('plus',18)}Registrar</button></form><p class="small ferr" id="exerr" role="alert"></p></div>`}},
   modulos:{name:'Tus módulos',span:2,html(){const L=getLayout();const def=[...MODS].sort((a,b)=>sevOrder[status(a.id)]-sevOrder[status(b.id)]).map(m=>m.id);
     const order=ordered(def,L.mods);
     return `<div class="wbody"><div class="between" style="margin:4px 2px 12px"><h3>Tus módulos</h3><span class="cap muted hide-m">${S.edit?'Arrastra cada tarjeta a donde quieras':'Toca uno para ver el detalle'}</span></div>
@@ -252,7 +278,7 @@ PAGES.panel={
   html(){const na=activeAlerts().length;
     return `<div class="top"><div class="grow"><h1 style="font-size:32px;line-height:40px">Hola, ${firstName()}</h1><p class="muted">${todayLabel()} · Día ${MISSION.day} de ${MISSION.total}</p></div>
       ${editBtn()}<button class="iconbtn hide-m ${na?'wig':''}" onclick="go('alertas')" aria-label="Alertas">${ic('bell',22)}${na?`<span class="badge">${na}</span>`:''}</button>
-      <button class="btn primary hide-m" onclick="go('nueva-muestra')">${ic('flask')}Nueva muestra<span class="cdpill" data-cd="short">${sampleState().short}</span></button></div>
+</div>
     ${editBar('tu panel',['panel','panelHidden','mods'])}
     ${widgetGrid('panel',PANEL_W,[])}`;
   },
@@ -261,7 +287,17 @@ PAGES.panel={
     const pick=id=>{S.organ=id;$('#bodywrap',root).innerHTML=bodyMap(id);$('#orgcard',root).innerHTML=organDetail(id);bindOrgans()};
     const bindOrgans=()=>$$('.organ',root).forEach(g=>{g.onclick=()=>pick(g.dataset.mod);g.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick(g.dataset.mod);$(`.organ[data-mod="${g.dataset.mod}"]`,root)?.focus()}}});
     if($('#bodywrap',root))bindOrgans();
-    bindGlass(root,'pg',()=>{$('#wtxt').textContent=(U.water/1000).toFixed(2)+' L';$('#wbar').style.width=Math.min(100,U.water/U.waterGoal*100)+'%';$('#wleft').textContent=U.water>=U.waterGoal?'¡Meta cumplida!':`Faltan ${U.waterGoal-U.water} ml`});
+    const wUpd=()=>{$('#wtxt').textContent=(U.water/1000).toFixed(2)+' L';$('#wbar').style.width=Math.min(100,U.water/U.waterGoal*100)+'%';$('#wleft').textContent=U.water>=U.waterGoal?'¡Meta cumplida!':`Faltan ${U.waterGoal-U.water} ml`};
+    bindGlass(root,'pg',wUpd);
+    const logForm=(form,input,err,minV,maxV,unit,apply)=>{const f=$(form,root);if(!f)return;const inp=$(input,root),e=$(err,root);
+      $$('.qv',f).forEach(b=>b.onclick=()=>{inp.value=b.dataset.v;$$('.qv',f).forEach(x=>x.classList.toggle('on',x===b));e.textContent=''});
+      inp.oninput=()=>{$$('.qv',f).forEach(x=>x.classList.toggle('on',x.dataset.v===inp.value));e.textContent=''};
+      f.onsubmit=ev=>{ev.preventDefault();const v=Math.round(+inp.value);
+        if(!inp.value||!(v>=minV&&v<=maxV)){e.textContent=`Escribe un valor entre ${minV} y ${maxV} ${unit}.`;inp.focus();return}
+        apply(v);inp.value='';$$('.qv',f).forEach(x=>x.classList.remove('on'))}};
+    logForm('#wform','#wml','#werr',50,2000,'ml',v=>addWaterMl(v,$('#pg',root),wUpd));
+    let exType='fuerza';$$('.extype',root).forEach(b=>b.onclick=()=>{exType=b.dataset.t;$$('.extype',root).forEach(x=>{x.classList.toggle('on',x===b);x.setAttribute('aria-checked',x===b)})});
+    logForm('#exform','#exmin','#exerr',1,300,'min',v=>{addExerciseMin(v,exType);$('#exring',root).innerHTML=exRing();$('#extxt',root).textContent=U.exMin+' min';$('#exleft',root).textContent=U.exMin>=U.exGoal?'¡Meta cumplida!':`Faltan ${U.exGoal-U.exMin} min`;$('#exsess',root).textContent=U.sessions||0;burst($('#exring',root),6,'#A994E0')});
     bindRecs(root,()=>rerender()); bindEditBar(root); bindWidgetGrid(root);
     const mg=$('#mgrid',root); if(mg){const save=()=>setLayout({mods:$$('.mcard',mg).map(c=>c.dataset.sid)});
       sortable(mg,{item:'.mcard',handle:'.mgrip',onChange:save});

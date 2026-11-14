@@ -81,7 +81,7 @@ Si la conexión falla, la app sigue funcionando con los datos demo y muestra un 
 - **Modo cabina (alto contraste):**
   - Se activa en Perfil → Preferencias, o solo si el sistema operativo pide más contraste.
   - Fondo casi negro y texto blanco puro, pensado para poca luz.
-- **Cuerpo humano interactivo:** está en el panel. Cada órgano se pinta con el estado de su módulo, y los que necesitan atención laten. Al tocar uno aparece su ficha con el valor clave y el acceso al módulo.
+- **Cuerpo humano interactivo:** está en el panel. Es una silueta anatómica con cada órgano en su lugar y su nombre y estado escritos al lado. Cada órgano se pinta con el estado de su módulo, y los que necesitan atención laten. Al tocar uno aparece su ficha con el valor clave y el acceso al módulo.
   - Cerebro → Estrés y sueño
   - Ganglios → Inmunidad
   - Corazón → Cardiovascular
@@ -93,6 +93,7 @@ Si la conexión falla, la app sigue funcionando con los datos demo y muestra un 
 - **Nueva muestra con cuenta regresiva:** se muestra en vivo en el panel (primer bloque), en el botón superior, en el menú, en la pestaña del celular y en la página de muestra.
   - Indica "Es hora de tu muestra" si hay una pendiente, o el tiempo que falta para la siguiente.
   - El horario sale de `mission.sample_times` (por defecto 07:30 y 15:30).
+- **Agua y ejercicio con valor personalizado:** en el panel se registra el agua con el vaso (+250 ml), con atajos (150, 330 y 500 ml) o escribiendo cualquier cantidad entre 50 y 2000 ml. El ejercicio se registra eligiendo el tipo (fuerza, bicicleta o cinta) y los minutos (atajos o de 1 a 300). La fuerza también suma a las sesiones semanales de Salud ósea. Las metas diarias se cambian en Perfil, y con base de datos se guardan en `water_log` y `exercise_log`.
 - **Guías animadas** (`js/guides.js`): cuatro procedimientos de 4 pasos con animaciones SVG que funcionan sin internet.
   - Las guías son: cómo tomar la muestra, cómo leer la tira reactiva, refugio ante tormenta solar, y dolor lumbar intenso (primeros auxilios).
   - Se abren desde Consejos, desde la página de muestra, desde cada módulo relacionado y desde las alertas.

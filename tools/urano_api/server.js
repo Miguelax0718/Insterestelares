@@ -10,13 +10,13 @@ const q = (sql, p = []) => pool.query(sql, p).then(r => r.rows);
 const crewOut = c => ({ id: c.id, name: c.name, role: c.role, initials: c.initials, color: c.color, age: c.age,
   weight: +c.weight_kg, height: +c.height_m, dose: +c.dose_msv, hr: c.heart_rate, bp: c.blood_pressure,
   water: c.water_ml_today, waterGoal: c.water_goal_ml, sleep: +c.sleep_hours, sessions: c.resistance_sessions_week,
-  energy: c.energy_pct, protein: c.protein_pct, mood: c.mood });
+  energy: c.energy_pct, protein: c.protein_pct, mood: c.mood, exMin: c.exercise_min_today, exGoal: c.exercise_goal_min });
 
 const routes = [
   ['GET', /^\/api\/crew$/, async () => (await q('select * from crew order by sort_order')).map(crewOut)],
   ['POST', /^\/api\/crew$/, async (_, c) => { await q(`insert into crew (id, sort_order, name, role, initials, color, age, weight_kg, height_m, dose_msv, heart_rate, blood_pressure,
-      water_ml_today, water_goal_ml, sleep_hours, resistance_sessions_week, energy_pct, protein_pct, mood) values ($1,99,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
-      [c.id, c.name, c.role, c.initials, c.color, c.age, c.weight, c.height, c.dose || 0, c.hr, c.bp, c.water || 0, c.waterGoal || 2500, c.sleep, c.sessions || 0, c.energy || 0, c.protein || 0, c.mood ?? 2]); return null; }],
+      water_ml_today, water_goal_ml, sleep_hours, resistance_sessions_week, energy_pct, protein_pct, mood, exercise_min_today, exercise_goal_min) values ($1,99,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
+      [c.id, c.name, c.role, c.initials, c.color, c.age, c.weight, c.height, c.dose || 0, c.hr, c.bp, c.water || 0, c.waterGoal || 2500, c.sleep, c.sessions || 0, c.energy || 0, c.protein || 0, c.mood ?? 2, c.exMin || 0, c.exGoal || 90]); return null; }],
   ['GET', /^\/api\/mission$/, async () => { const [m] = await q('select * from mission limit 1');
     const ev = await q('select day, class from solar_events where mission_id=$1 order by day', [m.id]);
     return { name: m.name, day: m.current_day, total: m.total_days, doseLimit: +m.dose_limit_msv, start: m.start_date.toISOString().slice(0,10), sampleTimes: m.sample_times, events: ev.map(e => ({ day: e.day, cls: e.class })) }; }],
@@ -32,7 +32,10 @@ const routes = [
   ['GET', /^\/api\/crew\/([\w-]+)\/ranges$/, async ([id]) => Object.fromEntries((await q('select biomarker_id, lo, hi from personal_ranges where crew_id=$1', [id])).map(r => [r.biomarker_id, { lo: +r.lo, hi: +r.hi }]))],
   ['PATCH', /^\/api\/recommendations\/([\w-]+)$/, async ([id], b) => { await q('update recommendations set done=$2 where id=$1', [id, !!b.done]); return null; }],
   ['PATCH', /^\/api\/alerts\/([\w-]+)$/, async ([id], b) => { await q('update alerts set status=$2 where id=$1', [id, b.status]); return null; }],
-  ['POST', /^\/api\/crew\/([\w-]+)\/water$/, async ([id], b) => { await q('insert into water_log(crew_id, ml) values ($1,$2)', [id, b.ml | 0]); return null; }],
+  ['POST', /^\/api\/crew\/([\w-]+)\/exercise$/, async ([id], b) => { const min = b.min | 0; if (!['fuerza','bici','cinta'].includes(b.type) || min < 1 || min > 300) throw Object.assign(new Error('Ejercicio inválido'), { status: 400 });
+    await q('insert into exercise_log(crew_id, type, minutes) values ($1,$2,$3)', [id, b.type, min]); return null; }],
+  ['POST', /^\/api\/crew\/([\w-]+)\/water$/, async ([id], b) => { const ml = b.ml | 0; if (ml < 1 || ml > 3000) throw Object.assign(new Error('Cantidad inválida'), { status: 400 });
+    await q('insert into water_log(crew_id, ml) values ($1,$2)', [id, ml]); return null; }],
   ['POST', /^\/api\/crew\/([\w-]+)\/samples$/, async ([id], b) => { await q('insert into sample_requests(crew_id, payload) values ($1,$2)', [id, b]); return null; }],
 ];
 
@@ -51,7 +54,7 @@ http.createServer(async (req, res) => {
           if (out === null) { res.statusCode = 204; return res.end(); }
           if (out === undefined) { res.statusCode = 404; return res.end('{}'); }
           res.setHeader('Content-Type', 'application/json'); return res.end(JSON.stringify(out));
-        } catch (e) { console.error(e); res.statusCode = 500; return res.end(JSON.stringify({ error: e.message })); } } }
+        } catch (e) { console.error(e); res.statusCode = e.status || 500; return res.end(JSON.stringify({ error: e.message })); } } }
     res.statusCode = 404; return res.end('{"error":"ruta no encontrada"}');
   }
   let file = path.join(ROOT, decodeURIComponent(url));

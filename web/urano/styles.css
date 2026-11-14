@@ -418,25 +418,34 @@ body.hc .btn.ghost,body.hc .tog{border-color:#C9C4EA}
 .tab.due .tbadge{display:block;animation:twk 1.6s ease-in-out infinite}
 
 /* ---------- Cuerpo humano interactivo ---------- */
-.bodymap{display:block;max-width:100%;height:auto;overflow:visible}
-.silh *{fill:var(--bg);stroke:#5F5980;stroke-width:2}
-.silh .limb{fill:none;stroke:var(--elev);stroke-width:18;stroke-linecap:round}
-.silh .leg{stroke-width:22}
-.silh-aura *{fill:none;stroke:var(--oc);stroke-width:10;stroke-linecap:round;opacity:.22}
+.bodymap{display:block;width:360px;max-width:100%;height:auto;overflow:visible}
+.bodymap .skin use{fill:url(#skin)}
+.bodymap .aura use{fill:var(--oc);opacity:.28}
+.bodymap .anat path{fill:#A994E0;fill-opacity:.1;stroke:#A994E0;stroke-opacity:.25;stroke-width:1.2}
+.bodymap .anat .spine{fill:none;stroke-dasharray:3 5;stroke-opacity:.35;stroke-width:2}
+.bodymap .anat .ln{fill:none}
 .organ{cursor:pointer;outline:none}
-.organ>*{fill:var(--oc);fill-opacity:.42;stroke:var(--oc);stroke-width:2;transition:fill-opacity .2s,stroke-width .2s}
-.organ .ln,.organ .bone{fill:none;stroke-linecap:round}
-.organ .bone{stroke-width:7}
-.organ.sel>*,.organ:focus-visible>*{fill-opacity:.8;stroke-width:3.2}
-.organ:focus-visible{filter:drop-shadow(0 0 6px var(--oc))}
-.organ-alert>*{animation:organPulse 1.8s ease-in-out infinite}
+.organ .org>*{fill:var(--oc);fill-opacity:.5;stroke:var(--oc);stroke-width:2;transition:fill-opacity .2s,stroke-width .2s}
+.organ .org .ln{fill:none;stroke-linecap:round;stroke-width:1.6;stroke-opacity:.8}
+.organ .org .bone{fill:none;stroke-width:8;stroke-linecap:round}
+.organ .lead{fill:none;stroke:var(--oc);stroke-width:1.3;stroke-opacity:.55;stroke-dasharray:2 3}
+.organ .leaddot{fill:var(--oc)}
+.organ .lblbg{fill:var(--bg);fill-opacity:.0;stroke:none;transition:fill-opacity .2s}
+.organ .lname{fill:var(--text);font:600 13px var(--ff)}
+.organ .lstat{fill:var(--oc);font:600 11px var(--ff)}
+.organ.sel .lblbg,.organ:focus-visible .lblbg{fill-opacity:.85;stroke:var(--oc);stroke-width:1.5}
+.organ.sel .org>*,.organ:focus-visible .org>*{fill-opacity:.85;stroke-width:3}
+.organ.sel .lead{stroke-opacity:1;stroke-dasharray:none}
+.organ-alert .org>*:not(.hit){animation:organPulse 1.8s ease-in-out infinite}
 @keyframes organPulse{50%{fill-opacity:.9}}
 .organ .beat{transform-box:fill-box;transform-origin:center;animation:beat .9s ease-in-out infinite}
+.organ .org>.hit{fill:transparent!important;stroke:none!important;animation:none!important}
+@media (hover:hover) and (pointer:fine){.organ:hover .org>*{fill-opacity:.8}.organ:hover .lblbg{fill-opacity:.6}}
 .legend{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px;font-size:12px;font-weight:600}
 .legend>span{display:inline-flex;align-items:center;gap:4px}
 .organcard{padding:16px;border-radius:14px;background:var(--bg);border:1px solid rgba(95,89,128,.5);animation:pageIn .25s var(--ease)}
 @media (hover:hover) and (pointer:fine){.organ:hover>*{fill-opacity:.75}}
-@media (max-width:760px){.bodymap{width:190px;margin:0 auto}}
+@media (max-width:760px){.bodymap{width:100%;margin:0 auto}}
 
 /* ---------- Guías animadas ---------- */
 .gplayer{width:560px}
@@ -490,6 +499,17 @@ body.hc .btn.ghost,body.hc .tog{border-color:#C9C4EA}
 .g-pill{animation:gPill 3s var(--ease) infinite}
 @keyframes gPill{0%,40%{opacity:0;transform:translate(-90px,-10px)}70%,100%{opacity:1;transform:none}}
 @media (max-width:760px){.gplayer{padding:16px}}
-.organ>.hit{fill:transparent!important;stroke:none!important;animation:none!important}
 .nav a .navcd{flex:none}
 .nav a .cdpill{font-size:11px;padding:0 7px}
+
+/* ---------- Registro con valor personalizado ---------- */
+.logrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.logrow .tog{min-height:44px;padding:0 12px;font-variant-numeric:tabular-nums}
+.numf{position:relative;display:inline-flex;align-items:center;flex:1;min-width:110px}
+.numf .inp{width:100%;height:44px;padding-right:42px}
+.numf .unit{position:absolute;right:12px;color:var(--text2);font-size:13px;pointer-events:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.ferr{color:var(--crit);min-height:20px;margin-top:6px}
+.inp::-webkit-outer-spin-button,.inp::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.inp[type=number]{-moz-appearance:textfield}
+@media (max-width:760px){.estado-sum{order:-1}.estado-sum+*,.stk>div:first-child{width:100%}}

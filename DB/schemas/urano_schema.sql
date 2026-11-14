@@ -39,7 +39,9 @@ create table if not exists crew (
   resistance_sessions_week int default 0,
   energy_pct               int default 0,      -- % de la meta de energía de hoy
   protein_pct              int default 0,
-  mood                     int default 2       -- 0 a 4
+  mood                     int default 2,      -- 0 a 4
+  exercise_min_today       int default 0,
+  exercise_goal_min        int default 90
 );
 
 -- Catálogo de biomarcadores. El id es el que usa la app (vol, ca, ntx...).
@@ -120,6 +122,24 @@ end $$ language plpgsql;
 drop trigger if exists water_log_add on water_log;
 create trigger water_log_add after insert on water_log for each row execute function add_water();
 
+-- Cada registro de ejercicio (tipo + minutos) suma al total del día.
+create table if not exists exercise_log (
+  id        serial primary key,
+  crew_id   text references crew(id) on delete cascade,
+  type      text check (type in ('fuerza','bici','cinta')),
+  minutes   int not null check (minutes between 1 and 300),
+  logged_at timestamptz default now()
+);
+create or replace function add_exercise() returns trigger as $$
+begin
+  update crew set exercise_min_today = exercise_min_today + new.minutes,
+                  resistance_sessions_week = resistance_sessions_week + (case when new.type = 'fuerza' then 1 else 0 end)
+   where id = new.crew_id;
+  return new;
+end $$ language plpgsql;
+drop trigger if exists exercise_log_add on exercise_log;
+create trigger exercise_log_add after insert on exercise_log for each row execute function add_exercise();
+
 -- Cuando alguien registra una muestra nueva en la app, el contexto llega aquí.
 -- El equipo de cálculos la procesa y crea la fila en samples + sample_values.
 create table if not exists sample_requests (
@@ -134,7 +154,7 @@ create table if not exists sample_requests (
 --  con la clave pública. No lo uses así con datos médicos reales.
 -- ---------------------------------------------------------------------
 do $$ declare t text; begin
-  foreach t in array array['mission','solar_events','crew','biomarkers','personal_ranges','samples','sample_values','recommendations','alerts','water_log','sample_requests'] loop
+  foreach t in array array['mission','solar_events','crew','biomarkers','personal_ranges','samples','sample_values','recommendations','alerts','water_log','exercise_log','sample_requests'] loop
     execute format('alter table %I enable row level security', t);
     execute format('drop policy if exists demo_all on %I', t);
     execute format('create policy demo_all on %I for all to anon using (true) with check (true)', t);

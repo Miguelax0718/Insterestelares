@@ -1,6 +1,6 @@
 -- URANO · datos de demostración (generados desde la app)
 begin;
-insert into mission (id,name,current_day,total_days,dose_limit_msv,start_date) values (1,'Artemis Gateway',142,180,600,'2026-06-26') on conflict (id) do nothing;
+insert into mission (id,name,current_day,total_days,dose_limit_msv,start_date,sample_times) values (1,'Artemis Gateway',142,180,600,'2026-06-26','{07:30,15:30}') on conflict (id) do nothing;
 insert into solar_events (mission_id,day,class) values (1,23,'Clase C');
 insert into solar_events (mission_id,day,class) values (1,61,'Clase M');
 insert into solar_events (mission_id,day,class) values (1,98,'Clase C');
@@ -31,11 +31,11 @@ insert into biomarkers values ('ket','Cetonas',null,0,true,0,0,0,1) on conflict 
 insert into biomarkers values ('prot','Proteína','mg/día',0,false,0,150,0,250) on conflict (id) do nothing;
 insert into biomarkers values ('urea','Urea','g/día',0,false,12,30,0,40) on conflict (id) do nothing;
 insert into biomarkers values ('crea','Creatinina','g/día',1,false,1,2,0,3) on conflict (id) do nothing;
-insert into crew values ('ana',0,'Ana Torres','Comandante','AT','#B3E9C7',41,64,1.68,142,72,'118/76',1700,2500,7.3,3,58,64,3) on conflict (id) do nothing;
-insert into crew values ('leo',1,'Leo Park','Ingeniero de vuelo','LP','#A994E0',38,78,1.8,139,68,'122/80',2300,2700,7,1,71,55,2) on conflict (id) do nothing;
-insert into crew values ('sami',2,'Sami Okoye','Oficial médica','SO','#F2A93B',44,70,1.74,140,81,'126/82',2200,2500,5.1,4,62,70,1) on conflict (id) do nothing;
-insert into crew values ('mateo',3,'Mateo Rojas','Especialista de misión','MR','#8367C7',35,75,1.77,188,74,'120/78',2400,2600,6.8,4,66,72,2) on conflict (id) do nothing;
-insert into crew values ('yuki',4,'Yuki Tanaka','Piloto','YT','#C2F8CB',36,58,1.62,141,76,'112/72',1900,2400,6.9,3,60,61,2) on conflict (id) do nothing;
+insert into crew values ('ana',0,'Ana Torres','Comandante','AT','#B3E9C7',41,64,1.68,142,72,'118/76',1700,2500,7.3,3,58,64,3,45,90) on conflict (id) do nothing;
+insert into crew values ('leo',1,'Leo Park','Ingeniero de vuelo','LP','#A994E0',38,78,1.8,139,68,'122/80',2300,2700,7,1,71,55,2,20,90) on conflict (id) do nothing;
+insert into crew values ('sami',2,'Sami Okoye','Oficial médica','SO','#FFD23F',44,70,1.74,140,81,'126/82',2200,2500,5.1,4,62,70,1,60,90) on conflict (id) do nothing;
+insert into crew values ('mateo',3,'Mateo Rojas','Especialista de misión','MR','#8367C7',35,75,1.77,188,74,'120/78',2400,2600,6.8,4,66,72,2,75,90) on conflict (id) do nothing;
+insert into crew values ('yuki',4,'Yuki Tanaka','Piloto','YT','#C2F8CB',36,58,1.62,141,76,'112/72',1900,2400,6.9,3,60,61,2,50,90) on conflict (id) do nothing;
 insert into samples values ('ana-103','ana',103,'2026-10-06T07:30:00.000Z','sensor');
 insert into sample_values values ('ana-103','vol',2.03),('ana-103','dens',1.016),('ana-103','osm',509),('ana-103','color',3),('ana-103','ca',155),('ana-103','ox',21),('ana-103','cit',691),('ana-103','ua',472),('ana-103','ph',6.2),('ana-103','ntx',41),('ana-103','ctx',289),('ana-103','ohdg',4.4),('ana-103','iso',0.67),('ana-103','leu',2),('ana-103','nit',0),('ana-103','bld',0),('ana-103','cort',45),('ana-103','mel',23),('ana-103','na',162),('ana-103','k',74),('ana-103','acr',18),('ana-103','glu',0),('ana-103','ket',0),('ana-103','prot',58),('ana-103','urea',22),('ana-103','crea',1.5);
 insert into samples values ('ana-104','ana',104,'2026-10-07T07:30:00.000Z','sensor');

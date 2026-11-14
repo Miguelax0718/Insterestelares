@@ -50,15 +50,15 @@ let U = null;           // usuario activo: {crew, samples, recs, alerts, ranges,
 // ---------- Datos de demostración ----------
 const MOCK = (()=>{
   const crew=[
-    {id:'ana',  name:'Ana Torres', role:'Comandante',            initials:'AT',color:'#B3E9C7',age:41,weight:64,height:1.68,dose:142,hr:72,bp:'118/76',water:1700,waterGoal:2500,sleep:7.3,sessions:3,energy:58,protein:64,mood:3,
+    {id:'ana',  name:'Ana Torres', role:'Comandante',            initials:'AT',color:'#B3E9C7',age:41,weight:64,height:1.68,dose:142,hr:72,bp:'118/76',water:1700,waterGoal:2500,sleep:7.3,sessions:3,energy:58,protein:64,mood:3,exMin:45,exGoal:90,
       target:{vol:1.4,dens:1.028,osm:890,color:5,ca:290,ox:42,cit:380,ph:5.9}},
-    {id:'leo',  name:'Leo Park',   role:'Ingeniero de vuelo',    initials:'LP',color:'#A994E0',age:38,weight:78,height:1.80,dose:139,hr:68,bp:'122/80',water:2300,waterGoal:2700,sleep:7.0,sessions:1,energy:71,protein:55,mood:2,
+    {id:'leo',  name:'Leo Park',   role:'Ingeniero de vuelo',    initials:'LP',color:'#A994E0',age:38,weight:78,height:1.80,dose:139,hr:68,bp:'122/80',water:2300,waterGoal:2700,sleep:7.0,sessions:1,energy:71,protein:55,mood:2,exMin:20,exGoal:90,
       target:{ntx:64,ctx:530}},
-    {id:'sami', name:'Sami Okoye', role:'Oficial médica',        initials:'SO',color:'#FFD23F',age:44,weight:70,height:1.74,dose:140,hr:81,bp:'126/82',water:2200,waterGoal:2500,sleep:5.1,sessions:4,energy:62,protein:70,mood:1,
+    {id:'sami', name:'Sami Okoye', role:'Oficial médica',        initials:'SO',color:'#FFD23F',age:44,weight:70,height:1.74,dose:140,hr:81,bp:'126/82',water:2200,waterGoal:2500,sleep:5.1,sessions:4,energy:62,protein:70,mood:1,exMin:60,exGoal:90,
       target:{cort:92,mel:7}},
-    {id:'mateo',name:'Mateo Rojas',role:'Especialista de misión',initials:'MR',color:'#8367C7',age:35,weight:75,height:1.77,dose:188,hr:74,bp:'120/78',water:2400,waterGoal:2600,sleep:6.8,sessions:4,energy:66,protein:72,mood:2,
+    {id:'mateo',name:'Mateo Rojas',role:'Especialista de misión',initials:'MR',color:'#8367C7',age:35,weight:75,height:1.77,dose:188,hr:74,bp:'120/78',water:2400,waterGoal:2600,sleep:6.8,sessions:4,energy:66,protein:72,mood:2,exMin:75,exGoal:90,
       target:{ohdg:11.2,iso:1.6}},
-    {id:'yuki', name:'Yuki Tanaka',role:'Piloto',                initials:'YT',color:'#C2F8CB',age:36,weight:58,height:1.62,dose:141,hr:76,bp:'112/72',water:1900,waterGoal:2400,sleep:6.9,sessions:3,energy:60,protein:61,mood:2,
+    {id:'yuki', name:'Yuki Tanaka',role:'Piloto',                initials:'YT',color:'#C2F8CB',age:36,weight:58,height:1.62,dose:141,hr:76,bp:'112/72',water:1900,waterGoal:2400,sleep:6.9,sessions:3,energy:60,protein:61,mood:2,exMin:50,exGoal:90,
       target:{leu:6,nit:1}},
   ];
   const mission={name:'Artemis Gateway',day:142,total:180,doseLimit:600,start:'2026-06-26',sampleTimes:['07:30','15:30'],
@@ -121,7 +121,7 @@ const MOCK = (()=>{
     async user(id){const cu=custom.find(x=>x.crew.id===id);if(cu)return clone({crew:cu.crew,samples:cu.samples,recs:[],alerts:[],ranges:{}});
       const c=crew.find(x=>x.id===id)||crew[0];const {target,...info}=c;
       return {crew:clone(info),samples:samples(c),recs:clone(recs[c.id]||[]),alerts:clone(alerts[c.id]||[]),ranges:{}}},
-    async setRec(){},async addWater(){},async resolveAlert(){},
+    async setRec(){},async addWater(){},async addExercise(){},async resolveAlert(){},
     async addCrew(c){custom.push({crew:c,samples:[]});save()},
     // En modo demo solo los tripulantes nuevos reciben muestras simuladas (los 5 del equipo ya traen su historial).
     async saveSample(crewId,d){const cu=custom.find(x=>x.crew.id===crewId);if(!cu)return;const sm=makeSample(cu.crew,mission.day,d);cu.samples.push(sm);save();return sm},
@@ -139,6 +139,7 @@ const REST = (()=>{
     async user(id){const [crew,samples,recs,alerts,ranges]=await Promise.all([j(`/crew/${id}`),j(`/crew/${id}/samples`),j(`/crew/${id}/recommendations`),j(`/crew/${id}/alerts`),j(`/crew/${id}/ranges`).catch(()=>({}))]);return {crew,samples,recs,alerts,ranges}},
     setRec:(id,done)=>send('PATCH',`/recommendations/${id}`,{done}),
     addWater:(crewId,ml)=>send('POST',`/crew/${crewId}/water`,{ml}),
+    addExercise:(crewId,e)=>send('POST',`/crew/${crewId}/exercise`,e),
     resolveAlert:id=>send('PATCH',`/alerts/${id}`,{status:'resolved'}),
     saveSample:(crewId,data)=>send('POST',`/crew/${crewId}/samples`,data),
     addCrew:c=>send('POST','/crew',c),
@@ -151,7 +152,7 @@ const SUPA = (()=>{
   const q=async path=>{const r=await fetch(`${DB_CONFIG.supabaseUrl}/rest/v1/${path}`,{headers:h()});if(!r.ok)throw new Error(`${r.status} en ${path}`);return r.json()};
   const send=(m,path,body)=>fetch(`${DB_CONFIG.supabaseUrl}/rest/v1/${path}`,{method:m,headers:{...h(),Prefer:'return=minimal'},body:JSON.stringify(body)});
   const crewRow=c=>({id:c.id,name:c.name,role:c.role,initials:c.initials,color:c.color,age:c.age,weight:c.weight_kg,height:c.height_m,dose:c.dose_msv,hr:c.heart_rate,bp:c.blood_pressure,
-    water:c.water_ml_today,waterGoal:c.water_goal_ml,sleep:c.sleep_hours,sessions:c.resistance_sessions_week,energy:c.energy_pct,protein:c.protein_pct,mood:c.mood});
+    water:c.water_ml_today,waterGoal:c.water_goal_ml,sleep:c.sleep_hours,sessions:c.resistance_sessions_week,energy:c.energy_pct,protein:c.protein_pct,mood:c.mood,exMin:c.exercise_min_today??0,exGoal:c.exercise_goal_min??90});
   return {
     async crew(){return (await q('crew?select=*&order=sort_order')).map(crewRow)},
     async mission(){const m=(await q('mission?select=*,solar_events(day,class)&limit=1'))[0];return {name:m.name,day:m.current_day,total:m.total_days,doseLimit:m.dose_limit_msv,start:m.start_date,sampleTimes:m.sample_times,events:(m.solar_events||[]).map(e=>({day:e.day,cls:e.class}))}},
@@ -165,10 +166,11 @@ const SUPA = (()=>{
         ranges:Object.fromEntries(g.map(x=>[x.biomarker_id,{lo:+x.lo,hi:+x.hi}]))}},
     setRec:(id,done)=>send('PATCH',`recommendations?id=eq.${id}`,{done}),
     addWater:(crewId,ml)=>send('POST','water_log',{crew_id:crewId,ml}),
+    addExercise:(crewId,e)=>send('POST','exercise_log',{crew_id:crewId,type:e.type,minutes:e.min}),
     resolveAlert:id=>send('PATCH',`alerts?id=eq.${id}`,{status:'resolved'}),
     saveSample:(crewId,d)=>send('POST','sample_requests',{crew_id:crewId,payload:d}),
     addCrew:async c=>{const r=await send('POST','crew',{id:c.id,sort_order:99,name:c.name,role:c.role,initials:c.initials,color:c.color,age:c.age,weight_kg:c.weight,height_m:c.height,dose_msv:c.dose,heart_rate:c.hr,blood_pressure:c.bp,
-      water_ml_today:c.water,water_goal_ml:c.waterGoal,sleep_hours:c.sleep,resistance_sessions_week:c.sessions,energy_pct:c.energy,protein_pct:c.protein,mood:c.mood});if(!r.ok)throw new Error('No se pudo crear el tripulante')},
+      water_ml_today:c.water,water_goal_ml:c.waterGoal,sleep_hours:c.sleep,resistance_sessions_week:c.sessions,energy_pct:c.energy,protein_pct:c.protein,mood:c.mood,exercise_min_today:c.exMin,exercise_goal_min:c.exGoal});if(!r.ok)throw new Error('No se pudo crear el tripulante')},
   };
 })();
 
@@ -185,13 +187,13 @@ const DB = {
   cache:{},
   async loadUser(id){ const d=await DB.api.user(id);
     d.samples.sort((a,b)=>a.takenAt<b.takenAt?-1:1);
-    DB.cache[id]={...d.crew, samples:d.samples, recs:d.recs, alerts:d.alerts, ranges:d.ranges||{}}; return DB.cache[id]; },
+    DB.cache[id]={exMin:0,exGoal:90,...d.crew, samples:d.samples, recs:d.recs, alerts:d.alerts, ranges:d.ranges||{}}; return DB.cache[id]; },
   async loadAll(){ await Promise.all(CREW.map(c=>DB.loadUser(c.id))); },
   use(id){ U=DB.cache[id]||DB.cache[CREW[0].id]; try{localStorage.setItem('urano-user',U.id)}catch(e){} return U; },
   async addCrew(c){ await DB.api.addCrew(c); CREW.push(c); await DB.loadUser(c.id); return c; },
   async saveSample(d){ U.lastSubmit=Date.now(); const out=await DB.api.saveSample(U.id,d);
     if(DB.source==='db'||MOCK.isCustom(U.id)){ const old=U,id=U.id; await DB.loadUser(id); DB.use(id);
-      for(const k of ['water','waterGoal','sleep','sessions','energy','protein','mood','lastSubmit']) U[k]=old[k]; }
+      for(const k of ['water','waterGoal','sleep','sessions','energy','protein','mood','lastSubmit','exMin','exGoal']) U[k]=old[k]; }
     return out; },
   run(fn,...a){ Promise.resolve(DB.api[fn](...a)).catch(e=>{console.warn(e);toast('No se pudo guardar en la base de datos','alc')}); },
 };
