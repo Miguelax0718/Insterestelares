@@ -9,6 +9,7 @@ import '../models/biomarkers/biomarker_baseline.dart';
 import '../models/contracts/bio_summary.dart';
 import '../providers/biomarker_providers.dart';
 import '../providers/biomarker_score_calculator.dart';
+import 'biomarker_trend_chart.dart';
 
 /// Nivel del semáforo biológico según el puntaje B.
 ///
@@ -99,23 +100,26 @@ class BiomarkerPanel extends ConsumerWidget {
             _MarkerTable(summary: summary),
             const SizedBox(height: 16),
             const Text(
-              'Evolución en la misión (% vs. línea base)',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              'Evolución en la misión',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             ),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 220,
-              child: _MissionChart(repo: repo, astronautId: astronaut, day: day),
+            const SizedBox(height: 4),
+            const Text(
+              'La línea "normal" es tu valor antes del vuelo. El color del fondo '
+              'y de cada punto te dice cómo vas. Toca un punto para ver el detalle.',
+              style: TextStyle(color: Colors.white54, fontSize: 12),
             ),
             const SizedBox(height: 8),
             const Wrap(
               spacing: 16,
               children: [
-                _Legend(color: SpaceTheme.neonPurple, text: '8-OHdG (orina)'),
-                _Legend(color: SpaceTheme.cyan, text: 'Linfocitos (sangre)'),
-                _Legend(color: SpaceTheme.warningYellow, text: 'Tormenta solar'),
+                _Legend(color: SpaceTheme.green, text: 'Normal'),
+                _Legend(color: SpaceTheme.warningYellow, text: 'Vigilar'),
+                _Legend(color: SpaceTheme.dangerRed, text: 'Alerta'),
               ],
             ),
+            const SizedBox(height: 12),
+            _MissionCharts(repo: repo, astronautId: astronaut, day: day),
             const SizedBox(height: 12),
             const Text(
               'Datos simulados. La sangre previa al vuelo es real (Inspiration4, '
@@ -222,8 +226,10 @@ class _MarkerTable extends StatelessWidget {
   }
 }
 
-class _MissionChart extends StatelessWidget {
-  const _MissionChart({
+/// Una gráfica por marcador clave (orina y sangre), cada una con sus propias
+/// zonas de color, para no mezclar escalas ni direcciones en una sola.
+class _MissionCharts extends StatelessWidget {
+  const _MissionCharts({
     required this.repo,
     required this.astronautId,
     required this.day,
@@ -256,68 +262,32 @@ class _MissionChart extends StatelessWidget {
               _clampY((b.lymphocytes10e9PerL / lymphBase - 1) * 100)),
     ];
     final spe = repo.lastSolarEventAt(repo.dateOfMissionDay(repo.missionDays + 1));
+    final speDay = spe == null ? null : _dayOf(spe);
 
-    return LineChart(
-      LineChartData(
-        minX: 0,
-        maxX: (repo.missionDays + 1).toDouble(),
-        minY: -100,
-        maxY: 150,
-        gridData: const FlGridData(drawVerticalLine: false, horizontalInterval: 50),
-        borderData: FlBorderData(show: false),
-        titlesData: FlTitlesData(
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 40,
-              interval: 50,
-              getTitlesWidget: (v, meta) => Text('${v.toInt()}%',
-                  style: const TextStyle(fontSize: 10, color: Colors.white54)),
-            ),
-          ),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              interval: 30,
-              getTitlesWidget: (v, meta) => v % 30 == 0
-                  ? Text('d${v.toInt()}',
-                      style: const TextStyle(fontSize: 10, color: Colors.white54))
-                  : const SizedBox.shrink(),
-            ),
-          ),
+    return Column(
+      children: [
+        BiomarkerTrendChart(
+          key: const Key('trendChart_ohdg'),
+          title: '8-OHdG en orina · daño al ADN',
+          meaning: 'Si SUBE, hay más daño oxidativo en las células.',
+          spots: ohdg,
+          lowerIsWorse: false,
+          missionDays: repo.missionDays,
+          selectedDay: day,
+          solarEventDay: speDay,
         ),
-        extraLinesData: ExtraLinesData(
-          horizontalLines: [
-            HorizontalLine(y: 0, color: Colors.white24, strokeWidth: 1),
-          ],
-          verticalLines: [
-            if (spe != null)
-              VerticalLine(
-                x: _dayOf(spe).toDouble(),
-                color: SpaceTheme.warningYellow,
-                strokeWidth: 1.5,
-                dashArray: [6, 4],
-              ),
-            VerticalLine(x: day.toDouble(), color: Colors.white38, strokeWidth: 1),
-          ],
+        const SizedBox(height: 20),
+        BiomarkerTrendChart(
+          key: const Key('trendChart_lymphocytes'),
+          title: 'Linfocitos en sangre · defensas',
+          meaning: 'Si BAJAN, tus defensas se debilitan (pasa tras dosis altas).',
+          spots: lymph,
+          lowerIsWorse: true,
+          missionDays: repo.missionDays,
+          selectedDay: day,
+          solarEventDay: speDay,
         ),
-        lineBarsData: [
-          LineChartBarData(
-            spots: ohdg,
-            color: SpaceTheme.neonPurple,
-            barWidth: 2,
-            dotData: const FlDotData(show: false),
-          ),
-          LineChartBarData(
-            spots: lymph,
-            color: SpaceTheme.cyan,
-            barWidth: 2,
-            dotData: const FlDotData(show: true),
-          ),
-        ],
-      ),
+      ],
     );
   }
 }
@@ -332,7 +302,15 @@ class _Legend extends StatelessWidget {
   Widget build(BuildContext context) => Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(width: 12, height: 3, color: color),
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.35),
+              border: Border.all(color: color),
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
           const SizedBox(width: 6),
           Text(text, style: const TextStyle(fontSize: 11, color: Colors.white70)),
         ],
