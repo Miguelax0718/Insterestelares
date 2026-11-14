@@ -7,7 +7,6 @@ import 'package:astramed/core/theme/space_theme.dart';
 import 'package:astramed/features/01_general_health/domain/scientific_criteria_engine.dart';
 import 'package:astramed/features/01_general_health/models/vitals_record.dart';
 import 'package:astramed/features/01_general_health/presentation/providers/telemetry_panel_provider.dart';
-import 'package:astramed/features/01_general_health/presentation/widgets/device_availability_card.dart';
 import 'package:astramed/features/01_general_health/presentation/widgets/gamified_health_guide_card.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
@@ -191,8 +190,6 @@ class GeneralHealthView extends ConsumerWidget {
           activeContext: activeContext,
           vitals: vitals,
         ),
-        const SizedBox(height: 12),
-        DeviceAvailabilityCard(devices: telemetrySnapshot.devices),
         const SizedBox(height: 16),
         _buildManualAssessmentButton(context, ref, astronaut),
       ],
@@ -286,15 +283,17 @@ class GeneralHealthView extends ConsumerWidget {
     List<TelemetryMachine> connectedMachines,
     bool isLiveStreaming,
   ) {
+    final hasActiveSensors = connectedMachines.isNotEmpty;
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: SpaceTheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: connectedMachines.isNotEmpty
+          color: hasActiveSensors
               ? SpaceTheme.cyan.withValues(alpha: 0.5)
-              : Colors.white12,
+              : SpaceTheme.warningYellow.withValues(alpha: 0.6),
         ),
       ),
       child: Column(
@@ -303,132 +302,154 @@ class GeneralHealthView extends ConsumerWidget {
           Row(
             children: [
               Icon(
-                isLiveStreaming ? Icons.sensors : Icons.sensors_off,
-                color: isLiveStreaming ? SpaceTheme.green : SpaceTheme.cyan,
+                hasActiveSensors
+                    ? (isLiveStreaming ? Icons.sensors : Icons.sync)
+                    : Icons.sensors_off,
+                color: hasActiveSensors
+                    ? (isLiveStreaming ? SpaceTheme.green : SpaceTheme.cyan)
+                    : SpaceTheme.warningYellow,
                 size: 18,
               ),
               const SizedBox(width: 8),
-              Expanded(
+              const Expanded(
                 child: Text(
-                  'Equipos de Telemetría (${connectedMachines.length} conectados)',
-                  style: const TextStyle(
+                  'Recepción Automática de Datos',
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
                 ),
               ),
-              if (isLiveStreaming)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: SpaceTheme.green.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: const Text(
-                    'LIVE',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: SpaceTheme.green,
+              Switch(
+                value: hasActiveSensors && isLiveStreaming,
+                activeTrackColor: SpaceTheme.green.withValues(alpha: 0.5),
+                activeThumbColor: SpaceTheme.green,
+                onChanged: hasActiveSensors
+                    ? (_) {
+                        ref
+                            .read(telemetryProvider.notifier)
+                            .toggleLiveStreaming(astronaut.id);
+                      }
+                    : null,
+              ),
+            ],
+          ),
+          if (!hasActiveSensors) ...[
+            const SizedBox(height: 4),
+            const Text(
+              'No tienes sensores activos en este momento para recibir datos automáticamente. Puedes ingresar tus mediciones manualmente o activar sensores simulados.',
+              style: TextStyle(fontSize: 11, color: SpaceTheme.warningYellow),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: SpaceTheme.cyan,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
                     ),
                   ),
+                  icon: const Icon(Icons.edit_note, size: 16),
+                  label: const Text(
+                    'Ingresar Datos Manualmente',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: () =>
+                      _showManualInputDialog(context, ref, astronaut),
                 ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          if (connectedMachines.isNotEmpty)
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: connectedMachines.map((m) {
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: SpaceTheme.card,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.white12),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: SpaceTheme.cyan,
+                    side: const BorderSide(color: SpaceTheme.cyan),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.check_circle,
-                        size: 11,
-                        color: SpaceTheme.green,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        m.code,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
+                  icon: const Icon(Icons.tune, size: 15),
+                  label: const Text(
+                    'Activar Sensores',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                   ),
-                );
-              }).toList(),
+                  onPressed: () {
+                    TelemetryConfigModal.show(
+                      context,
+                      initialAstronautId: astronaut.id,
+                    );
+                  },
+                ),
+              ],
             ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: SpaceTheme.cyan,
-                  side: const BorderSide(color: SpaceTheme.cyan),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
+          ] else ...[
+            Text(
+              isLiveStreaming
+                  ? 'Recibiendo datos automáticamente de ${connectedMachines.length} sensor(es).'
+                  : 'Sensores listos (${connectedMachines.length}). Activa el interruptor para recibir datos automáticamente o captura una lectura.',
+              style: const TextStyle(fontSize: 11, color: Colors.white70),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: SpaceTheme.cyan,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                   ),
-                ),
-                icon: const Icon(Icons.tune, size: 15),
-                label: const Text(
-                  'Configurar Máquinas',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                ),
-                onPressed: () {
-                  TelemetryConfigModal.show(
-                    context,
-                    initialAstronautId: astronaut.id,
-                  );
-                },
-              ),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: SpaceTheme.cyan,
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
+                  icon: const Icon(Icons.sensors, size: 15),
+                  label: const Text(
+                    'Capturar Lectura Ahora',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                   ),
+                  onPressed: () {
+                    final count = ref
+                        .read(telemetryProvider.notifier)
+                        .pullAllConnectedMachines(astronaut.id);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Se recibieron paquetes de $count equipo(s) para ${astronaut.name}.',
+                        ),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
                 ),
-                icon: const Icon(Icons.sensors, size: 15),
-                label: const Text(
-                  'Capturar Telemetría',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: SpaceTheme.cyan,
+                    side: const BorderSide(color: SpaceTheme.cyan),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                  ),
+                  icon: const Icon(Icons.tune, size: 15),
+                  label: const Text(
+                    'Configurar Sensores',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: () {
+                    TelemetryConfigModal.show(
+                      context,
+                      initialAstronautId: astronaut.id,
+                    );
+                  },
                 ),
-                onPressed: connectedMachines.isEmpty
-                    ? null
-                    : () {
-                        final count = ref
-                            .read(telemetryProvider.notifier)
-                            .pullAllConnectedMachines(astronaut.id);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Se recibieron paquetes de $count máquina(s) conectadas para ${astronaut.name}.',
-                            ),
-                            duration: const Duration(seconds: 2),
-                          ),
-                        );
-                      },
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ],
       ),
     );
