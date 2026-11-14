@@ -6,6 +6,8 @@ class VitalsRecord {
   final double spO2; // %
   final double bodyTemp; // °C
   final double bloodGlucose; // mg/dL
+  final double respiratoryRate; // rpm (frecuencia respiratoria)
+  final double capillaryRefillSeconds; // segundos de llenado capilar
 
   const VitalsRecord({
     required this.timestamp,
@@ -15,5 +17,7 @@ class VitalsRecord {
     required this.spO2,
     required this.bodyTemp,
     required this.bloodGlucose,
+    this.respiratoryRate = 16.0,
+    this.capillaryRefillSeconds = 1.5,
   });
 }
