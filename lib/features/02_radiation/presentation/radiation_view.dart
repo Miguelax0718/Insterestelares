@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/daily_radiation_record.dart';
 import '../models/radiation_organ.dart';
 import '../data/radiation_sample_repository.dart';
-import '../models/space_weather_reading.dart';
+import '../providers/dose_history.dart';
+import '../widgets/cumulative_dose_chart.dart';
+import '../widgets/shelter_drill_card.dart';
 import '../providers/career_dose_calculator.dart';
 import '../providers/organ_dose_calculator.dart';
 import '../providers/radiation_data_provider.dart';
@@ -30,7 +32,9 @@ class _RadiationViewState extends ConsumerState<RadiationView> {
       error: (error, stackTrace) => Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text('No se pudieron cargar los datos locales de radiación: $error'),
+          child: Text(
+            'No se pudieron cargar los datos locales de radiación: $error',
+          ),
         ),
       ),
       data: (mission) => _buildMissionView(context, mission),
@@ -39,13 +43,16 @@ class _RadiationViewState extends ConsumerState<RadiationView> {
 
   Widget _buildMissionView(BuildContext context, RadiationMissionData mission) {
     if (mission.crewProfiles.isEmpty) {
-      return const Center(child: Text('No hay perfiles de tripulación disponibles.'));
+      return const Center(
+        child: Text('No hay perfiles de tripulación disponibles.'),
+      );
     }
 
     final firstAstronautId = mission.crewProfiles.first.id;
-    final astronautId = mission.crewProfiles.any(
-      (profile) => profile.id == _selectedAstronautId,
-    )
+    final astronautId =
+        mission.crewProfiles.any(
+          (profile) => profile.id == _selectedAstronautId,
+        )
         ? _selectedAstronautId!
         : firstAstronautId;
     final crewProfile = mission.crewProfiles.singleWhere(
@@ -59,7 +66,9 @@ class _RadiationViewState extends ConsumerState<RadiationView> {
       (maximum, record) =>
           record.missionDay > maximum ? record.missionDay : maximum,
     );
-    final missionDay = _missionDay > maxMissionDay ? maxMissionDay : _missionDay;
+    final missionDay = _missionDay > maxMissionDay
+        ? maxMissionDay
+        : _missionDay;
 
     final summary = calculateRadiationDailySummary(
       astronautId: astronautId,
@@ -72,8 +81,15 @@ class _RadiationViewState extends ConsumerState<RadiationView> {
       (record) => record.missionDay == missionDay,
     );
 
-    final careerProgress =
-        (summary.careerEffectiveDoseMsv / careerDoseLimitMsv).clamp(0.0, 1.0);
+    final history = calculateDoseHistory(
+      astronautId: astronautId,
+      missionDay: missionDay,
+      priorCareerDoseMsv: crewProfile.priorCareerEffectiveDoseMsv,
+      records: crewRecords,
+    );
+
+    final careerProgress = (summary.careerEffectiveDoseMsv / careerDoseLimitMsv)
+        .clamp(0.0, 1.0);
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -98,6 +114,19 @@ class _RadiationViewState extends ConsumerState<RadiationView> {
         _buildCareerDoseCard(summary, careerProgress),
         const SizedBox(height: 12),
         _buildSpeCard(summary, currentRecord),
+        if (summary.speStatus == SpeStatus.active &&
+            currentRecord.module != 'storm_shelter')
+          ShelterDrillCard(key: ValueKey('$astronautId-$missionDay')),
+        if (summary.speStatus == SpeStatus.active &&
+            currentRecord.module == 'storm_shelter')
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              'The selected record already places this crewmember in the storm shelter.',
+            ),
+          ),
+        const SizedBox(height: 12),
+        CumulativeDoseChart(points: history),
         const SizedBox(height: 20),
         const Text(
           'Uso de límites por órgano',
@@ -151,10 +180,7 @@ class _RadiationViewState extends ConsumerState<RadiationView> {
     );
   }
 
-  Widget _buildCareerDoseCard(
-    RadiationDailySummary summary,
-    num progress,
-  ) {
+  Widget _buildCareerDoseCard(RadiationDailySummary summary, num progress) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -192,9 +218,18 @@ class _RadiationViewState extends ConsumerState<RadiationView> {
     DailyRadiationRecord record,
   ) {
     final (String label, Color color) = switch (summary.speStatus) {
-      SpeStatus.active => ('Evento SPE indicado en el clima espacial', Colors.redAccent),
-      SpeStatus.inactive => ('Sin evento SPE indicado ese día', Colors.greenAccent),
-      SpeStatus.unknown => ('Dato de clima espacial no disponible', Colors.amberAccent),
+      SpeStatus.active => (
+        'Evento SPE indicado en el clima espacial',
+        Colors.redAccent,
+      ),
+      SpeStatus.inactive => (
+        'Sin evento SPE indicado ese día',
+        Colors.greenAccent,
+      ),
+      SpeStatus.unknown => (
+        'Dato de clima espacial no disponible',
+        Colors.amberAccent,
+      ),
     };
 
     return Card(
@@ -208,10 +243,17 @@ class _RadiationViewState extends ConsumerState<RadiationView> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            Text(label, style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+            Text(
+              label,
+              style: TextStyle(color: color, fontWeight: FontWeight.bold),
+            ),
             Text('Módulo: ${record.module}'),
-            Text('Dosis efectiva del día: ${record.effectiveDoseMsv.toStringAsFixed(3)} mSv'),
-            Text('Aporte SPE (incluido arriba): ${record.speEventDoseMsv.toStringAsFixed(3)} mSv'),
+            Text(
+              'Dosis efectiva del día: ${record.effectiveDoseMsv.toStringAsFixed(3)} mSv',
+            ),
+            Text(
+              'Aporte SPE (incluido arriba): ${record.speEventDoseMsv.toStringAsFixed(3)} mSv',
+            ),
           ],
         ),
       ),
@@ -238,7 +280,9 @@ class _RadiationViewState extends ConsumerState<RadiationView> {
               children: [
                 Expanded(child: Text(_organLabel(organUse.organ))),
                 Text(
-                  exceeded ? 'Límite superado' : '${(fraction * 100).toStringAsFixed(1)} %',
+                  exceeded
+                      ? 'Límite superado'
+                      : '${(fraction * 100).toStringAsFixed(1)} %',
                   style: TextStyle(
                     color: exceeded ? Colors.redAccent : Colors.white70,
                     fontWeight: FontWeight.bold,
