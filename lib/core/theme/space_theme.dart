@@ -33,7 +33,6 @@ class SpaceTheme {
         elevation: 0,
         centerTitle: false,
       ),
-      useMaterial3: true,
     );
   }
 }
