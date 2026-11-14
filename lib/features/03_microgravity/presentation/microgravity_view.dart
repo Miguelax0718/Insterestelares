@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/space_theme.dart';
-import '../../crew/presentation/providers/crew_provider.dart';
+import 'package:astramed/core/theme/space_theme.dart';
+import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 
 class MicrogravityView extends ConsumerWidget {
   const MicrogravityView({super.key});

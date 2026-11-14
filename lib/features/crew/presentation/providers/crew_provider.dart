@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../01_general_health/models/vitals_record.dart';
-import '../data/mock_crew_data.dart';
-import '../models/astronaut_profile.dart';
+
+import 'package:astramed/features/01_general_health/models/vitals_record.dart';
+import 'package:astramed/features/crew/data/mock_crew_data.dart';
+import 'package:astramed/features/crew/models/astronaut_profile.dart';
 
 /// Notifier que administra el estado de los 5 astronautas de la tripulación
 class CrewNotifier extends StateNotifier<List<AstronautProfile>> {

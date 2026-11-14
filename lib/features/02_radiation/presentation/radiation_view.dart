@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/constants/medical_thresholds.dart';
-import '../../../core/theme/space_theme.dart';
-import '../../crew/models/astronaut_profile.dart';
-import '../../crew/presentation/providers/crew_provider.dart';
+import 'package:astramed/core/constants/medical_thresholds.dart';
+import 'package:astramed/core/theme/space_theme.dart';
+import 'package:astramed/features/crew/models/astronaut_profile.dart';
+import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 
 class RadiationView extends ConsumerWidget {
   const RadiationView({super.key});

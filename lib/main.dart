@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'core/theme/space_theme.dart';
-import 'features/01_general_health/presentation/general_health_view.dart';
-import 'features/02_radiation/presentation/radiation_view.dart';
-import 'features/03_microgravity/presentation/microgravity_view.dart';
-import 'features/04_mental_health/presentation/mental_health_view.dart';
-import 'features/05_clinical_triage/presentation/triage_view.dart';
-import 'features/crew/models/astronaut_profile.dart';
-import 'features/crew/presentation/providers/crew_provider.dart';
-import 'features/crew/presentation/widgets/crew_sidebar_drawer.dart';
+import 'package:astramed/core/theme/space_theme.dart';
+import 'package:astramed/features/01_general_health/presentation/general_health_view.dart';
+import 'package:astramed/features/02_radiation/presentation/radiation_view.dart';
+import 'package:astramed/features/03_microgravity/presentation/microgravity_view.dart';
+import 'package:astramed/features/04_mental_health/presentation/mental_health_view.dart';
+import 'package:astramed/features/05_clinical_triage/presentation/triage_view.dart';
+import 'package:astramed/features/crew/models/astronaut_profile.dart';
+import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
+import 'package:astramed/features/crew/presentation/widgets/crew_sidebar_drawer.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();

@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/space_theme.dart';
-import '../../01_general_health/models/vitals_record.dart';
-import '../models/astronaut_profile.dart';
-import '../providers/crew_provider.dart';
+import 'package:astramed/core/theme/space_theme.dart';
+import 'package:astramed/features/crew/models/astronaut_profile.dart';
+import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 
 /// Sidebar (Drawer) lateral izquierdo para alternar entre los 5 perfiles de astronautas
 /// y visualizar de un vistazo el estado de riesgo y telemetría de cada uno.
@@ -114,7 +113,6 @@ class CrewSidebarDrawer extends ConsumerWidget {
                 label: '$warningCount Atención',
                 color: SpaceTheme.warningYellow,
                 icon: Icons.warning_amber_rounded,
-                textColor: Colors.black,
               ),
               const SizedBox(width: 6),
               _buildStatusPill(
@@ -395,7 +393,6 @@ class CrewSidebarDrawer extends ConsumerWidget {
     required String label,
     required Color color,
     required IconData icon,
-    Color textColor = Colors.white,
   }) {
     return Expanded(
       child: Container(

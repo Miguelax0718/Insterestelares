@@ -1,7 +1,7 @@
-import '../../01_general_health/models/vitals_record.dart';
-import '../../02_radiation/models/radiation_dose.dart';
-import '../../03_microgravity/models/microgravity_data.dart';
-import '../../04_mental_health/models/sleep_record.dart';
+import 'package:astramed/features/01_general_health/models/vitals_record.dart';
+import 'package:astramed/features/02_radiation/models/radiation_dose.dart';
+import 'package:astramed/features/03_microgravity/models/microgravity_data.dart';
+import 'package:astramed/features/04_mental_health/models/sleep_record.dart';
 
 /// Nivel de riesgo médico y operacional para cada astronauta
 enum CrewRiskLevel {
