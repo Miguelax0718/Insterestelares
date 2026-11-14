@@ -10,6 +10,5 @@ const Map<String, double> exampleSpeDoseMsv = {
   'AST-02': 10,
   'AST-03': 50,
   'AST-04': 10,
-  'AST-05': 50,
 };
 const Set<String> exampleSheltered = {'AST-02', 'AST-04'};

@@ -7,7 +7,6 @@ import '../data/biomarker_simulator.dart';
 import '../data/example_mission.dart';
 import '../models/contracts/bio_summary.dart';
 import 'biomarker_score_calculator.dart';
-import 'symptom_advisor.dart';
 
 /// Escenario de la demo: realista (por defecto) o extremo hipotético.
 final biomarkerScenarioProvider =
@@ -70,19 +69,4 @@ final selectedBioSummaryProvider = Provider<BioSummary>((ref) {
     astronautId: ref.watch(biomarkerAstronautProvider),
     missionDay: ref.watch(selectedMissionDayProvider),
   )));
-});
-
-/// Síntomas posibles para el astronauta y día seleccionados.
-final selectedSymptomsProvider = Provider<List<PossibleSymptom>>((ref) {
-  final repo = ref.watch(biomarkerRepositoryProvider);
-  final id = ref.watch(biomarkerAstronautProvider);
-  final day = ref.watch(selectedMissionDayProvider);
-  final date = repo.dateOfMissionDay(day).add(const Duration(hours: 23, minutes: 59));
-  final spe = repo.lastSolarEventAt(date);
-  return const SymptomAdvisor().evaluate(
-    summary: ref.watch(selectedBioSummaryProvider),
-    speDoseGy: repo.lastSolarEventDoseGy(id, date),
-    daysSinceSpe: spe == null ? null : date.difference(spe).inDays,
-    returnedToEarth: day > repo.missionDays,
-  );
 });

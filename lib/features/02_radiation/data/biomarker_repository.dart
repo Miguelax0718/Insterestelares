@@ -30,10 +30,6 @@ abstract class BiomarkerRepository {
   /// Momento de la tormenta solar (SPE) más reciente hasta [date], o null.
   DateTime? lastSolarEventAt(DateTime date);
 
-  /// Dosis (Gy) que recibió el astronauta en la tormenta solar más reciente
-  /// hasta [date]; 0 si no hubo tormenta.
-  double lastSolarEventDoseGy(String astronautId, DateTime date);
-
   /// Fecha de un día de misión (día 1 = primer día en vuelo).
   DateTime dateOfMissionDay(int day) => launch.add(Duration(days: day));
 }
@@ -93,17 +89,6 @@ class MockBiomarkerRepository extends BiomarkerRepository {
     // La tormenta empieza a mediodía del día del SPE.
     final at = launch.add(Duration(days: day, hours: 12));
     return at.isAfter(date) ? null : at;
-  }
-
-  @override
-  double lastSolarEventDoseGy(String astronautId, DateTime date) {
-    if (lastSolarEventAt(date) == null) return 0;
-    if (scenario == SimulationScenario.extremeHypothetical) {
-      return exampleSheltered.contains(astronautId)
-          ? BiomarkerSimulator.extremeShelteredSpeDoseGy
-          : BiomarkerSimulator.extremeSpeDoseGy;
-    }
-    return (exampleSpeDoseMsv[astronautId] ?? 0) / 1000;
   }
 
   static List<T> _sorted<T>(List<T> xs, DateTime Function(T) key) =>

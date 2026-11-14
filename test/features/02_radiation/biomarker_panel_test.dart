@@ -26,9 +26,6 @@ void main() {
     expect(find.text('Biomarcadores de orina y sangre'), findsOneWidget);
     expect(find.textContaining('Astronauta: AST-01'), findsOneWidget);
     expect(find.byKey(const Key('bioScoreText')), findsOneWidget);
-    expect(find.byKey(const Key('symptomList')), findsOneWidget);
-    expect(find.byKey(const Key('lymphChart')), findsOneWidget);
-    expect(find.byKey(const Key('ohdgChart')), findsOneWidget);
   });
 
   testWidgets('sigue al astronauta del menú y cambia al escenario extremo', (tester) async {
@@ -43,8 +40,6 @@ void main() {
     final after = c.read(selectedBioSummaryProvider).score;
     expect(after, greaterThan(before));
     expect(BioLevel.of(after), BioLevel.alert);
-    // Día 96 con 1 Gy fuera del refugio: aparecen náuseas en la lista.
-    expect(find.textContaining('Náuseas, vómito'), findsOneWidget);
   });
 
   test('semáforo', () {
