@@ -1,0 +1,58 @@
+[
+  {
+    "astronautId": "AST-01",
+    "preflightMean": {
+      "urineOhdg": 3.1932836709292824,
+      "urineIsoprostane": 0.3669003289388851,
+      "urineMda": 1.7726610093304103,
+      "bloodLymphocytes": 2.2556666666666665,
+      "bloodNeutrophils": 2.9723333333333333,
+      "bloodCrp": 1.7133333333333336
+    },
+    "sampleCount": 3,
+    "measuredUntil": "2026-12-29T07:00:00.000Z",
+    "dataType": "synthetic_hypothetical"
+  },
+  {
+    "astronautId": "AST-02",
+    "preflightMean": {
+      "urineOhdg": 2.3324567646881387,
+      "urineIsoprostane": 0.2919646359130976,
+      "urineMda": 1.6965874326355814,
+      "bloodLymphocytes": 2.324666666666667,
+      "bloodNeutrophils": 3.4263333333333335,
+      "bloodCrp": 0.9199999999999999
+    },
+    "sampleCount": 3,
+    "measuredUntil": "2026-12-29T07:00:00.000Z",
+    "dataType": "synthetic_hypothetical"
+  },
+  {
+    "astronautId": "AST-03",
+    "preflightMean": {
+      "urineOhdg": 4.852983186429809,
+      "urineIsoprostane": 0.45816005764419865,
+      "urineMda": 2.505518335695181,
+      "bloodLymphocytes": 2.4120000000000004,
+      "bloodNeutrophils": 6.342,
+      "bloodCrp": 1.3099999999999998
+    },
+    "sampleCount": 3,
+    "measuredUntil": "2026-12-29T07:00:00.000Z",
+    "dataType": "synthetic_hypothetical"
+  },
+  {
+    "astronautId": "AST-04",
+    "preflightMean": {
+      "urineOhdg": 1.532924701424346,
+      "urineIsoprostane": 0.39382220711034277,
+      "urineMda": 2.2595808244885873,
+      "bloodLymphocytes": 2.1153333333333335,
+      "bloodNeutrophils": 4.927666666666666,
+      "bloodCrp": 0.65
+    },
+    "sampleCount": 3,
+    "measuredUntil": "2026-12-29T07:00:00.000Z",
+    "dataType": "synthetic_hypothetical"
+  }
+]
