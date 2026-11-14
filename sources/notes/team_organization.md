@@ -98,40 +98,36 @@
 
 ---
 
-## 👥 Organización de Grupos de Trabajo (Subgrupos de 3 Integrantes)
+## 👥 Organización de los Grupos de Trabajo
 
-Para optimizar el sprint de trabajo y atacar los desafíos de manera paralela y especializada, el equipo se estructura en **2 Grupos de Trabajo de 3 integrantes cada uno**:
+Para optimizar el sprint de trabajo y abordar los desafíos de manera ágil y especializada, el equipo se organiza en dos frentes de trabajo:
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                        DIVISIÓN DE GRUPOS DE TRABAJO (3 + 3)                           │
+│                        ORGANIZACIÓN DE LOS GRUPOS DE TRABAJO                           │
 └────────────────────────────────────────────────────────────────────────────────────────┘
      │
-     ├── 🛰️ GRUPO 1: Investigación Biomédica, Lógica Clínica & Validación (3 Integrantes)
-     │    ├── Integrante 1: Space Biomedical Researcher & Data Engineer
-     │    ├── Integrante 2: Clinical Logic & Triage Engine Specialist
-     │    └── Integrante 3: QA, Medical Validation & Storytelling Lead
+     ├── 🔬 GRUPO ENFOCADO EN EL ANÁLISIS DE LAS PROBLEMÁTICAS ESPECÍFICAS (3 INTEGRANTES)
+     │    ├── Integrantes: Juan, María, Mafe
+     │    ├── Foco Inicial: Análisis de la afectación de la radiación espacial en los astronautas
+     │    └── Roles Clave: Investigación Biomédica (NASA HRP), Lógica de Triage y QA/Validación
      │
-     └── 💻 GRUPO 2: Arquitectura Core, UI/UX Espacial & Visualización Frontend (3 Integrantes)
-          ├── Integrante 1: Team Lead & Flutter Core Architect
-          ├── Integrante 2: UI/UX & Motion Designer (Cabina & Animaciones)
-          └── Integrante 3: Flutter Frontend & Data Visualizer
+     └── 💻 GRUPO ENFOCADO EN EL MONITOREO DE LA SALUD GENERAL (EQUIPO TÉCNICO & CORE)
+          ├── Integrantes: Miguel, Daniel (y equipo de desarrollo)
+          ├── Foco Inicial: Arquitectura Flutter Offline-First, Vitals y Dashboard Espacial
+          └── Roles Clave: Core Architect, UI/UX Cabina & Motion Graphics, Frontend Visualizer
 ```
 
 ---
 
-## ☢️ Problema General de Inicio: "Análisis de la afectación de la radiación espacial en astronautas"
+## ☢️ Problema 1 (En curso - Trabajo actual del Grupo de 3): "Análisis de la afectación de la radiación espacial en los astronautas"
 
-El primer problema general en el que trabajará el equipo (con liderazgo e investigación a cargo del **Grupo 1**, e implementación de software y visualización a cargo del **Grupo 2**) es el **análisis de la afectación de la radiación espacial en astronautas** en misiones de larga duración (Artemis, Estación Espacial o tránsito a Marte).
-
-### 🎯 Contexto Científico y Desafío
-La radiación en el espacio profundo se compone principalmente de **Rayos Cósmicos Galácticos (GCR)** (flujo constante y penetrante de iones pesados) y **Eventos de Partículas Solares (SPE)** (emisiones de protones de alta energía asociadas a fulguraciones y eyecciones de masa coronal). Sus efectos en el cuerpo humano incluyen daño en el ADN, síndrome agudo por radiación (ARS), alteraciones hematopoyéticas, degeneración cardiovascular, cataratas y riesgos a largo plazo para el sistema nervioso central.
-
----
+> **Descripción Oficial:**  
+> *Durante las misiones espaciales prolongadas, especialmente hacia la Luna y Marte, los astronautas están expuestos a radiación cósmica y partículas solares que pueden provocar daños celulares, aumentar el riesgo de cáncer y afectar diferentes órganos y sistemas del cuerpo. Aunque existen dispositivos que miden la exposición a la radiación, uno de los principales desafíos consiste en relacionar la dosis acumulada con posibles alteraciones biológicas y evaluar sus efectos sobre la salud de cada astronauta.*
 
 ### 📋 Distribución de Tareas por Grupo e Integrante
 
-#### 🛰️ GRUPO 1: Investigación Biomédica, Triage Clínico y Datos (Grupo de 3)
+#### 🔬 GRUPO 1: Análisis de las Problemáticas Específicas (Grupo de 3: Juan, María, Mafe)
 *Foco principal:* Modelado fisiopatológico, umbrales de radiación de la NASA, árbol de decisiones clínicas y telemetría médica sintética.
 
 * **Integrante 1 (Investigación Biomédica & Datos NASA):**
@@ -140,12 +136,12 @@ La radiación en el espacio profundo se compone principalmente de **Rayos Cósmi
   - **Tarea 1.3:** Organizar en `sources/medical/` y `sources/nasa/` los papers y guías oficiales de radiación del Human Research Program (HRP).
 
 * **Integrante 2 (Lógica Clínica, Triage & Árboles de Decisión):**
-  - **Tarea 2.1:** Diseñar el árbol de decisiones clínicas y triage para radiación: clasificar síntomas iniciales de sobreexposición (náuseas, cefalea, eritema cutáneo, fatiga extrema, leucopenia).
+  - **Tarea 2.1:** Diseñar el árbol de decisiones clínicas y triage para radiación: clasificar síntomas iniciales de sobreexposición (náuseas, vómito, cefalea, eritema cutáneo, fatiga extrema).
   - **Tarea 2.2:** Definir los 3 niveles de severidad médica:
     - 🟢 **Verde (Bajo / Normal):** Exposición controlada, monitoreo pasivo de dosímetro.
     - 🟡 **Amarillo (Atención / Pre-Alerta):** Incremento de tasa de dosis ($> 1\,\text{mSv/h}$) o pico por aproximación de evento solar; recomendación de limitar EVA.
     - 🔴 **Rojo (Crítico / Emergencia):** Evento SPE activo o dosis aguda ($> 250\,\text{mSv}$); orden inmediata de retiro al refugio blindado de tormenta (*storm shelter*) y protocolo médico de soporte.
-  - **Tarea 2.3:** Redactar en `assets/guides/radiation_safety.md` el manual de autotratamiento y contramedidas (hidratación, uso de antioxidantes/fármacos de mitigación y blindaje con agua/combustible).
+  - **Tarea 2.3:** Redactar en `assets/guides/radiation_safety.md` el manual de autotratamiento y contramedidas (hidratación, uso de antioxidantes/fármacos radioprotectores y blindaje con agua/combustible).
 
 * **Integrante 3 (Validación de Calidad, Casos de Prueba & Storytelling):**
   - **Tarea 3.1:** Validar que los algoritmos de alerta y el triage no dependan de llamadas de red (prueba 100% offline).
@@ -154,7 +150,7 @@ La radiación en el espacio profundo se compone principalmente de **Rayos Cósmi
 
 ---
 
-#### 💻 GRUPO 2: Arquitectura Core, UI/UX Espacial y Visualización Frontend (Grupo de 3)
+#### 💻 GRUPO 2: Monitoreo de la Salud General (Miguel, Daniel y equipo técnico)
 *Foco principal:* Implementación de la aplicación en Flutter, widgets de cabina, visualización del cuerpo humano con afectación biológica y persistencia local de dosis.
 
 * **Integrante 1 (Team Lead & Arquitectura Core):**
@@ -174,26 +170,37 @@ La radiación en el espacio profundo se compone principalmente de **Rayos Cósmi
 
 ---
 
-## 🚀 Próximos Problemas Generales por Implementar / Resolver (Backlog Clínico)
-
-Una vez consolidado el módulo de radiación espacial, el equipo abordará los siguientes 2 problemas clave de salud en vuelos espaciales de larga duración (completando los 3 problemas prioritarios del sistema):
+## 🚀 Siguientes por Implementar o Resolver (Backlog de Problemáticas Específicas)
 
 ---
 
-### 🩸 Problema 2 (Siguiente en Pipeline): "Desacondicionamiento Cardiovascular y Redistribución Cefálica de Fluidos en Microgravedad"
-* **Contexto del Peligro NASA:** *Gravity Fields (Microgravedad y Transiciones Gravitatorias)*.
-* **Fisiopatología:** Al cesar la gravedad terrestre, la sangre y los fluidos corporales migran desde las extremidades inferiores hacia el tórax y la cabeza (*cephalic fluid shift* o síndrome de "cabeza hinchada"), provocando congestión facial, elevación transitoria de la presión intracraneal, disminución del volumen plasmático circulante y remodelado miocárdico. Esto causa intolerancia ortostática severa, mareos y riesgo de síncope al aterrizar en Marte o la Luna.
-* **Métricas e Indicadores Clave:** Frecuencia cardíaca (HR en bpm), Presión Arterial sistólica/diastólica (mmHg), saturación de oxígeno ($SpO_2$), variabilidad de la frecuencia cardíaca (HRV) y volumen diario de ingesta hídrica.
+### 🔄 Problema 2 (Siguiente por implementar): "Análisis de la adaptación sensoriomotora y vestibular de astronautas"
+
+> **Descripción Oficial:**  
+> *Durante las misiones espaciales, la exposición a la microgravedad y las transiciones entre diferentes niveles de gravedad pueden alterar el funcionamiento de los sistemas sensoriomotor y vestibular de los astronautas, responsables del equilibrio, la orientación espacial y la coordinación de movimientos. Asimismo, la exposición prolongada a la microgravedad puede provocar pérdida de masa muscular, disminución de la fuerza, reducción de la densidad mineral ósea y alteraciones en la capacidad física, afectando la movilidad, la resistencia y la estabilidad corporal.*  
+>  
+> *Estas alteraciones pueden provocar mareos, desorientación, náuseas, pérdida de estabilidad, debilidad muscular y dificultades para ejecutar movimientos precisos o realizar esfuerzos físicos. El riesgo es especialmente importante durante el aterrizaje en la Luna o Marte, cuando los astronautas deben adaptarse rápidamente a un nuevo entorno gravitacional y realizar actividades críticas, como desplazarse, mantener el equilibrio, transportar objetos, operar equipos o responder ante emergencias. Por ello, resulta fundamental monitorear de manera integral tanto la adaptación sensoriomotora y vestibular como el estado musculoesquelético de los astronautas, con el fin de identificar posibles deterioros físicos y evaluar su capacidad para desempeñar tareas de forma segura.*
+
+* **Métricas e Indicadores Clave:**
+  - Estabilidad postural y equilibrio dinámico.
+  - Reflejo vestíbulo-ocular (VOR) y coordinación visomotora (ojo-mano).
+  - Síntomas de Síndrome de Adaptación Espacial (SAS / mareo espacial cinético).
+  - Fuerza de prensión manual (*grip strength*), fatiga muscular y cumplimiento de rutinas resistivas (ARED).
 * **Asignación General de Tareas:**
-  - **Grupo 1 (Biomédica & Triage):** Diseñar el árbol de triage para eventos de hipotensión/arritmia en cabina, definir umbrales de alerta y crear el dataset de telemetría cardiovascular en reposo y ejercicio en `DB/`.
-  - **Grupo 2 (Core, UI/UX & Frontend):** Diseñar la visualización del flujo hemodinámico en el avatar interactivo, gráficos en tiempo real con `fl_chart` y guías animadas de contramedidas (ejercicios de compresión y rehidratación con sales).
+  - **Grupo 1 (Problemáticas Específicas):** Diseñar los protocolos de autoevaluación sensoriomotora rápida (tests táctiles de coordinación en pantalla y seguimiento visual) y escalas de gravedad SAS.
+  - **Grupo 2 (Monitoreo General):** Desarrollar las interfaces de pruebas psicomotrices en Flutter, mapa visual de afectación vestibular/muscular y gráficos de recuperación adaptativa postural.
 
 ---
 
-### 🦴 Problema 3 (Siguiente en Pipeline): "Pérdida de Densidad Mineral Ósea y Atrofia Musculoesquelética"
-* **Contexto del Peligro NASA:** *Gravity Fields & Hostile Closed Environments (Desuso y Microgravedad Prolongada)*.
-* **Fisiopatología:** La ausencia de carga gravitacional induce una pérdida acelerada de masa ósea (1% a 1.5% mensual en pelvis, fémur y vértebras lumbares) debido a la hiperresorción osteoclástica y calciuria elevada (lo que incrementa el riesgo de nefrolitiasis / cálculos renales), junto a una rápida atrofia de los grupos musculares posturales y extensores.
-* **Métricas e Indicadores Clave:** Cumplimiento diario de ejercicio resistivo (ARED) y aeróbico (minutos y kilocalorías), balance de calcio/nutrición, fuerza muscular estimada y escala subjetiva de dolor lumbar o articular.
+### 🧪 Problema 3 (Siguiente por implementar): "Análisis de fluidos corporales"
+
+> **Descripción Oficial:**  
+> *Monitoreo mediante el análisis de fluidos corporales: Incorporar el análisis de biomarcadores presentes en fluidos como la orina, la saliva y el sudor para evaluar el estado de salud de los astronautas, identificar alteraciones fisiológicas y detectar tempranamente riesgos asociados con la deshidratación, los desequilibrios metabólicos y las afecciones renales, como la formación de cálculos. Esto permitiría adaptar el monitoreo a las condiciones individuales de cada astronauta y generar alertas preventivas a partir de los cambios observados.*
+
+* **Métricas e Indicadores Clave:**
+  - **Orina:** Densidad urinaria / gravedad específica (hidratación), niveles de calcio y oxalato (riesgo de nefrolitiasis / cálculos renales) y pH urinario.
+  - **Saliva:** Cortisol salival (marcador biológico de estrés crónico y fatiga de misión), citoquinas e inmunoglobulina A (estado inmunológico).
+  - **Sudor / Transpiración:** Tasa de pérdida de electrolitos ($Na^+$, $K^+$, $Cl^-$) y osmolaridad durante sesiones de entrenamiento físico en el cicloergómetro/ARED.
 * **Asignación General de Tareas:**
-  - **Grupo 1 (Biomédica & Triage):** Modelar la cinética de pérdida ósea según el tiempo de vuelo, protocolo de alertas por hipercalciuria/cálculos renales y pautas de prescripción de ejercicio.
-  - **Grupo 2 (Core, UI/UX & Frontend):** Desarrollar el sistema de **gamificación y rutinas periódicas** (misiones diarias de salud), mapa corporal con degradación ósea/muscular por zonas y registros persistentes en Hive/Isar.
+  - **Grupo 1 (Problemáticas Específicas):** Diseñar el algoritmo de riesgo litogénico (formación de cálculos renales por hipercalciuria en microgravedad), correlación de biomarcadores salivales con el estrés y guías de reposición electrolítica personalizada.
+  - **Grupo 2 (Monitoreo General):** Implementar la interfaz de registro rápido de análisis de tiras reactivas/biosensores de fluidos, alertas preventivas automáticas de deshidratación y cálculo de balance hídrico diario en la base de datos local.
