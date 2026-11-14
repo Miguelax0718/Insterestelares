@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/biomarker_panel.dart';
+
 class RadiationView extends StatelessWidget {
   const RadiationView({super.key});
 
@@ -85,6 +87,8 @@ class RadiationView extends StatelessWidget {
             ),
           ),
         ),
+        const SizedBox(height: 16),
+        const BiomarkerPanel(),
       ],
     );
   }
