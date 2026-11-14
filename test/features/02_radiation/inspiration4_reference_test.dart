@@ -8,6 +8,10 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   const csvPath =
       'DB/real/inspiration4/LSDS-7_Complete_Blood_Count_CBC.upload_SUBMITTED.csv';
+  final hasCsv = File(csvPath).existsSync();
+  final skip = hasCsv
+      ? false
+      : 'Falta el CSV de Inspiration4 en DB/real/inspiration4/ (no se sube al repo)';
 
   Map<String, double> readAnalyte(String analyte) {
     final lines = File(csvPath).readAsLinesSync();
@@ -33,7 +37,7 @@ void main() {
         expect(v.neutrophils10e9PerL * 1000, closeTo(neut[key]!, 0.5), reason: key);
       }
     }
-  });
+  }, skip: skip);
 
   test('corrección de C003 L-92: leucocitos × porcentaje', () {
     final wbc = readAnalyte('WHITE BLOOD CELL COUNT')['C003|L-92']!; // mil/µL
@@ -42,7 +46,7 @@ void main() {
     final c003 = Inspiration4Reference.subjects.firstWhere((s) => s.id == 'C003');
     expect(c003.preflight.first.lymphocytes10e9PerL, closeTo(wbc * pctLymph / 100, 0.01));
     expect(c003.preflight.first.neutrophils10e9PerL, closeTo(wbc * pctNeut / 100, 0.01));
-  });
+  }, skip: skip);
 
   test('variación entre visitas y cambio al regresar (valores reales)', () {
     double cv(List<double> xs) {
@@ -69,7 +73,7 @@ void main() {
         subjects.map((s) => s.returnLymphocyteChange).reduce((a, b) => a + b) /
             subjects.length;
     expect(meanReturn, closeTo(-0.18, 0.02));
-  });
+  }, skip: skip);
 }
 
 double _sqrt(double x) {
