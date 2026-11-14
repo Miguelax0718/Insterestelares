@@ -19,7 +19,7 @@ const routes = [
       [c.id, c.name, c.role, c.initials, c.color, c.age, c.weight, c.height, c.dose || 0, c.hr, c.bp, c.water || 0, c.waterGoal || 2500, c.sleep, c.sessions || 0, c.energy || 0, c.protein || 0, c.mood ?? 2]); return null; }],
   ['GET', /^\/api\/mission$/, async () => { const [m] = await q('select * from mission limit 1');
     const ev = await q('select day, class from solar_events where mission_id=$1 order by day', [m.id]);
-    return { name: m.name, day: m.current_day, total: m.total_days, doseLimit: +m.dose_limit_msv, start: m.start_date.toISOString().slice(0,10), events: ev.map(e => ({ day: e.day, cls: e.class })) }; }],
+    return { name: m.name, day: m.current_day, total: m.total_days, doseLimit: +m.dose_limit_msv, start: m.start_date.toISOString().slice(0,10), sampleTimes: m.sample_times, events: ev.map(e => ({ day: e.day, cls: e.class })) }; }],
   ['GET', /^\/api\/crew\/([\w-]+)$/, async ([id]) => crewOut((await q('select * from crew where id=$1', [id]))[0])],
   ['GET', /^\/api\/crew\/([\w-]+)\/samples$/, async ([id]) => {
     const rows = await q(`select s.id, s.mission_day, s.taken_at, s.method, json_object_agg(v.biomarker_id, v.value) as vals

@@ -40,6 +40,8 @@ const ICONS={
   phone:'<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>',
   clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
   filter:'<path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>',
+  play:'<path d="M7 4v16l13-8z" fill="currentColor"/>',
+  pause:'<rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor"/><rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor"/>',
   grip:'<circle cx="9" cy="6" r="1.4" fill="currentColor"/><circle cx="15" cy="6" r="1.4" fill="currentColor"/><circle cx="9" cy="12" r="1.4" fill="currentColor"/><circle cx="15" cy="12" r="1.4" fill="currentColor"/><circle cx="9" cy="18" r="1.4" fill="currentColor"/><circle cx="15" cy="18" r="1.4" fill="currentColor"/>',
   eye:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   eyeoff:'<path d="M9.9 4.24A9.1 9.1 0 0 1 12 4c6.5 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19M6.6 6.6A18.4 18.4 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6M2 2l20 20"/>',
@@ -91,7 +93,8 @@ const MOD=Object.fromEntries(MODS.map(m=>[m.id,m]));
 function status(id,i=S_LAST()){const m=MOD[id];let s=worst(m.bms.map(k=>sevOf(k,i)));
   if(i===S_LAST()){ if(id==='hidratacion'&&U.water>=U.waterGoal) s='ok'; if(id==='radiacion'&&S.storm) s='crit'; } return s}
 const crewStatus=()=>worst(MODS.map(m=>status(m.id)));
-const ST={ok:['ok','okc','Normal'],warn:['warn','tri','Atención'],crit:['crit','alc','Crítico']};
+const SC={ok:'#5BE38C',warn:'#FFD23F',crit:'#FF5A5F'}; // código de emergencia: verde, amarillo, rojo
+const ST={ok:['ok','okc','Estable'],warn:['warn','tri','Atención'],crit:['crit','alc','Crítico']};
 const chip=(s,extra='',label)=>{const [c,i,w]=ST[s];return `<span class="chip ${c} ${extra}">${ic(i,15)}${label||w}</span>`};
 const sevOrder={crit:0,warn:1,ok:2};
 const PRIO={Alta:0,Media:1,Baja:2};
@@ -224,3 +227,32 @@ function sortable(container,{item,handle,onChange}){
     el.animate([{transform:'scale(1.02)'},{transform:'none'}],{duration:180,easing:'ease-out'});onChange&&onChange()};
   container.addEventListener('pointerup',end);container.addEventListener('pointercancel',end);
 }
+
+// ---------- Horario de muestras y cuenta regresiva ----------
+function sampleSlots(now=new Date()){
+  const t=(MISSION.sampleTimes&&MISSION.sampleTimes.length?MISSION.sampleTimes:['07:30','15:30']).map(s=>s.split(':').map(Number)).sort((a,b)=>a[0]*60+a[1]-(b[0]*60+b[1]));
+  const at=(off,[h,m])=>{const x=new Date(now);x.setDate(x.getDate()+off);x.setHours(h,m,0,0);return x};
+  const all=[-1,0,1].flatMap(o=>t.map(hm=>at(o,hm)));
+  return {prev:[...all].reverse().find(d=>d<=now),next:all.find(d=>d>now)};
+}
+const hhmm=d=>d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',hour12:false});
+function fmtDur(ms){const m=Math.max(0,Math.round(ms/60000));if(m<1)return 'menos de 1 min';const h=Math.floor(m/60),r=m%60;return h?`${h} h${r?` ${r} min`:''}`:`${r} min`}
+function sampleState(){const now=new Date(),{prev,next}=sampleSlots(now);
+  const last=U.lastSubmit||(U.samples.length?Date.parse(U.samples.at(-1).takenAt):0);
+  const due=!U.samples.length||last<prev.getTime();
+  const dayWord=d=>d.toDateString()===now.toDateString()?'hoy':'mañana';
+  const span=next-prev, pct=due?1:Math.min(1,Math.max(0,(now-prev)/span));
+  return {due,first:!U.samples.length,prev,next,pct,
+    short:due?'Ahora':(()=>{const m=Math.max(1,Math.round((next-now)/60000)),h=Math.floor(m/60);return h?`${h}h ${m%60}m`:`${m}m`})(),
+    title:due?(U.samples.length?'Es hora de tu muestra':'Registra tu primera muestra'):`Próxima muestra en ${fmtDur(next-now)}`,
+    sub:due?(U.samples.length?`Pendiente desde las ${hhmm(prev)} · hace ${fmtDur(now-prev)}`:'Con ella se crea tu línea base personal'):`Programada ${dayWord(next)} a las ${hhmm(next)}`}}
+function sampleRing(st,size=64){const r=size/2-5,C=2*Math.PI*r,col=st.due?SC.warn:'#A994E0';
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true" style="flex:none"><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--bg)" stroke-width="6"/>
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${col}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-st.pct)}" transform="rotate(-90 ${size/2} ${size/2})" style="transition:stroke-dashoffset 1s"/>
+    ${st.due?`<g class="g-pulse" style="transform-origin:${size/2}px ${size/2}px"><g transform="translate(${size/2-12} ${size/2-12})" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS.flask}</g></g>`:`<g class="orbit" style="transform-origin:${size/2}px ${size/2}px;animation-duration:10s"><circle cx="${size/2}" cy="5" r="3.5" fill="#F0FFF1"/></g>`}</svg>`}
+// Actualiza en vivo todo lo que muestra el tiempo (cada 30 s)
+function tickCountdowns(){if(!U)return;const st=sampleState();
+  $$('[data-cd]').forEach(el=>{const k=el.dataset.cd;if(k in st)el.textContent=st[k]});
+  $$('[data-cdring]').forEach(el=>el.innerHTML=sampleRing(st,+el.dataset.cdring||64));
+  $$('[data-cdclass]').forEach(el=>el.classList.toggle('due',st.due));}
+setInterval(tickCountdowns,30000);

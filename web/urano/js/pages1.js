@@ -50,14 +50,14 @@ function shell(){
    <header class="mhead">${whoBtn('mwho')}<button class="iconbtn ${na?'wig':''}" onclick="go('alertas')" aria-label="Alertas" style="width:48px;height:48px;border:0">${ic('bell',22)}${na?`<span class="badge">${na}</span>`:''}</button></header>
    <aside class="side ${S.side?'':'col'}" id="side">
    <div style="position:relative">${whoBtn('whobtn')}<div class="whomenu" id="whomenu" hidden>${crewList()}</div></div>
-   <nav class="nav">${NAV.map(([k,l,i])=>`<a href="#${k}" class="${cur===k?'on':''}" ${cur===k?'aria-current="page"':''}>${ic(i)}<span class="lbl">${l}</span>${k==='alertas'&&na?`<span class="lbl" style="margin-left:auto;margin-right:18px"><span class="chip warn" style="height:22px;padding:0 8px">${na}</span></span>`:''}</a>`).join('')}</nav>
+   <nav class="nav">${NAV.map(([k,l,i])=>`<a href="#${k}" class="${cur===k?'on':''}" ${cur===k?'aria-current="page"':''}>${ic(i)}<span class="lbl">${l}</span>${k==='alertas'&&na?`<span class="lbl" style="margin-left:auto;margin-right:18px"><span class="chip warn" style="height:22px;padding:0 8px">${na}</span></span>`:''}${k==='nueva-muestra'?`<span class="lbl navcd" data-cdclass style="margin-left:auto;margin-right:18px"><span class="cdpill" data-cd="short">${sampleState().short}</span></span>`:''}</a>`).join('')}</nav>
    <div class="side-foot">
      <div class="moonph">${moonPhase()}<div class="moon-t"><div class="small" style="font-weight:600">Día ${MISSION.day} de ${MISSION.total}</div><div class="cap muted">Misión ${MISSION.name}</div></div></div>
      <div class="conn"><span class="pulse" style="${DB.source==='db'?'':'background:var(--lav2)'}"></span>${ic('sat',16)}<span class="lbl">${DB.source==='db'?'Conectado a la base de datos':'Datos de demostración'}</span></div>
      <div class="between" style="padding:0 4px 0 8px"><div class="row lbl" style="gap:8px">${LOGO.replace('class="mark"','class="mark" style="width:22px;height:22px"')}<span style="font:700 14px var(--ff-h);letter-spacing:.06em" title="Unidad de Rastreo y Análisis Nefrológico Orbital">URANO</span></div>
        <button class="colbtn" id="colbtn" aria-label="Contraer menú">${ic('menu')}</button></div>
    </div></aside><main id="main"></main>
-   <nav class="tabbar" aria-label="Secciones">${TABS.map(([k,l,i])=>`<a href="#${k}" class="tab ${cur===k?'on':''}" ${cur===k?'aria-current="page"':''}>${ic(i,22)}<span>${l}</span><span class="tdot"></span></a>`).join('')}</nav></div>`;
+   <nav class="tabbar" aria-label="Secciones">${TABS.map(([k,l,i])=>`<a href="#${k}" class="tab ${cur===k?'on':''} ${k==='nueva-muestra'&&sampleState().due?'due':''}" ${k==='nueva-muestra'?'data-cdclass':''} ${cur===k?'aria-current="page"':''}><span style="position:relative">${ic(i,22)}${k==='nueva-muestra'?'<span class="tbadge" aria-label="Muestra pendiente"></span>':''}</span><span>${l}</span><span class="tdot"></span></a>`).join('')}</nav></div>`;
 }
 function bindShell(){
   $('#colbtn').onclick=()=>{S.side=!S.side;$('#side').classList.toggle('col',!S.side)};
@@ -99,7 +99,7 @@ function patchSVG(c){return `<svg width="104" height="104" viewBox="0 0 120 120"
   <path d="M60 4l1.5 3.5 3.5 1.5-3.5 1.5L60 14l-1.5-3.5L55 9l3.5-1.5z" fill="#F0FFF1"/><circle cx="104" cy="60" r="2" fill="#F0FFF1"/><circle cx="16" cy="60" r="2" fill="#F0FFF1"/></svg>`}
 
 // ---------- Agregar tripulante ----------
-const CREW_COLORS=['#B3E9C7','#A994E0','#F2A93B','#C2F8CB','#FF7A7A','#B4B2D1','#F0FFF1'];
+const CREW_COLORS=['#B3E9C7','#A994E0','#FFD23F','#C2F8CB','#FF5A5F','#B4B2D1','#F0FFF1'];
 const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function crewModal(fromShell){
   const f={name:'',role:'',age:35,weight:70,height:1.72,waterGoal:2500,color:CREW_COLORS[CREW.length%CREW_COLORS.length]};
@@ -143,7 +143,7 @@ function crewModal(fromShell){
 PAGES.bienvenida={
   html:()=>`<div class="card empty" style="padding:72px 32px;margin-top:24px">
     <svg width="220" height="170" viewBox="0 0 220 170"><circle cx="110" cy="96" r="52" fill="#8367C7" opacity=".55"/><ellipse cx="110" cy="96" rx="100" ry="22" fill="none" stroke="#F0FFF1" stroke-opacity=".5" transform="rotate(-14 110 96)"/>
-     <g transform="translate(150 6) rotate(35)"><path d="M14 0c8 6 10 16 9 28H5C4 16 6 6 14 0z" fill="#F0FFF1"/><circle cx="14" cy="13" r="4" fill="#0E34A0"/><path d="M5 22l-6 8 7-1zM23 22l6 8-7-1z" fill="#A994E0"/><path d="M9 28h10l-5 12z" fill="#F2A93B"><animate attributeName="opacity" values="1;.5;1" dur=".4s" repeatCount="indefinite"/></path></g>
+     <g transform="translate(150 6) rotate(35)"><path d="M14 0c8 6 10 16 9 28H5C4 16 6 6 14 0z" fill="#F0FFF1"/><circle cx="14" cy="13" r="4" fill="#0E34A0"/><path d="M5 22l-6 8 7-1zM23 22l6 8-7-1z" fill="#A994E0"/><path d="M9 28h10l-5 12z" fill="#FFD23F"><animate attributeName="opacity" values="1;.5;1" dur=".4s" repeatCount="indefinite"/></path></g>
      <path d="M30 30l1.5 3.5 3.5 1.5-3.5 1.5L30 40l-1.5-3.5L25 35l3.5-1.5zM190 140l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1z" fill="#F0FFF1"/></svg>
     <h1 style="font-size:32px;line-height:40px">Te damos la bienvenida, ${firstName()}</h1>
     <p class="muted" style="max-width:520px">Todavía no hay muestras tuyas. Con la primera creamos tu línea base personal, y desde ahí la app calcula tus rangos, gráficas y recomendaciones.</p>
@@ -174,7 +174,7 @@ function bindGlass(root,id,onUpdate){
     if(before&&U.water>=U.waterGoal){ burst(g.parentElement,12,'#B3E9C7',true);
       U.alerts.filter(a=>a.module==='hidratacion'&&a.status==='active').forEach(a=>{a.status='resolved';DB.run('resolveAlert',a.id)});
       const wr=U.recs.find(r=>r.module==='hidratacion'&&!r.done); if(wr){wr.done=true;DB.run('setRec',wr.id,true)}
-      toast(status('hidratacion')==='ok'?'¡Meta de agua cumplida! Hidratación vuelve a Normal':'¡Meta de agua cumplida!'); setTimeout(()=>{ if(route()==='panel'||route()==='m-hidratacion') rerender(); },1300); }
+      toast(status('hidratacion')==='ok'?'¡Meta de agua cumplida! Hidratación vuelve a Estable':'¡Meta de agua cumplida!'); setTimeout(()=>{ if(route()==='panel'||route()==='m-hidratacion') rerender(); },1300); }
     else burst(g.parentElement,5,'#A994E0');
   };
 }
@@ -193,21 +193,44 @@ function bindRecs(root,after){
     r.done=!r.done; el.classList.toggle('done',r.done); DB.run('setRec',r.id,r.done);
     if(r.done){comet(b);burst(b,8,'#B3E9C7');toast('¡Bien hecho! Recomendación completada'); after&&setTimeout(after,700);} });
 }
+const ORGANS={estres:'Cerebro',inmunidad:'Ganglios',cardio:'Corazón',metabolismo:'Estómago',renal:'Riñones',hidratacion:'Vejiga',osea:'Huesos',radiacion:'Piel y ADN'};
+// Cuerpo humano interactivo: cada órgano toma el color del estado de su módulo
+function bodyMap(sel){const col=id=>SC[status(id)],al=id=>status(id)!=='ok'?'organ-alert':'';
+  const o=(id,shape)=>`<g class="organ ${al(id)} ${sel===id?'sel':''}" data-mod="${id}" tabindex="0" role="button" aria-label="${ORGANS[id]} · ${MOD[id].name}: ${ST[status(id)][2]}" style="--oc:${col(id)}">${shape}</g>`;
+  return `<svg class="bodymap" viewBox="0 0 200 360" width="210" role="group" aria-label="Mapa del cuerpo: toca un órgano para ver su estado">
+    <defs><filter id="aura" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5"/></filter></defs>
+    <g class="silh-aura" style="--oc:${col('radiacion')}" filter="url(#aura)"><circle cx="100" cy="40" r="27"/><path d="M60 80Q100 66 140 80L152 150Q148 200 140 214L60 214Q52 200 48 150Z"/><path d="M58 84Q38 94 32 150L28 214M142 84Q162 94 168 150L172 214M80 214L74 334M120 214L126 334"/></g>
+    <g class="silh"><circle cx="100" cy="40" r="26"/><rect x="91" y="64" width="18" height="14" rx="4"/><path d="M60 80Q100 66 140 80L152 150Q148 200 140 214L60 214Q52 200 48 150Z"/>
+      <path class="limb" d="M58 84Q38 94 32 150L28 214M142 84Q162 94 168 150L172 214"/><path class="limb leg" d="M80 214L74 334M120 214L126 334"/></g>
+    ${o('estres','<path d="M84 38c-2-10 6-17 16-17s18 7 16 17c3 4 0 11-6 11H90c-6 0-9-7-6-11z"/><path class="ln" d="M92 30q4 4 0 8M104 27q-3 5 2 9M110 36q-4 2-2 6"/>')}
+    ${o('inmunidad','<circle class="hit" cx="88" cy="74" r="10"/><circle class="hit" cx="112" cy="74" r="10"/><circle class="hit" cx="68" cy="100" r="10"/><circle class="hit" cx="132" cy="100" r="10"/><circle cx="88" cy="74" r="4.5"/><circle cx="112" cy="74" r="4.5"/><circle cx="68" cy="100" r="4.5"/><circle cx="132" cy="100" r="4.5"/><circle cx="84" cy="206" r="4"/><circle cx="116" cy="206" r="4"/>')}
+    ${o('cardio','<path class="beat" d="M113 102c4-6 14-4 14 4 0 8-14 16-14 16s-14-8-14-16c0-8 10-10 14-4z"/>')}
+    ${o('metabolismo','<path d="M80 132c8-6 22-4 24 4 2 10-6 20-18 20-8 0-12-6-10-12 1-4 6-4 6-8 0-2-3-3-2-4z"/>')}
+    ${o('renal','<ellipse cx="80" cy="170" rx="8" ry="13"/><ellipse cx="120" cy="170" rx="8" ry="13"/>')}
+    ${o('hidratacion','<path d="M88 196c0-6 6-8 12-8s12 2 12 8c0 7-6 11-12 11s-12-4-12-11z"/>')}
+     ${o('osea','<rect class="hit" x="66" y="216" width="68" height="96" rx="12"/><path class="bone" d="M81 228L77 300M119 228L123 300"/><circle cx="81" cy="226" r="5"/><circle cx="119" cy="226" r="5"/><circle cx="77" cy="302" r="5"/><circle cx="123" cy="302" r="5"/>')}
+    ${o('radiacion','<circle class="hit" cx="158" cy="56" r="24"/><circle cx="158" cy="56" r="11"/><path class="ln" d="M158 38v-5M158 79v-5M140 56h-5M181 56h-5M146 44l-3-3M173 71l-3-3M146 68l-3 3M173 41l-3 3"/>')}
+  </svg>`}
+function organDetail(id){const m=MOD[id],s=status(id);
+  return `<div class="row" style="gap:10px;flex-wrap:wrap"><span style="color:${SC[s]}">${ic(m.icon,22)}</span><b>${ORGANS[id]}</b><span class="small muted">· ${m.name}</span>${chip(s)}</div>
+    <div class="num" style="font:700 26px var(--ff-h);margin-top:8px">${m.key()}</div><div class="small muted">${m.sub()}</div>
+    <button class="btn ${s==='ok'?'ghost':'primary'} m" style="margin-top:12px" onclick="go('m-${id}')">Ver ${m.name.toLowerCase()} ${ic('right',16)}</button>`}
+const legend=()=>`<div class="legend" role="note" aria-label="Código de color">${['ok','warn','crit'].map(s=>`<span style="color:${SC[s]}">${ic(ST[s][1],14)}<span>${ST[s][2]}</span></span>`).join('')}</div>`;
 const PANEL_W={
-  estado:{name:'Estado general',span:2,html(){const hs=healthScore();const C=2*Math.PI*92,off=C*(1-hs.s/100);const ring=hs.c?'#FF7A7A':hs.w?'#F2A93B':'#B3E9C7';const last=U.samples.at(-1);
-    const al=activeAlerts().sort((a,b)=>sevOrder[a.severity]-sevOrder[b.severity])[0];
-    return `<div class="card stk" style="display:flex;align-items:center;gap:36px;padding:28px 32px">
-      <svg width="180" height="180" viewBox="0 0 230 230" style="flex:none" role="img" aria-label="Puntaje de salud ${hs.s} de 100">
-        <defs><radialGradient id="pl" cx=".35" cy=".3"><stop offset="0" stop-color="#3B3D78"/><stop offset="1" stop-color="#1C1D3D"/></radialGradient></defs>
-        <circle cx="115" cy="115" r="92" fill="none" stroke="#1C1D3D" stroke-width="14"/>
-        <circle class="ringfg" cx="115" cy="115" r="92" fill="none" stroke="${ring}" stroke-width="14" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C}" data-off="${off}" transform="rotate(-90 115 115)"/>
-        <circle cx="115" cy="115" r="72" fill="url(#pl)"/><g class="orbit"><circle cx="115" cy="10" r="7" fill="#F0FFF1"/></g>
-        <text x="115" y="118" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="46" fill="#F0FFF1" data-count="${hs.s}">${hs.s}</text>
-        <text x="115" y="142" text-anchor="middle" font-size="12" fill="#B4B2D1">de 100</text></svg>
-      <div style="flex:1;min-width:0"><h2 style="font-size:24px;line-height:32px">${hs.w?`${hs.w} ${hs.w>1?'sistemas necesitan':'sistema necesita'} atención`:'Todo está en tu rango'}</h2>
-        <p class="muted small" style="margin-top:4px">Última muestra: día ${last.day}</p>
-        ${al?`<div class="row" style="margin-top:16px;gap:12px;padding:12px 14px;border-radius:14px;background:${al.severity==='crit'?'rgba(255,122,122,.12)':'rgba(242,169,59,.12)'};flex-wrap:wrap">${chip(al.severity)}<span style="flex:1;min-width:160px;font-weight:600">${al.title}</span><button class="btn ghost m" onclick="go('m-${al.module}')">Ver qué hacer ${ic('right',16)}</button></div>`
-          :`<p style="margin-top:16px">${chip('ok')} <span class="small muted" style="margin-left:6px">Sigue con tu rutina de hoy.</span></p>`}</div></div>`}},
+  muestra:{name:'Nueva muestra',span:2,html(){const st=sampleState();return `<div class="card samplecard ${st.due?'due':''}" data-cdclass style="display:flex;align-items:center;gap:18px;padding:18px 22px;flex-wrap:wrap">
+      <span data-cdring="64">${sampleRing(st)}</span>
+      <div style="flex:1;min-width:180px"><div style="font:600 20px var(--ff-h)" data-cd="title">${st.title}</div><div class="small muted" data-cd="sub">${st.sub}</div></div>
+      <button class="btn ${st.due?'primary':'ghost'}" onclick="go('nueva-muestra')">${ic('flask')}${st.due?'Registrar ahora':'Registrar muestra'}</button></div>`}},
+  estado:{name:'Estado del cuerpo',span:2,html(){const hs=healthScore();const al=activeAlerts().sort((a,b)=>sevOrder[a.severity]-sevOrder[b.severity])[0];
+    const worstId=[...MODS].sort((a,b)=>sevOrder[status(a.id)]-sevOrder[status(b.id)])[0].id; S.organ=S.organ&&MOD[S.organ]?S.organ:worstId;
+    return `<div class="card stk" style="display:flex;gap:28px;align-items:flex-start;padding:24px 28px">
+      <div style="text-align:center;flex:none"><div id="bodywrap">${bodyMap(S.organ)}</div>${legend()}</div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:16px">
+        <div class="row" style="gap:14px"><svg width="56" height="56" viewBox="0 0 56 56" aria-label="Puntaje ${hs.s} de 100" role="img" style="flex:none"><circle cx="28" cy="28" r="23" fill="none" stroke="var(--bg)" stroke-width="6"/><circle class="ringfg" cx="28" cy="28" r="23" fill="none" stroke="${SC[hs.c?'crit':hs.w?'warn':'ok']}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${2*Math.PI*23}" stroke-dashoffset="${2*Math.PI*23}" data-off="${2*Math.PI*23*(1-hs.s/100)}" transform="rotate(-90 28 28)"/><text x="28" y="33" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="16" fill="var(--text)">${hs.s}</text></svg>
+          <div><h2 style="font-size:22px;line-height:28px">${hs.w?`${hs.w} ${hs.w>1?'sistemas necesitan':'sistema necesita'} atención`:'Todo tu cuerpo está estable'}</h2><p class="muted small">Toca un órgano para ver su estado · última muestra: día ${U.samples.at(-1).day}</p></div></div>
+        ${al?`<div class="row" style="gap:12px;padding:12px 14px;border-radius:14px;background:${al.severity==='crit'?'rgba(255,90,95,.14)':'rgba(255,210,63,.12)'};flex-wrap:wrap">${chip(al.severity)}<span style="flex:1;min-width:160px;font-weight:600">${al.title}</span><button class="btn ghost m" onclick="go('m-${al.module}')">Ver qué hacer ${ic('right',16)}</button></div>`:''}
+        <div class="organcard" id="orgcard" aria-live="polite">${organDetail(S.organ)}</div>
+      </div></div>`}},
   hoy:{name:'Qué hacer hoy',span:1,html(){const top3=U.recs.filter(r=>!r.done).sort((a,b)=>PRIO[a.priority]-PRIO[b.priority]).slice(0,3);
     return `<div class="card"><div class="between" style="margin-bottom:12px"><h3>Qué hacer hoy</h3><a href="#recomendaciones" class="small" style="color:var(--lav2);min-height:44px;display:flex;align-items:center">Ver todo</a></div>
       <div class="grid" style="gap:10px">${top3.map(r=>recCard(r,true)).join('')||'<p class="muted small">¡Todo hecho por hoy!</p>'}</div></div>`}},
@@ -223,20 +246,21 @@ const PANEL_W={
         <button class="grip mgrip" aria-label="Arrastrar ${m.name}">${ic('grip',18)}</button>
         <div class="between"><div class="mi">${ic(m.icon,22)}</div>${chip(s)}</div>
         <div><div class="small muted">${m.name}</div><div class="mval">${m.key()}</div><div class="cap muted">${m.sub()}</div></div>
-        ${S.edit?`<div class="row" style="gap:4px;justify-content:center"><button class="mv mmv" data-d="-1" aria-label="Mover ${m.name} antes">${ic('left',18)}</button><button class="mv mmv" data-d="1" aria-label="Mover ${m.name} después">${ic('right',18)}</button></div>`:spark(series(m.primary,7).map(Number),160,30,s==='ok'?'#A994E0':s==='crit'?'#FF7A7A':'#F2A93B')}</div>`}).join('')}</div></div>`}},
-  proxima:{name:'Próxima muestra',span:1,html(){return `<div class="card row" style="gap:16px"><svg width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" fill="none" stroke="#1C1D3D" stroke-width="5"/><circle cx="32" cy="32" r="26" fill="none" stroke="#A994E0" stroke-width="5" stroke-linecap="round" stroke-dasharray="163" stroke-dashoffset="60" transform="rotate(-90 32 32)"/><g class="orbit" style="transform-origin:32px 32px;animation-duration:10s"><circle cx="32" cy="6" r="3.5" fill="#F0FFF1"/></g></svg>
-      <div><div class="small muted">Próxima muestra</div><div style="font:600 20px var(--ff-h)">en 2 h 15 min</div><div class="cap muted">Programada 15:30</div></div></div>`}},
+        ${S.edit?`<div class="row" style="gap:4px;justify-content:center"><button class="mv mmv" data-d="-1" aria-label="Mover ${m.name} antes">${ic('left',18)}</button><button class="mv mmv" data-d="1" aria-label="Mover ${m.name} después">${ic('right',18)}</button></div>`:spark(series(m.primary,7).map(Number),160,30,s==='ok'?'#A994E0':s==='crit'?'#FF5A5F':'#FFD23F')}</div>`}).join('')}</div></div>`}},
 };
 PAGES.panel={
   html(){const na=activeAlerts().length;
     return `<div class="top"><div class="grow"><h1 style="font-size:32px;line-height:40px">Hola, ${firstName()}</h1><p class="muted">${todayLabel()} · Día ${MISSION.day} de ${MISSION.total}</p></div>
       ${editBtn()}<button class="iconbtn hide-m ${na?'wig':''}" onclick="go('alertas')" aria-label="Alertas">${ic('bell',22)}${na?`<span class="badge">${na}</span>`:''}</button>
-      <button class="btn primary hide-m" onclick="go('nueva-muestra')">${ic('flask')}Nueva muestra</button></div>
+      <button class="btn primary hide-m" onclick="go('nueva-muestra')">${ic('flask')}Nueva muestra<span class="cdpill" data-cd="short">${sampleState().short}</span></button></div>
     ${editBar('tu panel',['panel','panelHidden','mods'])}
-    ${widgetGrid('panel',PANEL_W,['proxima'])}`;
+    ${widgetGrid('panel',PANEL_W,[])}`;
   },
   bind(root){
-    setTimeout(()=>{const r=$('.ringfg',root);if(r)r.style.strokeDashoffset=r.dataset.off},80);
+    setTimeout(()=>$$('.ringfg',root).forEach(r=>r.style.strokeDashoffset=r.dataset.off),80);
+    const pick=id=>{S.organ=id;$('#bodywrap',root).innerHTML=bodyMap(id);$('#orgcard',root).innerHTML=organDetail(id);bindOrgans()};
+    const bindOrgans=()=>$$('.organ',root).forEach(g=>{g.onclick=()=>pick(g.dataset.mod);g.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick(g.dataset.mod);$(`.organ[data-mod="${g.dataset.mod}"]`,root)?.focus()}}});
+    if($('#bodywrap',root))bindOrgans();
     bindGlass(root,'pg',()=>{$('#wtxt').textContent=(U.water/1000).toFixed(2)+' L';$('#wbar').style.width=Math.min(100,U.water/U.waterGoal*100)+'%';$('#wleft').textContent=U.water>=U.waterGoal?'¡Meta cumplida!':`Faltan ${U.waterGoal-U.water} ml`});
     bindRecs(root,()=>rerender()); bindEditBar(root); bindWidgetGrid(root);
     const mg=$('#mgrid',root); if(mg){const save=()=>setLayout({mods:$$('.mcard',mg).map(c=>c.dataset.sid)});

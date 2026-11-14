@@ -54,14 +54,14 @@ const MOCK = (()=>{
       target:{vol:1.4,dens:1.028,osm:890,color:5,ca:290,ox:42,cit:380,ph:5.9}},
     {id:'leo',  name:'Leo Park',   role:'Ingeniero de vuelo',    initials:'LP',color:'#A994E0',age:38,weight:78,height:1.80,dose:139,hr:68,bp:'122/80',water:2300,waterGoal:2700,sleep:7.0,sessions:1,energy:71,protein:55,mood:2,
       target:{ntx:64,ctx:530}},
-    {id:'sami', name:'Sami Okoye', role:'Oficial médica',        initials:'SO',color:'#F2A93B',age:44,weight:70,height:1.74,dose:140,hr:81,bp:'126/82',water:2200,waterGoal:2500,sleep:5.1,sessions:4,energy:62,protein:70,mood:1,
+    {id:'sami', name:'Sami Okoye', role:'Oficial médica',        initials:'SO',color:'#FFD23F',age:44,weight:70,height:1.74,dose:140,hr:81,bp:'126/82',water:2200,waterGoal:2500,sleep:5.1,sessions:4,energy:62,protein:70,mood:1,
       target:{cort:92,mel:7}},
     {id:'mateo',name:'Mateo Rojas',role:'Especialista de misión',initials:'MR',color:'#8367C7',age:35,weight:75,height:1.77,dose:188,hr:74,bp:'120/78',water:2400,waterGoal:2600,sleep:6.8,sessions:4,energy:66,protein:72,mood:2,
       target:{ohdg:11.2,iso:1.6}},
     {id:'yuki', name:'Yuki Tanaka',role:'Piloto',                initials:'YT',color:'#C2F8CB',age:36,weight:58,height:1.62,dose:141,hr:76,bp:'112/72',water:1900,waterGoal:2400,sleep:6.9,sessions:3,energy:60,protein:61,mood:2,
       target:{leu:6,nit:1}},
   ];
-  const mission={name:'Artemis Gateway',day:142,total:180,doseLimit:600,start:'2026-06-26',
+  const mission={name:'Artemis Gateway',day:142,total:180,doseLimit:600,start:'2026-06-26',sampleTimes:['07:30','15:30'],
     events:[{day:23,cls:'Clase C'},{day:61,cls:'Clase M'},{day:98,cls:'Clase C'},{day:131,cls:'Clase M'}]};
   const seed=s=>{let h=1779033703^s.length;for(const c of s)h=Math.imul(h^c.charCodeAt(0),3432918353),h=h<<13|h>>>19;return()=>{h=Math.imul(h^h>>>16,2246822507);h=Math.imul(h^h>>>13,3266489909);return((h^=h>>>16)>>>0)/4294967296}};
   const dateOf=day=>{const d=new Date(mission.start+'T07:30:00Z');d.setUTCDate(d.getUTCDate()+day-1);return d.toISOString()};
@@ -154,7 +154,7 @@ const SUPA = (()=>{
     water:c.water_ml_today,waterGoal:c.water_goal_ml,sleep:c.sleep_hours,sessions:c.resistance_sessions_week,energy:c.energy_pct,protein:c.protein_pct,mood:c.mood});
   return {
     async crew(){return (await q('crew?select=*&order=sort_order')).map(crewRow)},
-    async mission(){const m=(await q('mission?select=*,solar_events(day,class)&limit=1'))[0];return {name:m.name,day:m.current_day,total:m.total_days,doseLimit:m.dose_limit_msv,start:m.start_date,events:(m.solar_events||[]).map(e=>({day:e.day,cls:e.class}))}},
+    async mission(){const m=(await q('mission?select=*,solar_events(day,class)&limit=1'))[0];return {name:m.name,day:m.current_day,total:m.total_days,doseLimit:m.dose_limit_msv,start:m.start_date,sampleTimes:m.sample_times,events:(m.solar_events||[]).map(e=>({day:e.day,cls:e.class}))}},
     async user(id){
       const [c,s,r,a,g]=await Promise.all([q(`crew?id=eq.${id}`),q(`samples?crew_id=eq.${id}&select=id,mission_day,taken_at,method,sample_values(biomarker_id,value)&order=taken_at`),
         q(`recommendations?crew_id=eq.${id}&order=created_at`),q(`alerts?crew_id=eq.${id}&order=created_at.desc`),q(`personal_ranges?crew_id=eq.${id}`)]);
@@ -181,6 +181,7 @@ const DB = {
       catch(e){ DB.error=e.message; console.warn('URANO: no se pudo conectar, uso datos demo.',e); } }
     DB.api=MOCK; DB.source='demo'; CREW=await MOCK.crew(); MISSION=await MOCK.mission();
   },
+  // (MISSION.sampleTimes = horas programadas de muestra; por defecto 07:30 y 15:30)
   cache:{},
   async loadUser(id){ const d=await DB.api.user(id);
     d.samples.sort((a,b)=>a.takenAt<b.takenAt?-1:1);
@@ -188,9 +189,9 @@ const DB = {
   async loadAll(){ await Promise.all(CREW.map(c=>DB.loadUser(c.id))); },
   use(id){ U=DB.cache[id]||DB.cache[CREW[0].id]; try{localStorage.setItem('urano-user',U.id)}catch(e){} return U; },
   async addCrew(c){ await DB.api.addCrew(c); CREW.push(c); await DB.loadUser(c.id); return c; },
-  async saveSample(d){ const out=await DB.api.saveSample(U.id,d);
+  async saveSample(d){ U.lastSubmit=Date.now(); const out=await DB.api.saveSample(U.id,d);
     if(DB.source==='db'||MOCK.isCustom(U.id)){ const old=U,id=U.id; await DB.loadUser(id); DB.use(id);
-      for(const k of ['water','waterGoal','sleep','sessions','energy','protein','mood']) U[k]=old[k]; }
+      for(const k of ['water','waterGoal','sleep','sessions','energy','protein','mood','lastSubmit']) U[k]=old[k]; }
     return out; },
   run(fn,...a){ Promise.resolve(DB.api[fn](...a)).catch(e=>{console.warn(e);toast('No se pudo guardar en la base de datos','alc')}); },
 };

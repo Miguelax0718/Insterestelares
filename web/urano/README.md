@@ -74,6 +74,30 @@ Si la conexión falla, la app sigue funcionando con los datos demo y muestra un 
   - mobile-native: hover solo con mouse, sin destello al tocar, `dvh` en lugar de `vh`, áreas seguras, `touch-action: manipulation`, campos de 16 px para evitar el zoom, sin pull-to-refresh.
   - Hay que probarla en un celular real: el emulador no reproduce el notch, el teclado ni la sensación del tacto.
 
+
+## Diseño para cabina (Rol 2 · UI/UX & Motion)
+
+- **Código de color de emergencia:** verde = Estable, amarillo = Atención, rojo = Crítico (`SC` en `js/core.js`). Siempre va acompañado de ícono y texto, nunca solo color.
+- **Modo cabina (alto contraste):**
+  - Se activa en Perfil → Preferencias, o solo si el sistema operativo pide más contraste.
+  - Fondo casi negro y texto blanco puro, pensado para poca luz.
+- **Cuerpo humano interactivo:** está en el panel. Cada órgano se pinta con el estado de su módulo, y los que necesitan atención laten. Al tocar uno aparece su ficha con el valor clave y el acceso al módulo.
+  - Cerebro → Estrés y sueño
+  - Ganglios → Inmunidad
+  - Corazón → Cardiovascular
+  - Estómago → Metabolismo
+  - Riñones → Riesgo renal
+  - Vejiga → Hidratación
+  - Huesos → Salud ósea
+  - Piel y ADN (sol) → Radiación
+- **Nueva muestra con cuenta regresiva:** se muestra en vivo en el panel (primer bloque), en el botón superior, en el menú, en la pestaña del celular y en la página de muestra.
+  - Indica "Es hora de tu muestra" si hay una pendiente, o el tiempo que falta para la siguiente.
+  - El horario sale de `mission.sample_times` (por defecto 07:30 y 15:30).
+- **Guías animadas** (`js/guides.js`): cuatro procedimientos de 4 pasos con animaciones SVG que funcionan sin internet.
+  - Las guías son: cómo tomar la muestra, cómo leer la tira reactiva, refugio ante tormenta solar, y dolor lumbar intenso (primeros auxilios).
+  - Se abren desde Consejos, desde la página de muestra, desde cada módulo relacionado y desde las alertas.
+  - Para usar animaciones **Lottie** exportadas por el equipo, agrega `lottie:'ruta/archivo.json'` al paso y carga `lottie-web`: el reproductor las usa en lugar del SVG.
+
 ## Cómo se calcula todo
 
 - Cada **muestra** es una fila en `samples` y cada valor medido es una fila en `sample_values` (`biomarker_id` + `value`).

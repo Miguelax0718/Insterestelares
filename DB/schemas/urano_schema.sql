@@ -9,7 +9,8 @@ create table if not exists mission (
   current_day    int  not null,
   total_days     int  not null,
   dose_limit_msv numeric not null default 600,
-  start_date     date not null
+  start_date     date not null,
+  sample_times   text[] not null default '{07:30,15:30}'  -- horas programadas de muestra
 );
 
 create table if not exists solar_events (

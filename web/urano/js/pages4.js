@@ -10,8 +10,9 @@ PAGES.recomendaciones={
      ${MODS.filter(m=>U.recs.some(r=>r.module===m.id)).map(m=>`<button class="tog flt ${f===m.id?'on':''}" data-k="${m.id}">${ic(m.icon,16)}${m.name}</button>`).join('')}</div>
     <div class="grid rg" style="grid-template-columns:minmax(0,1fr) 360px;align-items:start">
      <div><h2 style="margin-bottom:12px">Hoy</h2><div class="grid" style="gap:12px">${todo.map(r=>`<div class="openrec" data-id="${r.id}" style="cursor:pointer">${recCard(r)}</div>`).join('')||`<div class="card empty"><svg width="90" height="90" viewBox="0 0 90 90"><circle cx="45" cy="45" r="24" fill="#8367C7" opacity=".6"/><ellipse cx="45" cy="45" rx="42" ry="11" fill="none" stroke="#F0FFF1" stroke-opacity=".5" transform="rotate(-18 45 45)"/></svg><h3>¡Todo listo por ahora!</h3></div>`}</div>
-      <div class="card" style="padding:0 24px;margin-top:24px"><button class="between accbtn" style="width:100%;height:64px"><b>Completadas (${done.length})</b><span class="chev">${ic('down')}</span></button><div class="acc"><div><div class="grid" style="gap:10px;padding-bottom:20px">${done.map(r=>recCard(r)).join('')}</div></div></div></div></div>
-     <div class="card"><h2>Metas de la semana</h2><p class="small muted">Cada día cumplido enciende una estrella</p>${GOALS().map(([n,lit,t,i])=>{return `<div style="margin-top:22px"><div class="between"><span class="row small" style="font-weight:600">${ic(i,18,'color:var(--lav2)')}${n}</span><span class="num small muted">${lit}/${t}</span></div>${constel(lit,t,300)}</div>`}).join('')}</div></div>`;},
+      <div class="card" style="padding:0 24px;margin-top:24px"><button class="between accbtn" style="width:100%;min-height:64px"><b>Completadas (${done.length})</b><span class="chev">${ic('down')}</span></button><div class="acc"><div><div class="grid" style="gap:10px;padding-bottom:20px">${done.map(r=>recCard(r)).join('')}</div></div></div></div></div>
+     <div class="card"><h2>Metas de la semana</h2><p class="small muted">Cada día cumplido enciende una estrella</p>${GOALS().map(([n,lit,t,i])=>{return `<div style="margin-top:22px"><div class="between"><span class="row small" style="font-weight:600">${ic(i,18,'color:var(--lav2)')}${n}</span><span class="num small muted">${lit}/${t}</span></div>${constel(lit,t,300)}</div>`}).join('')}</div></div>
+    <h2 style="margin:32px 0 6px">Guías animadas</h2><p class="small muted" style="margin-bottom:16px">Procedimientos paso a paso para hacer por tu cuenta durante la misión</p>${guideCards()}`;},
   bind(root){$$('.flt',root).forEach(b=>b.onclick=()=>{S.recFilter=b.dataset.k;rerender()});
     bindRecs(root,()=>rerender());$$('.accbtn',root).forEach(b=>b.onclick=()=>{b.nextElementSibling.classList.toggle('open');$('.chev',b).classList.toggle('open')});
     $$('.openrec',root).forEach(o=>o.onclick=e=>{if(e.target.closest('.chk'))return;const r=U.recs.find(x=>x.id===o.dataset.id),m=MOD[r.module];const bm=bmObj(keyBm(m));
@@ -25,7 +26,7 @@ PAGES.recomendaciones={
 
 // ---------- P06 Historial ----------
 const HB=['vol','ca','dens','ntx','ohdg','cort','mel','leu','na','prot'];
-const HCOL=['#A994E0','#F2A93B','#B3E9C7'];
+const HCOL=['#A994E0','#FFD23F','#B3E9C7'];
 function histChart(){const sel=[...S.histSel];const n=S.period==='7'?7:S.period==='30'?30:U.samples.length;const W=760,H=240,p=36;
   const series_=sel.map(k=>{const r=rangeOf(k);return series(k,n).map(v=>(v-r.lo)/((r.hi-r.lo)||1)*100)});const days=U.samples.slice(-n).map(s=>s.day);const m=series_[0]?.length||1;
   const X=i=>p+i*((W-2*p)/Math.max(1,m-1)),Y=v=>H-p-(Math.max(-40,Math.min(160,v))+40)/200*(H-2*p);
@@ -41,7 +42,7 @@ PAGES.historial={
     <div class="grid rg" style="grid-template-columns:1fr 1fr;margin-top:24px;align-items:start">
      <div class="card"><h2>Órbita de tus muestras</h2><p class="small muted">Cada punto es una muestra. Toca uno para ver su resultado.</p>
       <svg width="100%" viewBox="0 0 520 260" style="margin-top:8px"><ellipse cx="260" cy="130" rx="220" ry="90" fill="none" stroke="#5F5980" stroke-dasharray="3 5"/><circle cx="260" cy="130" r="34" fill="#8367C7" opacity=".55"/><circle cx="260" cy="130" r="34" fill="none" stroke="#F0FFF1" stroke-opacity=".3"/>
-       ${samples.map(([d,,s],i)=>{const a=-Math.PI/2+i*(Math.PI*2/samples.length);const x=260+Math.cos(a)*220,y=130+Math.sin(a)*90;return `<g style="cursor:pointer" onclick="go('resultados')"><circle cx="${x}" cy="${y}" r="${i===0?11:8}" fill="${s==='ok'?'#B3E9C7':'#F2A93B'}">${i===0?'<animate attributeName="r" values="9;12;9" dur="2s" repeatCount="indefinite"/>':''}</circle><text x="${x}" y="${y+(Math.sin(a)>0?28:-16)}" text-anchor="middle" font-size="11" fill="#B4B2D1">${d}</text></g>`}).join('')}</svg></div>
+       ${samples.map(([d,,s],i)=>{const a=-Math.PI/2+i*(Math.PI*2/samples.length);const x=260+Math.cos(a)*220,y=130+Math.sin(a)*90;return `<g style="cursor:pointer" onclick="go('resultados')"><circle cx="${x}" cy="${y}" r="${i===0?11:8}" fill="${SC[s]}">${i===0?'<animate attributeName="r" values="9;12;9" dur="2s" repeatCount="indefinite"/>':''}</circle><text x="${x}" y="${y+(Math.sin(a)>0?28:-16)}" text-anchor="middle" font-size="11" fill="#B4B2D1">${d}</text></g>`}).join('')}</svg></div>
      <div class="card"><h2>Muestras</h2><div style="margin-top:8px">${samples.map(([d,mth,s])=>`<a href="#resultados" class="between" style="text-decoration:none;padding:12px 0;border-bottom:1px solid rgba(95,89,128,.35)"><span class="row">${ic(mth==='Tira'?'cam':mth==='Manual'?'pencil':'cpu',18,'color:var(--lav2)')}<span>${d}</span><span class="small muted">${mth}</span></span><span class="row">${chip(s)}${ic('right',16,'color:var(--text2)')}</span></a>`).join('')}</div></div></div>`;},
   bind(root){$$('.per',root).forEach(b=>b.onclick=()=>{S.period=b.dataset.k;rerender()});
     $$('.hsel',root).forEach(b=>b.onclick=()=>{const k=b.dataset.k;if(S.histSel.has(k)){if(S.histSel.size>1)S.histSel.delete(k)}else{if(S.histSel.size>=3){toast('Máximo 3 biomarcadores a la vez','alc');return}S.histSel.add(k)}rerender()});
@@ -64,7 +65,7 @@ PAGES.alertas={
 };
 
 // ---------- P08 Perfil ----------
-const DEST={estacion:['Estación','Órbita baja terrestre','#0E34A0','#B3E9C7'],luna:['Luna','Artemis Gateway','#B4B2D1','#5F5980'],marte:['Marte','Tránsito a Marte','#F2A93B','#FF7A7A']};
+const DEST={estacion:['Estación','Órbita baja terrestre','#0E34A0','#B3E9C7'],luna:['Luna','Artemis Gateway','#B4B2D1','#5F5980'],marte:['Marte','Tránsito a Marte','#FFD23F','#FF5A5F']};
 PAGES.perfil={
   html(){return `<div class="top"><div class="grow"><h1 style="font-size:32px;line-height:40px">Perfil</h1><p class="muted">Tus datos base, tus metas y qué compartes con control de misión</p></div></div>
     <div class="grid rg" style="grid-template-columns:340px minmax(0,1fr);align-items:start">
@@ -81,17 +82,18 @@ PAGES.perfil={
         <div><div class="between small"><span>Sueño</span><span class="num" id="gv3">8 h</span></div><input type="range" class="slider" id="g3" min="6" max="9" value="8"></div></div></div>
       <div class="card"><h2>Línea base personal</h2><p class="small muted">Valores de tu primera muestra registrada. Todos los rangos se calculan contra ellos.</p><div class="grid rg2" style="grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px">${['vol','ca','dens','cort','na','ohdg','ntx','ph'].map(k=>[BM[k].n.replace(' urinario','').replace(' libre','').replace(' específica',''),`${fx(k,val(k,0))}${BM[k].u?' '+BM[k].u:''}`]).map(([a,b])=>`<div style="padding:14px;border-radius:12px;background:var(--bg)"><div class="cap muted">${a}</div><div class="num" style="font-weight:600;margin-top:2px">${b}</div></div>`).join('')}</div></div>
       <div class="grid rg" style="grid-template-columns:1fr 1fr"><div class="card"><h2>Privacidad</h2><p class="small muted">Qué módulos ve control de misión</p>${MODS.map(m=>`<div class="between" style="padding:10px 0;border-bottom:1px solid rgba(95,89,128,.3)"><span class="row small">${ic(m.icon,18,'color:var(--lav2)')}${m.name}</span><button class="switch prv ${S.share[m.id]?'on':''}" data-k="${m.id}" aria-label="Compartir ${m.name}"></button></div>`).join('')}</div>
-       <div class="card"><h2>Preferencias</h2>${[['Idioma','Español'],['Unidades','Métricas']].map(([a,b])=>`<div class="between" style="padding:14px 0;border-bottom:1px solid rgba(95,89,128,.3)"><span>${a}</span><span class="muted">${b}</span></div>`).join('')}
+       <div class="card"><h2>Preferencias</h2><div class="between" style="padding:14px 0;border-bottom:1px solid rgba(95,89,128,.3)"><div><div>Modo cabina</div><div class="small muted">Alto contraste para poca luz</div></div><button class="switch ${document.body.classList.contains('hc')?'on':''}" id="hcsw" role="switch" aria-checked="${document.body.classList.contains('hc')}" aria-label="Modo cabina de alto contraste"></button></div>${[['Idioma','Español'],['Unidades','Métricas']].map(([a,b])=>`<div class="between" style="padding:14px 0;border-bottom:1px solid rgba(95,89,128,.3)"><span>${a}</span><span class="muted">${b}</span></div>`).join('')}
         <div style="padding:14px 0"><div>Tamaño de texto</div><div class="tabs" style="margin-top:10px">${['A','A+','A++'].map((t,i)=>`<button class="fs ${i===0?'on':''}" data-z="${[1,1.1,1.2][i]}">${t}</button>`).join('')}</div></div>
         <button class="btn ghost" style="margin-top:12px;width:100%" onclick="event.stopPropagation();(innerWidth<=760?$('#mwho'):$('#whobtn')).click()">${ic('user')}Cambiar de tripulante</button></div></div></div></div>`;},
   bind(root){$$('.dest',root).forEach(b=>b.onclick=()=>{S.dest=b.dataset.k;rerender();toast(`Destino: ${DEST[S.dest][0]}`,'orbit')});
     $('#g1',root).oninput=e=>{U.waterGoal=+e.target.value;$('#gv1').textContent=(U.waterGoal/1000).toFixed(1)+' L'};$('#g2',root).oninput=e=>$('#gv2').textContent=e.target.value+'/sem';$('#g3',root).oninput=e=>$('#gv3').textContent=e.target.value+' h';
     $$('.prv',root).forEach(b=>b.onclick=()=>{S.share[b.dataset.k]=!S.share[b.dataset.k];b.classList.toggle('on')});
+    $('#hcsw',root).onclick=e=>{const on=!document.body.classList.contains('hc');document.body.classList.toggle('hc',on);e.currentTarget.classList.toggle('on',on);e.currentTarget.setAttribute('aria-checked',on);try{localStorage.setItem('urano-hc',on?'1':'0')}catch(_){};toast(on?'Modo cabina activado':'Modo cabina desactivado','eye')};
     $$('.fs',root).forEach(b=>b.onclick=()=>{$$('.fs',root).forEach(x=>x.classList.toggle('on',x===b));$('#main').style.zoom=b.dataset.z});}
 };
 
 // ---------- Init ----------
 addEventListener('hashchange',render);
-(async()=>{ sky(); $('#app').innerHTML=`<div class="empty" style="min-height:100vh;justify-content:center"><svg width="80" height="80" viewBox="0 0 80 80"><circle cx="40" cy="40" r="16" fill="#8367C7"/><g class="orbit" style="transform-origin:40px 40px;animation-duration:1.6s"><circle cx="40" cy="8" r="5" fill="#F0FFF1"/></g></svg><p class="muted">Conectando con la base de datos…</p></div>`;
+(async()=>{ try{if(localStorage.getItem('urano-hc')==='1')document.body.classList.add('hc')}catch(_){} sky(); $('#app').innerHTML=`<div class="empty" style="min-height:100vh;justify-content:center"><svg width="80" height="80" viewBox="0 0 80 80"><circle cx="40" cy="40" r="16" fill="#8367C7"/><g class="orbit" style="transform-origin:40px 40px;animation-duration:1.6s"><circle cx="40" cy="8" r="5" fill="#F0FFF1"/></g></svg><p class="muted">Conectando con la base de datos…</p></div>`;
   await DB.init(); await DB.loadAll(); let last=null; try{last=localStorage.getItem('urano-user')}catch(e){} DB.use(last&&DB.cache[last]?last:CREW[0].id);
   render(); if(DB.error) toast('No se pudo conectar con la base de datos. Uso datos de demostración.','alc'); })();

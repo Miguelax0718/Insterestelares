@@ -10,7 +10,7 @@
   --bg:#1C1D3D;--surface:#2F3061;--elev:#3B3D78;--border:#5F5980;
   --text:#F0FFF1;--text2:#B4B2D1;
   --blue:#0E34A0;--violet:#5603AD;--lav:#8367C7;--lav2:#A994E0;
-  --ok:#B3E9C7;--ok2:#C2F8CB;--warn:#F2A93B;--crit:#FF7A7A;
+  --ok:#5BE38C;--ok2:#8BF0AE;--warn:#FFD23F;--crit:#FF5A5F;
   --r-card:16px;--r-btn:12px;
   --ease:cubic-bezier(.2,.8,.2,1);
   --ff-h:'Space Grotesk',system-ui,sans-serif;--ff:'Inter',system-ui,sans-serif;
@@ -56,9 +56,9 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.75;str
 /* Chips */
 .chip{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;border-radius:999px;font-size:13px;font-weight:600;white-space:nowrap;transition:all .3s var(--ease)}
 .chip svg.i{width:15px;height:15px}
-.chip.ok{background:rgba(179,233,199,.15);color:var(--ok)}
-.chip.warn{background:rgba(242,169,59,.15);color:var(--warn)}
-.chip.crit{background:rgba(255,122,122,.15);color:var(--crit)}
+.chip.ok{background:rgba(91,227,140,.15);color:var(--ok)}
+.chip.warn{background:rgba(255,210,63,.15);color:var(--warn)}
+.chip.crit{background:rgba(255,90,95,.15);color:var(--crit)}
 .chip.info{background:rgba(169,148,224,.18);color:var(--lav2)}
 .chip.pop{animation:chipPop .7s var(--ease)}
 @keyframes chipPop{0%{transform:scale(1)}40%{transform:scale(1.18)}100%{transform:scale(1)}}
@@ -95,8 +95,8 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.75;str
 .who{display:flex;align-items:center;gap:12px;padding:0 8px}
 .avatar{width:40px;height:40px;border-radius:50%;flex:none;display:grid;place-items:center;font-family:var(--ff-h);font-weight:700;color:var(--surface)}
 .conn{display:flex;align-items:center;gap:8px;font-size:12px;line-height:16px;color:var(--text2);padding:0 8px}
-.pulse{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 rgba(179,233,199,.6);animation:pulse 2s infinite;flex:none}
-@keyframes pulse{70%{box-shadow:0 0 0 8px rgba(179,233,199,0)}100%{box-shadow:0 0 0 0 rgba(179,233,199,0)}}
+.pulse{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 rgba(91,227,140,.6);animation:pulse 2s infinite;flex:none}
+@keyframes pulse{70%{box-shadow:0 0 0 8px rgba(91,227,140,0)}100%{box-shadow:0 0 0 0 rgba(91,227,140,0)}}
 .colbtn{position:absolute;top:28px;right:14px;width:36px;height:36px;border-radius:10px;display:grid;place-items:center;color:var(--text2)}
 .side.col .colbtn{right:24px;top:76px}
 
@@ -112,17 +112,17 @@ main{flex:1;min-width:0;padding:32px 40px 64px}
 
 .grid{display:grid;gap:24px}
 .banner{display:flex;align-items:center;gap:16px;padding:16px 20px;border-radius:var(--r-card);margin-bottom:24px;animation:pageIn .4s var(--ease)}
-.banner.warn{background:rgba(242,169,59,.12);border:1px solid rgba(242,169,59,.45)}
-.banner.crit{background:rgba(255,122,122,.12);border:1px solid rgba(255,122,122,.5)}
+.banner.warn{background:rgba(255,210,63,.12);border:1px solid rgba(255,210,63,.45)}
+.banner.crit{background:rgba(255,90,95,.12);border:1px solid rgba(255,90,95,.5)}
 .banner .ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;flex:none}
-.banner.warn .ic{background:rgba(242,169,59,.2);color:var(--warn)}
-.banner.crit .ic{background:rgba(255,122,122,.2);color:var(--crit)}
+.banner.warn .ic{background:rgba(255,210,63,.2);color:var(--warn)}
+.banner.crit .ic{background:rgba(255,90,95,.2);color:var(--crit)}
 
 /* Module cards */
 .mcard{display:flex;flex-direction:column;gap:12px;padding:16px;min-height:184px;min-width:0}
 .mcard .mi{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:rgba(169,148,224,.14);color:var(--lav2);transition:transform .3s var(--ease)}
 .mcard .mval{font-family:var(--ff-h);font-size:21px;line-height:28px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mcard.warn{box-shadow:inset 0 0 0 1px rgba(242,169,59,.45)}
+.mcard.warn{box-shadow:inset 0 0 0 1px rgba(255,210,63,.45)}
 
 /* Recommendation */
 .rec{display:flex;gap:14px;align-items:flex-start;padding:16px;border-radius:14px;background:rgba(59,61,120,.45);position:relative;overflow:visible;transition:opacity .4s,transform .4s var(--ease)}
@@ -132,7 +132,7 @@ main{flex:1;min-width:0;padding:32px 40px 64px}
 .rec.done .chk{background:var(--ok);border-color:var(--ok);color:var(--bg)}
 .rec .chk svg{opacity:0;transform:scale(.4);transition:all .3s var(--ease)}
 .rec.done .chk svg{opacity:1;transform:none}
-.fly{position:fixed;width:120px;height:2px;pointer-events:none;z-index:50;background:linear-gradient(90deg,transparent,rgba(179,233,199,.8));border-radius:2px}
+.fly{position:fixed;width:120px;height:2px;pointer-events:none;z-index:50;background:linear-gradient(90deg,transparent,rgba(91,227,140,.8));border-radius:2px}
 .fly::after{content:"";position:absolute;right:-3px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--ok2);box-shadow:0 0 12px 3px rgba(194,248,203,.7)}
 
 /* Toast */
@@ -399,3 +399,97 @@ input,textarea,select{font-size:16px}
   .grid>*{min-width:0}
   h1,h2,h3{overflow-wrap:anywhere}
 }
+
+/* ---------- Modo cabina: alto contraste para baja luminosidad ---------- */
+body.hc{--bg:#05060F;--surface:#10122A;--elev:#1B1E44;--border:#9A94C8;--text:#FFFFFF;--text2:#DEDCF2;--lav2:#C9B8FF}
+body.hc .card{border-color:rgba(154,148,200,.75)}
+body.hc #sky{opacity:.35}
+body.hc .chip{outline:1px solid currentColor;outline-offset:-1px}
+body.hc .btn.ghost,body.hc .tog{border-color:#C9C4EA}
+@media (prefers-contrast:more){body:not(.hc-off){--bg:#05060F;--surface:#10122A;--elev:#1B1E44;--border:#9A94C8;--text:#FFFFFF;--text2:#DEDCF2}}
+
+/* ---------- Cuenta regresiva de la muestra ---------- */
+.samplecard{transition:border-color .3s,background .3s}
+.samplecard.due{border-color:rgba(255,210,63,.65);background:linear-gradient(100deg,rgba(255,210,63,.14),var(--surface) 55%)}
+.cdpill{display:inline-flex;align-items:center;height:24px;padding:0 9px;border-radius:999px;font-size:12px;font-weight:700;background:rgba(28,29,61,.18);margin-left:4px;font-variant-numeric:tabular-nums}
+.nav a .cdpill{background:rgba(169,148,224,.18);color:var(--text2)}
+.navcd.due .cdpill{background:rgba(255,210,63,.2);color:var(--warn)}
+.tbadge{position:absolute;top:-2px;right:-5px;width:9px;height:9px;border-radius:50%;background:var(--warn);box-shadow:0 0 0 2px var(--bg);display:none}
+.tab.due .tbadge{display:block;animation:twk 1.6s ease-in-out infinite}
+
+/* ---------- Cuerpo humano interactivo ---------- */
+.bodymap{display:block;max-width:100%;height:auto;overflow:visible}
+.silh *{fill:var(--bg);stroke:#5F5980;stroke-width:2}
+.silh .limb{fill:none;stroke:var(--elev);stroke-width:18;stroke-linecap:round}
+.silh .leg{stroke-width:22}
+.silh-aura *{fill:none;stroke:var(--oc);stroke-width:10;stroke-linecap:round;opacity:.22}
+.organ{cursor:pointer;outline:none}
+.organ>*{fill:var(--oc);fill-opacity:.42;stroke:var(--oc);stroke-width:2;transition:fill-opacity .2s,stroke-width .2s}
+.organ .ln,.organ .bone{fill:none;stroke-linecap:round}
+.organ .bone{stroke-width:7}
+.organ.sel>*,.organ:focus-visible>*{fill-opacity:.8;stroke-width:3.2}
+.organ:focus-visible{filter:drop-shadow(0 0 6px var(--oc))}
+.organ-alert>*{animation:organPulse 1.8s ease-in-out infinite}
+@keyframes organPulse{50%{fill-opacity:.9}}
+.organ .beat{transform-box:fill-box;transform-origin:center;animation:beat .9s ease-in-out infinite}
+.legend{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px;font-size:12px;font-weight:600}
+.legend>span{display:inline-flex;align-items:center;gap:4px}
+.organcard{padding:16px;border-radius:14px;background:var(--bg);border:1px solid rgba(95,89,128,.5);animation:pageIn .25s var(--ease)}
+@media (hover:hover) and (pointer:fine){.organ:hover>*{fill-opacity:.75}}
+@media (max-width:760px){.bodymap{width:190px;margin:0 auto}}
+
+/* ---------- Guías animadas ---------- */
+.gplayer{width:560px}
+.gscene{aspect-ratio:16/10;border-radius:16px;background:radial-gradient(circle at 50% 30%,var(--elev),var(--bg) 75%);border:1px solid rgba(95,89,128,.5);display:grid;place-items:center;overflow:hidden}
+.gscene>svg,.gthumb>svg{width:100%;height:100%}
+.gbars{display:flex;gap:6px;margin-bottom:12px}
+.gbar{flex:1;height:4px;border-radius:2px;background:var(--border);overflow:hidden}
+.gbar i{display:block;height:100%;width:0;background:var(--text)}
+.gbar.done i{width:100%}
+.gbar.cur i{animation:gbar 5.2s linear forwards}
+@keyframes gbar{to{width:100%}}
+.gthumb{aspect-ratio:16/10;border-radius:12px;background:var(--bg);overflow:hidden;pointer-events:none}
+.gcard{display:block;padding:14px;text-align:left}
+.g-drop{animation:gDrop 1.4s ease-in infinite;opacity:0}
+@keyframes gDrop{0%{opacity:0;transform:translateY(0)}20%{opacity:1}100%{opacity:0;transform:translateY(60px)}}
+.g-rub{animation:gRub 1s ease-in-out infinite}.g-rub2{animation:gRub 1s ease-in-out infinite reverse}
+@keyframes gRub{50%{transform:translateX(6px) translateY(-3px)}}
+.g-bub{animation:gBub 1.8s ease-out infinite;opacity:0}
+@keyframes gBub{0%{opacity:0;transform:translateY(0)}30%{opacity:.9}100%{opacity:0;transform:translateY(-50px)}}
+.g-fill{transform-box:fill-box;transform-origin:bottom;animation:gFill 3.5s var(--ease) infinite}
+@keyframes gFill{0%{transform:scaleY(0)}70%,100%{transform:scaleY(.7)}}
+.g-down{animation:gDown 3s var(--ease) infinite}
+@keyframes gDown{0%{transform:translateY(-10px);opacity:0}15%{opacity:1}55%,100%{transform:translateY(70px);opacity:1}}
+.g-blink{animation:twk .7s ease-in-out infinite}
+.g-draw{stroke-dasharray:60;stroke-dashoffset:60;animation:gDraw 3s var(--ease) infinite}
+.g-draw.late{animation-delay:.8s}
+@keyframes gDraw{0%,15%{stroke-dashoffset:60}60%,100%{stroke-dashoffset:0}}
+.g-dip{animation:gDip 3s var(--ease) infinite}
+@keyframes gDip{0%,100%{transform:translateY(-10px)}35%,50%{transform:translateY(40px)}}
+.g-sweep{stroke-dashoffset:377;animation:gSweep 5s linear infinite}
+@keyframes gSweep{to{stroke-dashoffset:0}}
+.g-scan{animation:gScan 3.6s ease-in-out infinite}
+@keyframes gScan{0%,100%{transform:translateY(0)}50%{transform:translateY(110px)}}
+.g-flash{opacity:0;animation:gFlash 2.4s ease-out infinite}
+@keyframes gFlash{0%,60%{opacity:0}63%{opacity:.85}100%{opacity:0}}
+.g-spin{animation:spin 8s linear infinite}
+.g-pulse{animation:gPulse 1.2s ease-in-out infinite}
+@keyframes gPulse{50%{transform:scale(1.12)}}
+.g-walk{animation:gWalk 3.2s var(--ease) infinite}
+@keyframes gWalk{0%{transform:translateX(0)}70%,100%{transform:translateX(215px)}}
+.g-stack{opacity:0;animation:gStack 3.6s var(--ease) infinite}
+@keyframes gStack{0%{opacity:0;transform:translateY(-30px)}20%,90%{opacity:1;transform:none}100%{opacity:0}}
+.g-drain{transform-box:fill-box;transform-origin:left;animation:gDrain 3.6s ease-in-out infinite}
+@keyframes gDrain{0%{transform:scaleX(1);fill:#FF5A5F}60%,100%{transform:scaleX(.2);fill:#5BE38C}}
+.g-wave{opacity:0;animation:gWave 1.5s ease-out infinite}
+@keyframes gWave{0%{opacity:0}40%{opacity:1}100%{opacity:0;transform:translateX(10px)}}
+.g-slide{animation:gSlide 3.4s ease-in-out infinite}
+@keyframes gSlide{0%,100%{transform:translateX(0)}60%{transform:translateX(168px)}}
+.g-lid{animation:gLid 3s var(--ease) infinite}
+@keyframes gLid{0%,15%{transform:none}45%,100%{transform:rotate(-38deg)}}
+.g-pill{animation:gPill 3s var(--ease) infinite}
+@keyframes gPill{0%,40%{opacity:0;transform:translate(-90px,-10px)}70%,100%{opacity:1;transform:none}}
+@media (max-width:760px){.gplayer{padding:16px}}
+.organ>.hit{fill:transparent!important;stroke:none!important;animation:none!important}
+.nav a .navcd{flex:none}
+.nav a .cdpill{font-size:11px;padding:0 7px}
