@@ -23,6 +23,14 @@ Desktop.ini
 *.key
 *.cert
 
+# MCP & Google Drive Credentials / OAuth Tokens
+mcp/credentials.json
+mcp/token.json
+mcp/gdrive-credentials.json
+*credentials.json
+*token.json
+.gdrive/
+
 # Python
 __pycache__/
 *.py[cod]
