@@ -8,7 +8,7 @@ import 'package:astramed/features/01_general_health/domain/scientific_criteria_e
 import 'package:astramed/features/01_general_health/models/vitals_record.dart';
 import 'package:astramed/features/01_general_health/presentation/providers/telemetry_panel_provider.dart';
 import 'package:astramed/features/01_general_health/presentation/widgets/device_availability_card.dart';
-import 'package:astramed/features/01_general_health/presentation/widgets/telemetry_charts_section.dart';
+import 'package:astramed/features/01_general_health/presentation/widgets/gamified_health_guide_card.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 import 'package:astramed/features/telemetry/models/telemetry_machine.dart';
@@ -186,9 +186,13 @@ class GeneralHealthView extends ConsumerWidget {
         ),
 
         const SizedBox(height: 12),
-        DeviceAvailabilityCard(devices: telemetrySnapshot.devices),
+        GamifiedHealthGuideCard(
+          snapshot: telemetrySnapshot,
+          activeContext: activeContext,
+          vitals: vitals,
+        ),
         const SizedBox(height: 12),
-        TelemetryChartsSection(snapshot: telemetrySnapshot),
+        DeviceAvailabilityCard(devices: telemetrySnapshot.devices),
         const SizedBox(height: 16),
         _buildManualAssessmentButton(context, ref, astronaut),
       ],
