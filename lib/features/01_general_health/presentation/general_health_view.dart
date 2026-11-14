@@ -8,7 +8,7 @@ import 'package:astramed/features/01_general_health/domain/scientific_criteria_e
 import 'package:astramed/features/01_general_health/domain/telemetry_view_contracts.dart';
 import 'package:astramed/features/01_general_health/models/vitals_record.dart';
 import 'package:astramed/features/01_general_health/presentation/providers/telemetry_panel_provider.dart';
-import 'package:astramed/features/01_general_health/presentation/widgets/vital_detail_sheet.dart';
+import 'package:astramed/features/01_general_health/presentation/widgets/vital_detail_full_screen_view.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 import 'package:astramed/features/telemetry/models/telemetry_machine.dart';
@@ -119,15 +119,9 @@ class GeneralHealthView extends ConsumerWidget {
           iconColor: Colors.redAccent,
           title: 'Frecuencia Cardíaca',
           evaluation: hrEval,
-          contextAverageLabel: _formatContextAverage(
-            telemetrySnapshot.heartRateSamples,
-            activeContext,
-            'lpm',
-            decimals: 1,
-          ),
           metadataTag: metadataTag,
           decimals: 0,
-          onTap: () => VitalDetailSheet.show(
+          onTap: () => VitalDetailFullScreenView.navigate(
             context,
             title: 'Frecuencia Cardíaca',
             icon: Icons.favorite,
@@ -147,6 +141,7 @@ class GeneralHealthView extends ConsumerWidget {
             contextMeaning: _heartRateContextTip(activeContext),
             whenToPayAttention:
                 'Compara siempre con tu propio promedio en el mismo estado. En microgravedad puede subir ~3–4 lpm de forma habitual. Si notas palpitaciones o mareo en reposo, consulta protocolo.',
+            activeContext: activeContext,
           ),
         ),
         _buildEvaluatedMetricCard(
@@ -154,15 +149,9 @@ class GeneralHealthView extends ConsumerWidget {
           iconColor: Colors.tealAccent,
           title: 'Frecuencia Respiratoria',
           evaluation: rrEval,
-          contextAverageLabel: _formatContextAverage(
-            telemetrySnapshot.respiratoryRateSamples,
-            activeContext,
-            'rpm',
-            decimals: 1,
-          ),
           metadataTag: metadataTag,
           decimals: 1,
-          onTap: () => VitalDetailSheet.show(
+          onTap: () => VitalDetailFullScreenView.navigate(
             context,
             title: 'Frecuencia Respiratoria',
             icon: Icons.waves,
@@ -183,6 +172,7 @@ class GeneralHealthView extends ConsumerWidget {
                 'En reposo suele estar entre 12 y 20 rpm. Durante el ejercicio sube de forma natural para aportar más oxígeno.',
             whenToPayAttention:
                 'Una sola lectura aislada no indica un problema. Presta atención si en reposo notas falta de aire persistente o si cabina reporta CO₂ elevado.',
+            activeContext: activeContext,
           ),
         ),
         _buildEvaluatedMetricCard(
@@ -190,15 +180,9 @@ class GeneralHealthView extends ConsumerWidget {
           iconColor: Colors.cyanAccent,
           title: 'Saturación SpO₂',
           evaluation: spo2Eval,
-          contextAverageLabel: _formatContextAverage(
-            telemetrySnapshot.spO2Samples,
-            activeContext,
-            '%',
-            decimals: 1,
-          ),
           metadataTag: metadataTag,
           decimals: 0,
-          onTap: () => VitalDetailSheet.show(
+          onTap: () => VitalDetailFullScreenView.navigate(
             context,
             title: 'Saturación SpO₂',
             icon: Icons.air,
@@ -219,6 +203,7 @@ class GeneralHealthView extends ConsumerWidget {
                 'Mide el porcentaje de hemoglobina que transporta oxígeno. En tierra una referencia común es 95–100 %, aunque el frío o movimiento alteran la señal.',
             whenToPayAttention:
                 'Si ves un valor bajo, revisa primero que el sensor esté bien ajustado y la mano tibia. Repite en reposo antes de reportar.',
+            activeContext: activeContext,
           ),
         ),
 
@@ -568,7 +553,6 @@ class GeneralHealthView extends ConsumerWidget {
     required Color iconColor,
     required String title,
     required EvaluationResult evaluation,
-    required String contextAverageLabel,
     required String metadataTag,
     required int decimals,
     required VoidCallback onTap,
@@ -655,15 +639,6 @@ class GeneralHealthView extends ConsumerWidget {
                 ],
               ),
             const SizedBox(height: 8),
-            Text(
-              contextAverageLabel,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: SpaceTheme.cyan,
-              ),
-            ),
-            const SizedBox(height: 4),
             Text(
               evaluation.summary,
               style: const TextStyle(fontSize: 12, color: Colors.white70),
