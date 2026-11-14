@@ -1,23 +1,10 @@
-﻿/// Availability-aware result for the SPE feed on a mission day.
+﻿import '../models/space_weather_reading.dart';
+
+/// Availability-aware result for the SPE feed on a mission day.
 enum SpeStatus {
   active,
   inactive,
   unknown,
-}
-
-/// Space-weather feed record for one mission day.
-class SpaceWeatherReading {
-  const SpaceWeatherReading({
-    required this.missionDay,
-    required this.protonFluxPfu,
-    required this.alertLevel,
-    required this.eventSpe,
-  });
-
-  final int missionDay;
-  final double protonFluxPfu;
-  final String alertLevel;
-  final bool eventSpe;
 }
 
 /// Returns the SPE feed status for [missionDay].

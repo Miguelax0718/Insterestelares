@@ -1,32 +1,11 @@
-﻿/// Organs represented in the current daily-dosimetry dataset.
-enum RadiationOrgan {
-  lens,
-  skin,
-  bloodFormingOrgans,
-  circulatorySystem,
-  centralNervousSystem,
-}
+﻿import '../models/daily_radiation_record.dart';
+import '../models/radiation_organ.dart';
 
 /// Time windows used to compare dose with NASA organ-dose limits.
 enum DoseWindow {
   last30Days,
   last365Days,
   thisMissionAgainstCareerLimit,
-}
-
-/// One crewmember's organ doses for a single mission day.
-///
-/// Values are mGy-Eq except centralNervousSystem, which is in mGy.
-class DailyOrganDose {
-  const DailyOrganDose({
-    required this.astronautId,
-    required this.missionDay,
-    required this.dosesByOrgan,
-  });
-
-  final String astronautId;
-  final int missionDay;
-  final Map<RadiationOrgan, double> dosesByOrgan;
 }
 
 /// Dose and applicable limit for one organ and one time window.
@@ -78,7 +57,7 @@ const Map<RadiationOrgan, _OrganDoseLimits> _organDoseLimits = {
 Map<RadiationOrgan, OrganDoseUse> calculateOrganDoseUse({
   required String astronautId,
   required int asOfMissionDay,
-  required Iterable<DailyOrganDose> dailyDoses,
+  required Iterable<DailyRadiationRecord> dailyDoses,
 }) {
   if (astronautId.trim().isEmpty) {
     throw ArgumentError.value(astronautId, 'astronautId', 'Must not be empty.');
@@ -104,7 +83,7 @@ Map<RadiationOrgan, OrganDoseUse> calculateOrganDoseUse({
       throw ArgumentError('Invalid or duplicate mission day ${record.missionDay} for $astronautId.');
     }
     for (final organ in RadiationOrgan.values) {
-      final dose = record.dosesByOrgan[organ];
+      final dose = record.organDoses[organ];
       if (dose == null || !dose.isFinite || dose < 0) {
         throw ArgumentError('Missing or invalid $organ dose on mission day ${record.missionDay}.');
       }
@@ -148,14 +127,14 @@ Map<RadiationOrgan, OrganDoseUse> calculateOrganDoseUse({
 }
 
 double _sumDose(
-  List<DailyOrganDose> records,
+  List<DailyRadiationRecord> records,
   RadiationOrgan organ, {
   int? firstDayExclusive,
 }) {
   var total = 0.0;
   for (final record in records) {
     if (firstDayExclusive == null || record.missionDay > firstDayExclusive) {
-      total += record.dosesByOrgan[organ]!;
+      total += record.organDoses[organ]!;
     }
   }
   return total;
@@ -168,4 +147,3 @@ class _OrganDoseLimits {
   final double last365Days;
   final double? career;
 }
-
