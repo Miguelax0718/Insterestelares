@@ -1,4 +1,4 @@
-name: astramed
+﻿name: astramed
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -80,6 +80,7 @@ flutter:
   assets:
     - assets/guides/
     - assets/animations/
+    - DB/samples/radiation/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
@@ -111,3 +112,4 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
