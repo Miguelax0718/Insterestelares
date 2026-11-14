@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
+
 import '../data/biomarker_repository.dart';
 import '../data/biomarker_simulator.dart';
 import '../data/example_mission.dart';
@@ -13,14 +15,27 @@ final biomarkerScenarioProvider =
 /// Fuente de datos de biomarcadores. Hoy es el repositorio MOCK; para usar
 /// datos reales basta con devolver otra implementación de
 /// [BiomarkerRepository] aquí.
-final biomarkerRepositoryProvider = Provider<BiomarkerRepository>(
-  (ref) => MockBiomarkerRepository(scenario: ref.watch(biomarkerScenarioProvider)),
-);
+///
+/// Simula a los mismos astronautas de la tripulación de la app (menú de
+/// tripulación, `crewMembersProvider`).
+final biomarkerRepositoryProvider = Provider<BiomarkerRepository>((ref) {
+  final ids = ref.watch(
+    crewMembersProvider.select((crew) => crew.map((p) => p.id).join(',')),
+  );
+  return MockBiomarkerRepository(
+    scenario: ref.watch(biomarkerScenarioProvider),
+    crewIds: ids.isEmpty ? BiomarkerSimulator.defaultCrew : ids.split(','),
+  );
+});
 
-/// Astronauta seleccionado en la pantalla.
-final selectedAstronautProvider = StateProvider<String>(
-  (ref) => ref.watch(biomarkerRepositoryProvider).crewIds().first,
-);
+/// Astronauta cuyos biomarcadores se muestran: el mismo que está
+/// seleccionado en el menú de tripulación de la app. Si no tiene datos de
+/// biomarcadores, se usa el primero que sí tenga.
+final biomarkerAstronautProvider = Provider<String>((ref) {
+  final ids = ref.watch(biomarkerRepositoryProvider).crewIds();
+  final selected = ref.watch(selectedAstronautIdProvider);
+  return ids.contains(selected) ? selected : ids.first;
+});
 
 /// Día de misión que se está mirando (por defecto, el día después del SPE).
 final selectedMissionDayProvider = StateProvider<int>((ref) => exampleSpeDay + 1);
@@ -51,7 +66,7 @@ final bioSummaryProvider =
 /// Resumen del astronauta y día seleccionados en la pantalla.
 final selectedBioSummaryProvider = Provider<BioSummary>((ref) {
   return ref.watch(bioSummaryProvider((
-    astronautId: ref.watch(selectedAstronautProvider),
+    astronautId: ref.watch(biomarkerAstronautProvider),
     missionDay: ref.watch(selectedMissionDayProvider),
   )));
 });
