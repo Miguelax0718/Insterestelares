@@ -103,3 +103,4 @@ logs/
 # Allow tracking datasets and structured data in DB/
 !DB/
 !DB/**
+/mcp
