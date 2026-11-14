@@ -43,7 +43,7 @@ class BiomarkerPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final repo = ref.watch(biomarkerRepositoryProvider);
     final scenario = ref.watch(biomarkerScenarioProvider);
-    final astronaut = ref.watch(selectedAstronautProvider);
+    final astronaut = ref.watch(biomarkerAstronautProvider);
     final day = ref.watch(selectedMissionDayProvider);
     final summary = ref.watch(selectedBioSummaryProvider);
     final level = BioLevel.of(summary.score);
@@ -64,19 +64,9 @@ class BiomarkerPanel extends ConsumerWidget {
               style: TextStyle(color: Colors.white70),
             ),
             const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                for (final id in repo.crewIds())
-                  ChoiceChip(
-                    label: Text(id),
-                    selected: id == astronaut,
-                    onSelected: (_) =>
-                        ref.read(selectedAstronautProvider.notifier).state = id,
-                  ),
-              ],
+            Text(
+              'Astronauta: $astronaut (cámbialo en el menú de tripulación)',
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
             ),
             const SizedBox(height: 8),
             SwitchListTile(

@@ -1,6 +1,7 @@
 import 'package:astramed/features/02_radiation/data/biomarker_repository.dart';
 import 'package:astramed/features/02_radiation/data/biomarker_simulator.dart';
 import 'package:astramed/features/02_radiation/providers/biomarker_providers.dart';
+import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -9,8 +10,17 @@ void main() {
     final c = ProviderContainer();
     addTearDown(c.dispose);
     expect(c.read(biomarkerRepositoryProvider), isA<MockBiomarkerRepository>());
-    expect(c.read(selectedAstronautProvider), 'AST-01');
+    expect(c.read(biomarkerAstronautProvider), 'AST-01');
     expect(c.read(selectedBioSummaryProvider).astronautId, 'AST-01');
+  });
+
+  test('sigue al astronauta elegido en el menú de tripulación', () {
+    final c = ProviderContainer();
+    addTearDown(c.dispose);
+    expect(c.read(biomarkerRepositoryProvider).crewIds(),
+        c.read(crewMembersProvider).map((p) => p.id).toList());
+    c.read(selectedAstronautIdProvider.notifier).state = 'AST-05';
+    expect(c.read(selectedBioSummaryProvider).astronautId, 'AST-05');
   });
 
   test('cambiar al escenario extremo sube el puntaje tras el SPE', () {

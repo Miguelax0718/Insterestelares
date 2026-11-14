@@ -1,5 +1,6 @@
 import 'package:astramed/features/02_radiation/presentation/radiation_view.dart';
 import 'package:astramed/features/02_radiation/providers/biomarker_providers.dart';
+import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 import 'package:astramed/features/02_radiation/widgets/biomarker_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,15 +24,15 @@ void main() {
     await pump(tester);
     expect(find.text('Dosímetro de Radiación Espacial'), findsOneWidget);
     expect(find.text('Biomarcadores de orina y sangre'), findsOneWidget);
-    expect(find.text('AST-01'), findsOneWidget);
+    expect(find.textContaining('Astronauta: AST-01'), findsOneWidget);
     expect(find.byKey(const Key('bioScoreText')), findsOneWidget);
   });
 
-  testWidgets('cambiar de astronauta y al escenario extremo', (tester) async {
+  testWidgets('sigue al astronauta del menú y cambia al escenario extremo', (tester) async {
     final c = await pump(tester);
-    await tester.tap(find.text('AST-03'));
+    c.read(selectedAstronautIdProvider.notifier).state = 'AST-03';
     await tester.pump();
-    expect(c.read(selectedAstronautProvider), 'AST-03');
+    expect(find.textContaining('Astronauta: AST-03'), findsOneWidget);
 
     final before = c.read(selectedBioSummaryProvider).score;
     await tester.tap(find.byKey(const Key('extremeScenarioSwitch')));

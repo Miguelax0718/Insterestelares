@@ -40,8 +40,10 @@ abstract class BiomarkerRepository {
 class MockBiomarkerRepository extends BiomarkerRepository {
   MockBiomarkerRepository({
     SimulationScenario scenario = SimulationScenario.realistic,
+    List<String> crewIds = BiomarkerSimulator.defaultCrew,
     BiomarkerSimulator? simulator,
   }) : _sim = (simulator ?? BiomarkerSimulator()).simulate(
+          crewIds: crewIds,
           speDay: exampleSpeDay,
           speDoseMsv: exampleSpeDoseMsv,
           sheltered: exampleSheltered,
