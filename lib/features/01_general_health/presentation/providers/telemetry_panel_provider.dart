@@ -64,6 +64,7 @@ final telemetrySeriesSnapshotProvider = Provider<TelemetrySeriesSnapshot>((ref) 
       status: availability,
       variables: machine.supportedMetrics,
       validReadingsPercent: validPercent,
+      isSimulated: true,
     );
   }).toList();
 

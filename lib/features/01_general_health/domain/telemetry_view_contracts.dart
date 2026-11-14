@@ -17,6 +17,7 @@ class TelemetryDeviceInfo {
   final DeviceAvailabilityStatus status;
   final List<String> variables;
   final double? validReadingsPercent;
+  final bool isSimulated;
 
   const TelemetryDeviceInfo({
     required this.name,
@@ -24,6 +25,7 @@ class TelemetryDeviceInfo {
     required this.status,
     required this.variables,
     this.validReadingsPercent,
+    this.isSimulated = false,
   });
 }
 

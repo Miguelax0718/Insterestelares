@@ -27,16 +27,35 @@ class DeviceAvailabilityCard extends StatelessWidget {
             children: [
               Icon(Icons.sensors, color: SpaceTheme.cyan, size: 18),
               SizedBox(width: 8),
-              Text(
-                'Disponibilidad de Dispositivos y Calidad de Datos',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+              Expanded(
+                child: Text(
+                  'Disponibilidad de Dispositivos y Calidad de Datos',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ],
           ),
+          if (devices.any((d) => d.isSimulated)) ...[
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: SpaceTheme.warningYellow.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: SpaceTheme.warningYellow.withValues(alpha: 0.5),
+                ),
+              ),
+              child: const Text(
+                'MODO SIMULACIÓN: Equipos físicos no disponibles; datos generados para pruebas (ver DB/simulation_and_pending_integrations.md).',
+                style: TextStyle(fontSize: 10, color: SpaceTheme.warningYellow),
+              ),
+            ),
+          ],
           const SizedBox(height: 4),
           const Text(
             'La presencia de un equipo en misión no garantiza acceso automático a su telemetría.',
