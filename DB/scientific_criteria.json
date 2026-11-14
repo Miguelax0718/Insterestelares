@@ -1,0 +1,72 @@
+{
+  "schema_version": "1.0.0",
+  "updated_at": "2026-11-14",
+  "description": "Criterios científicos versionados y trazables para monitoreo fisiológico de astronautas.",
+  "criteria": [
+    {
+      "id": "hr_rest_aha_general",
+      "variable": "heart_rate",
+      "unit": "lpm",
+      "level": "general_scientific",
+      "context": "rest",
+      "min_value": 60.0,
+      "max_value": 100.0,
+      "population": "Adultos sanos en entorno terrestre en reposo",
+      "source": "American Heart Association (Target Heart Rates); Mendes Zambetta et al. (2024)",
+      "version": "1.0.0",
+      "limitations": "No aplicar en sueño o actividad física. Personas entrenadas pueden presentar valores inferiores. En microgravedad se ha observado un incremento promedio no uniforme de +3.44 lpm (Mendes Zambetta et al., 2024). Sensores PPG presentan errores por movimiento, perfusión y piel (Fine et al., 2021). Priorizar referencia basal individual pre-misión."
+    },
+    {
+      "id": "rr_rest_general",
+      "variable": "respiratory_rate",
+      "unit": "rpm",
+      "level": "general_scientific",
+      "context": "rest",
+      "min_value": 12.0,
+      "max_value": 20.0,
+      "population": "Adultos sanos en reposo",
+      "source": "Cleveland Clinic (Vital Signs); Berry et al. (2012)",
+      "version": "1.0.0",
+      "limitations": "Referencia orientativa en reposo. No diagnosticar alteraciones respiratorias a partir de una única medición ni aplicar automáticamente en sueño o ejercicio."
+    },
+    {
+      "id": "spo2_terrestrial_general",
+      "variable": "spo2",
+      "unit": "%",
+      "level": "general_scientific",
+      "context": "rest",
+      "min_value": 95.0,
+      "max_value": 100.0,
+      "population": "Adultos sanos en condiciones terrestres apropiadas",
+      "source": "U.S. Food and Drug Administration (Pulse Oximeters; 510(k) Guidance 2013); NHLBI (2023)",
+      "version": "1.0.0",
+      "limitations": "Referencia terrestre general; no constituye un límite universal de seguridad espacial. Evaluar calidad de señal, movimiento, perfusión y condiciones ambientales de cabina."
+    },
+    {
+      "id": "sleep_duration_nsf_aasm",
+      "variable": "sleep_duration",
+      "unit": "h",
+      "level": "general_scientific",
+      "context": "sleep",
+      "min_value": 7.0,
+      "max_value": 9.0,
+      "population": "Adultos (por cada 24 horas)",
+      "source": "Hirshkowitz et al. (2015, NSF); Watson et al. (2015, AASM/SRS); Smith et al. (2018); Barger et al. (2014)",
+      "version": "1.0.0",
+      "limitations": "La actigrafía estima sueño a partir de movimiento corporal y no determina fases REM/NREM con precisión clínica. Duraciones >9 h deben contextualizarse sin considerarse automáticamente perjudiciales. Ajustar a protocolos operativos de misión."
+    },
+    {
+      "id": "muscle_strength_nasa_std_3001",
+      "variable": "muscle_strength_retention",
+      "unit": "%",
+      "level": "operational_limit",
+      "context": "physical_activity",
+      "min_value": 80.0,
+      "max_value": null,
+      "population": "Tripulación en misiones espaciales respecto a basal pre-misión equivalente",
+      "source": "NASA-STD-3001 Volume 1, Requisito V1 4024; NASA OCHMO-TB-031 (2023)",
+      "version": "1.0.0",
+      "limitations": "Aplicable únicamente a evaluaciones instrumentales estandarizadas comparables con el mismo protocolo pre-misión. Las cargas de ARED no equivalen a mediciones de fuerza máxima. Una medición <80% no constituye diagnóstico de atrofia muscular."
+    }
+  ]
+}

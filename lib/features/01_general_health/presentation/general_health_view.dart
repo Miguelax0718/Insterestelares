@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import 'package:astramed/core/constants/medical_thresholds.dart';
 import 'package:astramed/core/theme/space_theme.dart';
+import 'package:astramed/features/01_general_health/domain/scientific_criteria_engine.dart';
+import 'package:astramed/features/01_general_health/presentation/providers/telemetry_panel_provider.dart';
+import 'package:astramed/features/01_general_health/presentation/widgets/device_availability_card.dart';
+import 'package:astramed/features/01_general_health/presentation/widgets/telemetry_charts_section.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 
-/// Pantalla principal de Salud General conectada al astronauta seleccionado individualmente
+/// Pantalla principal de Signos Vitales y Telemetría Médica.
+///
+/// Evalúa variables fisiológicas de forma contextual y descriptiva mediante
+/// [ScientificCriteriaEngine], sin diagnósticos automáticos ni valores ficticios.
 class GeneralHealthView extends ConsumerWidget {
   const GeneralHealthView({super.key});
 
@@ -14,142 +22,286 @@ class GeneralHealthView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final astronaut = ref.watch(selectedAstronautProvider);
     final vitals = astronaut.vitals;
+    final activeContext = ref.watch(activeActivityContextProvider);
+    final telemetrySnapshot = ref.watch(telemetrySeriesSnapshotProvider);
 
-    final isHrNormal = vitals.heartRate >= MedicalThresholds.minHeartRate &&
-        vitals.heartRate <= MedicalThresholds.maxHeartRate;
+    final hrEval = ScientificCriteriaEngine.evaluateHeartRate(
+      bpm: vitals.heartRate,
+      context: activeContext,
+      individualBaselineBpm: telemetrySnapshot.individualHrBaselineBpm,
+    );
+    final rrEval = ScientificCriteriaEngine.evaluateRespiratoryRate(
+      rpm: vitals.respiratoryRate,
+      context: activeContext,
+      individualBaselineRpm: telemetrySnapshot.individualRrBaselineRpm,
+    );
+    final spo2Eval = ScientificCriteriaEngine.evaluateSpO2(
+      percent: vitals.spO2,
+      context: activeContext,
+      individualBaselinePercent: telemetrySnapshot.individualSpo2BaselinePercent,
+    );
+
     final isBpNormal = vitals.systolicBP >= MedicalThresholds.minSystolicBP &&
         vitals.systolicBP <= MedicalThresholds.maxSystolicBP;
-    final isSpO2Normal = vitals.spO2 >= MedicalThresholds.minSpO2;
     final isTempNormal = vitals.bodyTemp >= 36.0 && vitals.bodyTemp <= 37.2;
-    final isRespNormal = vitals.respiratoryRate >= 12.0 && vitals.respiratoryRate <= 20.0;
     final isCapillaryNormal = vitals.capillaryRefillSeconds <= 2.0;
+    final isGlucoseNormal =
+        vitals.bloodGlucose >= 70 && vitals.bloodGlucose <= 140;
+
+    final lastUpdateLabel = DateFormat('dd/MM HH:mm').format(vitals.timestamp);
 
     return ListView(
       padding: const EdgeInsets.all(16.0),
       children: [
-        // ── BANNER DE IDENTIDAD DEL ASTRONAUTA ACTIVO ──
         _buildAstronautHeader(context, astronaut),
-
         const SizedBox(height: 12),
 
-        // ── BANNER DE ALERTA DE RIESGO SI APLICA ──
-        if (astronaut.riskLevel != CrewRiskLevel.nominal)
+        if (astronaut.riskLevel != CrewRiskLevel.nominal) ...[
           _buildRiskBanner(astronaut),
+          const SizedBox(height: 12),
+        ],
 
-        const SizedBox(height: 16),
-
-        const Row(
+        Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Signos Vitales y Telemetría Médica',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            const Expanded(
+              child: Text(
+                'Signos Vitales y Telemetría Médica',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
             ),
             Row(
               children: [
-                Icon(Icons.lock_clock, size: 14, color: SpaceTheme.cyan),
-                SizedBox(width: 4),
+                const Icon(Icons.lock_clock, size: 14, color: SpaceTheme.cyan),
+                const SizedBox(width: 4),
                 Text(
-                  'Offline Sync',
-                  style: TextStyle(fontSize: 12, color: SpaceTheme.cyan),
+                  'Act: $lastUpdateLabel',
+                  style: const TextStyle(fontSize: 11, color: SpaceTheme.cyan),
                 ),
               ],
             ),
           ],
         ),
+        const SizedBox(height: 10),
+
+        _buildContextSelector(ref, activeContext),
         const SizedBox(height: 12),
 
-        // ── TARJETAS DE SIGNOS VITALES ──
-        _buildMetricCard(
+        _buildEvaluatedMetricCard(
           icon: Icons.favorite,
           iconColor: Colors.redAccent,
           title: 'Frecuencia Cardíaca',
-          value: '${vitals.heartRate.toInt()} bpm',
-          status: isHrNormal
-              ? 'Normal (50 - 100 bpm)'
-              : (vitals.heartRate > 100
-                  ? 'Taquicardia severa (>100 bpm)'
-                  : 'Bradicardia (<50 bpm)'),
-          isHealthy: isHrNormal,
+          evaluation: hrEval,
+          decimals: 0,
         ),
-
-        _buildMetricCard(
+        _buildEvaluatedMetricCard(
+          icon: Icons.waves,
+          iconColor: Colors.tealAccent,
+          title: 'Frecuencia Respiratoria',
+          evaluation: rrEval,
+          decimals: 1,
+        ),
+        _buildEvaluatedMetricCard(
           icon: Icons.air,
           iconColor: Colors.cyanAccent,
-          title: 'Saturación SpO2',
-          value: '${vitals.spO2.toInt()} %',
-          status: isSpO2Normal
-              ? 'Estable (≥94%)'
-              : (vitals.spO2 < 90
-                  ? 'ALERTA: Hipoxia aguda (<90%)'
-                  : 'Atención: Desaturación leve'),
-          isHealthy: isSpO2Normal,
+          title: 'Saturación SpO₂',
+          evaluation: spo2Eval,
+          decimals: 0,
         ),
 
         _buildMetricCard(
           icon: Icons.speed,
           iconColor: Colors.blueAccent,
           title: 'Presión Arterial',
-          value: '${vitals.systolicBP.toInt()} / ${vitals.diastolicBP.toInt()} mmHg',
+          value:
+              '${vitals.systolicBP.toInt()} / ${vitals.diastolicBP.toInt()} mmHg',
           status: isBpNormal
-              ? 'Óptima (90 - 130 mmHg)'
-              : (vitals.systolicBP > 130
-                  ? 'Presión arterial elevada'
-                  : 'Hipotensión'),
+              ? 'Dentro de rango orientativo (90–130 mmHg sistólica)'
+              : 'Fuera de rango orientativo (90–130 mmHg sistólica)',
           isHealthy: isBpNormal,
         ),
-
-        _buildMetricCard(
-          icon: Icons.waves,
-          iconColor: Colors.tealAccent,
-          title: 'Frecuencia Respiratoria',
-          value: '${vitals.respiratoryRate.toInt()} rpm',
-          status: isRespNormal
-              ? 'Eupnea / Normal (12 - 20 rpm)'
-              : (vitals.respiratoryRate > 20
-                  ? 'Polipnea / Taquipnea (Sobreesfuerzo / CO2)'
-                  : 'Bradipnea'),
-          isHealthy: isRespNormal,
-        ),
-
         _buildMetricCard(
           icon: Icons.touch_app,
           iconColor: Colors.purpleAccent,
           title: 'Tiempo de Llenado Capilar',
           value: '${vitals.capillaryRefillSeconds.toStringAsFixed(1)} s',
           status: isCapillaryNormal
-              ? 'Perfusión periférica óptima (<2s)'
-              : 'Perfusión lenta / Vasoconstricción (>2s)',
+              ? 'Registro dentro de referencia (<2 s)'
+              : 'Registro prolongado (>2 s) • Verificar perfusión y temperatura',
           isHealthy: isCapillaryNormal,
         ),
-
         _buildMetricCard(
           icon: Icons.thermostat,
           iconColor: Colors.orangeAccent,
           title: 'Temperatura Corporal',
           value: '${vitals.bodyTemp.toStringAsFixed(1)} °C',
           status: isTempNormal
-              ? 'Normotermia'
-              : (vitals.bodyTemp > 37.2
-                  ? 'Febrícula / Estrés térmico'
-                  : 'Hipotermia'),
+              ? 'Dentro de intervalo orientativo (36.0–37.2 °C)'
+              : 'Fuera de intervalo orientativo (36.0–37.2 °C)',
           isHealthy: isTempNormal,
         ),
-
         _buildMetricCard(
           icon: Icons.bloodtype,
           iconColor: Colors.pinkAccent,
           title: 'Glucosa en Sangre',
           value: '${vitals.bloodGlucose.toInt()} mg/dL',
-          status: 'Euglucemia (70 - 140 mg/dL)',
-          isHealthy: vitals.bloodGlucose >= 70 && vitals.bloodGlucose <= 140,
+          status: isGlucoseNormal
+              ? 'Dentro de intervalo orientativo (70–140 mg/dL)'
+              : 'Fuera de intervalo orientativo (70–140 mg/dL)',
+          isHealthy: isGlucoseNormal,
         ),
 
+        const SizedBox(height: 12),
+        DeviceAvailabilityCard(devices: telemetrySnapshot.devices),
+        const SizedBox(height: 12),
+        TelemetryChartsSection(snapshot: telemetrySnapshot),
         const SizedBox(height: 16),
-
-        // ── BOTÓN DE MEDICIÓN MANUAL DE EMERGENCIA ──
         _buildManualAssessmentButton(context),
       ],
+    );
+  }
+
+  Widget _buildContextSelector(WidgetRef ref, ActivityContext activeContext) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: SpaceTheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Contexto de evaluación fisiológica',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.white70,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: ActivityContext.values.map((ctx) {
+              final selected = ctx == activeContext;
+              return ChoiceChip(
+                label: Text(ctx.label),
+                selected: selected,
+                visualDensity: VisualDensity.compact,
+                selectedColor: SpaceTheme.cyan.withValues(alpha: 0.25),
+                backgroundColor: SpaceTheme.card,
+                labelStyle: TextStyle(
+                  fontSize: 11,
+                  color: selected ? SpaceTheme.cyan : Colors.white70,
+                  fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                ),
+                onSelected: (_) {
+                  ref.read(activeActivityContextProvider.notifier).state = ctx;
+                },
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEvaluatedMetricCard({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required EvaluationResult evaluation,
+    required int decimals,
+  }) {
+    final Color statusColor;
+    switch (evaluation.severity) {
+      case EvaluationSeverity.noData:
+        statusColor = Colors.white54;
+      case EvaluationSeverity.descriptive:
+        statusColor = Colors.greenAccent;
+      case EvaluationSeverity.informativeNotice:
+        statusColor = SpaceTheme.warningYellow;
+      case EvaluationSeverity.operationalAlert:
+        statusColor = SpaceTheme.dangerRed;
+    }
+
+    final displayValue = evaluation.hasData
+        ? '${evaluation.value!.toStringAsFixed(decimals)} ${evaluation.unit}'
+        : 'Sin datos';
+
+    final criterion = evaluation.appliedCriterion;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      color: SpaceTheme.card,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: evaluation.severity == EvaluationSeverity.operationalAlert
+              ? SpaceTheme.dangerRed
+              : (evaluation.severity == EvaluationSeverity.informativeNotice
+                  ? SpaceTheme.warningYellow.withValues(alpha: 0.7)
+                  : Colors.white12),
+          width: 1.1,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: iconColor.withValues(alpha: 0.18),
+                  child: Icon(icon, color: iconColor),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      Text(
+                        'Contexto: ${evaluation.context.label} • ${evaluation.severity.label}',
+                        style: TextStyle(fontSize: 11, color: statusColor),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  displayValue,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: statusColor,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              evaluation.summary,
+              style: const TextStyle(fontSize: 12, color: Colors.white70),
+            ),
+            if (criterion != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Fuente: ${criterion.source} (v${criterion.version})',
+                style: const TextStyle(fontSize: 10, color: Colors.white38),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -207,7 +359,10 @@ class GeneralHealthView extends ConsumerWidget {
                     ),
                     const SizedBox(width: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: SpaceTheme.cyan.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(4),
@@ -230,13 +385,9 @@ class GeneralHealthView extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Text(
-                      'Edad: ${astronaut.age} años | GS: ${astronaut.bloodType}',
-                      style: const TextStyle(fontSize: 11, color: Colors.white54),
-                    ),
-                  ],
+                Text(
+                  'Edad: ${astronaut.age} años | GS: ${astronaut.bloodType}',
+                  style: const TextStyle(fontSize: 11, color: Colors.white54),
                 ),
               ],
             ),
@@ -263,7 +414,11 @@ class GeneralHealthView extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Icon(isCritical ? Icons.emergency : Icons.warning_amber_rounded, color: color, size: 20),
+              Icon(
+                isCritical ? Icons.emergency : Icons.warning_amber_rounded,
+                color: color,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -289,7 +444,10 @@ class GeneralHealthView extends ConsumerWidget {
               runSpacing: 4,
               children: astronaut.activeAlerts.map((alert) {
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.25),
                     borderRadius: BorderRadius.circular(4),
@@ -325,8 +483,8 @@ class GeneralHealthView extends ConsumerWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: isHealthy ? Colors.white12 : SpaceTheme.dangerRed,
-          width: isHealthy ? 1.0 : 1.5,
+          color: isHealthy ? Colors.white12 : SpaceTheme.warningYellow,
+          width: isHealthy ? 1.0 : 1.3,
         ),
       ),
       child: ListTile(
@@ -343,7 +501,7 @@ class GeneralHealthView extends ConsumerWidget {
           status,
           style: TextStyle(
             fontSize: 12,
-            color: isHealthy ? Colors.white70 : SpaceTheme.dangerRed,
+            color: isHealthy ? Colors.white70 : SpaceTheme.warningYellow,
           ),
         ),
         trailing: Text(
@@ -351,7 +509,7 @@ class GeneralHealthView extends ConsumerWidget {
           style: TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.bold,
-            color: isHealthy ? Colors.greenAccent : SpaceTheme.dangerRed,
+            color: isHealthy ? Colors.greenAccent : SpaceTheme.warningYellow,
           ),
         ),
       ),
@@ -369,12 +527,10 @@ class GeneralHealthView extends ConsumerWidget {
       ),
       icon: const Icon(Icons.touch_app),
       label: const Text(
-        'Modo Medición Manual de Emergencia (Sin Sensores)',
+        'Modo Medición Manual (Sin Sensores Automáticos)',
         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
       ),
-      onPressed: () {
-        _showManualInputDialog(context);
-      },
+      onPressed: () => _showManualInputDialog(context),
     );
   }
 
@@ -388,19 +544,24 @@ class GeneralHealthView extends ConsumerWidget {
             children: [
               Icon(Icons.favorite, color: Colors.redAccent),
               SizedBox(width: 8),
-              Text('Asistente de Pulso Manual'),
+              Expanded(child: Text('Asistente de Medición Manual')),
             ],
           ),
           content: const Text(
-            'Coloca tus dedos índice y medio en la arteria carótida o radial.\n\n'
-            'Cuenta los latidos durante 15 segundos y multiplícalos por 4.\n'
-            'Verifica también la frecuencia respiratoria (expansiones del tórax en 30s) y el tiempo de llenado capilar (< 2 segundos).',
+            'Alternativa manual cuando no hay sensores automáticos:\n\n'
+            '• Frecuencia cardíaca: coloca índice y medio en arteria carótida o radial, cuenta 15 s y multiplica por 4 (lpm).\n'
+            '• Frecuencia respiratoria: cuenta ciclos respiratorios completos en 60 s (o 30 s × 2) (rpm).\n'
+            '• SpO₂: introduce únicamente lecturas de un pulsioxímetro validado.\n\n'
+            'Las entradas manuales se conservan diferenciadas de la telemetría instrumental.',
             style: TextStyle(color: Colors.white70, fontSize: 13),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cerrar', style: TextStyle(color: SpaceTheme.cyan)),
+              child: const Text(
+                'Cerrar',
+                style: TextStyle(color: SpaceTheme.cyan),
+              ),
             ),
           ],
         );
