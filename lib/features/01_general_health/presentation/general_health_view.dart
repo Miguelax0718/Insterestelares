@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:astramed/core/constants/medical_thresholds.dart';
 import 'package:astramed/core/theme/space_theme.dart';
 import 'package:astramed/features/01_general_health/domain/scientific_criteria_engine.dart';
+import 'package:astramed/features/01_general_health/domain/telemetry_view_contracts.dart';
 import 'package:astramed/features/01_general_health/models/vitals_record.dart';
 import 'package:astramed/features/01_general_health/presentation/providers/telemetry_panel_provider.dart';
 import 'package:astramed/features/01_general_health/presentation/widgets/gamified_health_guide_card.dart';
@@ -118,6 +119,12 @@ class GeneralHealthView extends ConsumerWidget {
           iconColor: Colors.redAccent,
           title: 'Frecuencia Cardíaca',
           evaluation: hrEval,
+          contextAverageLabel: _formatContextAverage(
+            telemetrySnapshot.heartRateSamples,
+            activeContext,
+            'lpm',
+            decimals: 1,
+          ),
           metadataTag: metadataTag,
           decimals: 0,
         ),
@@ -126,6 +133,12 @@ class GeneralHealthView extends ConsumerWidget {
           iconColor: Colors.tealAccent,
           title: 'Frecuencia Respiratoria',
           evaluation: rrEval,
+          contextAverageLabel: _formatContextAverage(
+            telemetrySnapshot.respiratoryRateSamples,
+            activeContext,
+            'rpm',
+            decimals: 1,
+          ),
           metadataTag: metadataTag,
           decimals: 1,
         ),
@@ -134,6 +147,12 @@ class GeneralHealthView extends ConsumerWidget {
           iconColor: Colors.cyanAccent,
           title: 'Saturación SpO₂',
           evaluation: spo2Eval,
+          contextAverageLabel: _formatContextAverage(
+            telemetrySnapshot.spO2Samples,
+            activeContext,
+            '%',
+            decimals: 1,
+          ),
           metadataTag: metadataTag,
           decimals: 0,
         ),
@@ -455,11 +474,29 @@ class GeneralHealthView extends ConsumerWidget {
     );
   }
 
+  String _formatContextAverage(
+    List<TelemetrySamplePoint> samples,
+    ActivityContext context,
+    String unit, {
+    int decimals = 1,
+  }) {
+    final values = samples
+        .where((s) => s.context == context && s.isValid && s.value != null)
+        .map((s) => s.value!)
+        .toList();
+    if (values.isEmpty) {
+      return 'Media (${context.label}): Sin datos disponibles';
+    }
+    final avg = values.reduce((a, b) => a + b) / values.length;
+    return 'Media (${context.label}): ${avg.toStringAsFixed(decimals)} $unit (n=${values.length})';
+  }
+
   Widget _buildEvaluatedMetricCard({
     required IconData icon,
     required Color iconColor,
     required String title,
     required EvaluationResult evaluation,
+    required String contextAverageLabel,
     required String metadataTag,
     required int decimals,
   }) {
@@ -536,6 +573,15 @@ class GeneralHealthView extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 8),
+            Text(
+              contextAverageLabel,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: SpaceTheme.cyan,
+              ),
+            ),
+            const SizedBox(height: 4),
             Text(
               evaluation.summary,
               style: const TextStyle(fontSize: 12, color: Colors.white70),
