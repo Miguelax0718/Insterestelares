@@ -56,6 +56,24 @@ Para servir también la app Flutter compilada: `flutter build web` y arranca la 
 
 Si la conexión falla, la app sigue funcionando con los datos demo y muestra un aviso. En el menú lateral y en el perfil se indica qué fuente se está usando.
 
+
+## Uso y diseño
+
+- **Sin pantalla de inicio:** la app abre directo en el panel del último tripulante usado. Para cambiar de tripulante se toca la flecha junto a su nombre: en computador aparece una lista desplegable y en celular una hoja inferior.
+- **Personalizar:** el botón con el ícono de controles activa el modo de edición, tanto en el panel como en las páginas de módulo.
+  - Las secciones se arrastran por el asa ⋮⋮ (funciona con mouse y con el dedo).
+  - Como alternativa al arrastre, cada sección tiene flechas para moverla y un ojo para ocultarla.
+  - Las tarjetas de módulos también se pueden reordenar.
+  - El orden se guarda por tripulante en el navegador, y «Restablecer» vuelve al orden original.
+- **Multiplataforma:**
+  - **Celular (≤ 760 px):** barra de pestañas inferior (Panel, Muestra, Consejos, Historial, Perfil) y encabezado con el tripulante y las alertas.
+  - **Tablet:** barra lateral compacta.
+  - **Computador:** barra lateral completa.
+- **Pautas aplicadas:**
+  - Apple HIG: 3 a 5 pestañas, botones de al menos 44 pt, alternativa al arrastre, estado indicado con color, ícono y texto a la vez.
+  - mobile-native: hover solo con mouse, sin destello al tocar, `dvh` en lugar de `vh`, áreas seguras, `touch-action: manipulation`, campos de 16 px para evitar el zoom, sin pull-to-refresh.
+  - Hay que probarla en un celular real: el emulador no reproduce el notch, el teclado ni la sensación del tacto.
+
 ## Cómo se calcula todo
 
 - Cada **muestra** es una fila en `samples` y cada valor medido es una fila en `sample_values` (`biomarker_id` + `value`).
@@ -69,7 +87,7 @@ Si la conexión falla, la app sigue funcionando con los datos demo y muestra un 
 - **Resultados:** se compara la última muestra con la anterior para mostrar qué cambió.
 - **Gráficas e historial:** salen de todas las muestras guardadas del tripulante.
 
-**Tripulantes nuevos:** se agregan desde la pantalla de inicio (botón «Agregar») o desde el menú de perfil. Empiezan sin muestras, y su primera muestra crea la línea base. En modo demo la app simula esa muestra; con base de datos, el contexto llega a `sample_requests` y la muestra aparece cuando el equipo de cálculos la inserta.
+**Tripulantes nuevos:** se agregan desde el menú del perfil (la flecha junto al nombre del tripulante activo, arriba a la izquierda o en el encabezado del celular). Empiezan sin muestras, y su primera muestra crea la línea base. En modo demo la app simula esa muestra; con base de datos, el contexto llega a `sample_requests` y la muestra aparece cuando el equipo de cálculos la inserta.
 
 **Para el equipo de cálculos:** basta con insertar muestras nuevas en `samples` y `sample_values`, y las recomendaciones y alertas en sus tablas. La app recalcula estados, gráficas y cambios por sí sola. Cuando alguien registra una muestra desde la app, el contexto (volumen, líquidos, síntomas…) se guarda en `sample_requests` para que lo procesen.
 

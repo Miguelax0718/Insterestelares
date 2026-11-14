@@ -40,12 +40,16 @@ const ICONS={
   phone:'<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>',
   clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
   filter:'<path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>',
+  grip:'<circle cx="9" cy="6" r="1.4" fill="currentColor"/><circle cx="15" cy="6" r="1.4" fill="currentColor"/><circle cx="9" cy="12" r="1.4" fill="currentColor"/><circle cx="15" cy="12" r="1.4" fill="currentColor"/><circle cx="9" cy="18" r="1.4" fill="currentColor"/><circle cx="15" cy="18" r="1.4" fill="currentColor"/>',
+  eye:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  eyeoff:'<path d="M9.9 4.24A9.1 9.1 0 0 1 12 4c6.5 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19M6.6 6.6A18.4 18.4 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6M2 2l20 20"/>',
+  sliders:'<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
 };
 const ic=(n,s=20,st='')=>`<svg class="i" viewBox="0 0 24 24" style="width:${s}px;height:${s}px;${st}">${ICONS[n]||''}</svg>`;
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 
 // ---------- UI state ----------
-const S={ wizard:0, method:null, vol:350, sympt:new Set(), zones:new Set(), ex:new Set(), med:false, glassesCtx:2,
+const S={ edit:false, wizard:0, method:null, vol:350, sympt:new Set(), zones:new Set(), ex:new Set(), med:false, glassesCtx:2,
   period:'7', histSel:new Set(['vol','ca']), recFilter:'all', alertTab:'active', dest:'luna', side:true, storm:false, pin:'', err:false,
   share:{hidratacion:true,renal:true,osea:true,radiacion:true,inmunidad:true,cardio:true,estres:false,metabolismo:true} };
 
@@ -159,4 +163,64 @@ function bindChart(root,unit){
       const px=36+i*st;hl.setAttribute('x1',px);hl.setAttribute('x2',px);hl.setAttribute('opacity',1);
       tip.style.left=px/760*100+'%';tip.style.top=(e.clientY-r.top)+'px';tip.style.opacity=1;tip.textContent=`${days[i]?'Día '+days[i]+' · ':''}${vals[i]} ${unit}`});
     svg.addEventListener('mouseleave',()=>{tip.style.opacity=0;hl.setAttribute('opacity',0)});});
+}
+
+// ---------- Diseño personalizable (orden y visibilidad, por tripulante) ----------
+const LAYOUT_KEY=()=>`urano-layout-${U.id}`;
+function getLayout(){try{return JSON.parse(localStorage.getItem(LAYOUT_KEY())||'{}')}catch(e){return {}}}
+function setLayout(patch){const l={...getLayout(),...patch};try{localStorage.setItem(LAYOUT_KEY(),JSON.stringify(l))}catch(e){}return l}
+function ordered(ids,saved){if(!Array.isArray(saved))return ids;const s=saved.filter(i=>ids.includes(i));return s.concat(ids.filter(i=>!s.includes(i)))}
+// Contenedor de widgets ordenables. defs: {id:{name, span, html()}}; key: dónde guardar el orden.
+function widgetGrid(key,defs,defaultHidden=[]){
+  const L=getLayout(), order=ordered(Object.keys(defs),L[key]), hidden=L[key+'Hidden']??defaultHidden;
+  return `<div class="wgrid" data-wkey="${key}" data-defhid='${JSON.stringify(defaultHidden)}'>${order.filter(id=>S.edit||!hidden.includes(id)).map(id=>{const d=defs[id];return `<section class="wg ${d.span===2?'w2':''} ${hidden.includes(id)?'off':''}" data-sid="${id}">
+    <div class="wg-edit"><button class="grip" aria-label="Arrastrar ${d.name} para moverlo">${ic('grip',20)}</button><span class="wg-name">${d.name}</span>
+      <button class="mv" data-d="-1" aria-label="Subir ${d.name}">${ic('up',18)}</button><button class="mv" data-d="1" aria-label="Bajar ${d.name}">${ic('dn',18)}</button>
+      <button class="mv eye" aria-label="${hidden.includes(id)?'Mostrar':'Ocultar'} ${d.name}">${ic(hidden.includes(id)?'eyeoff':'eye',18)}</button></div>
+    ${d.html()}</section>`}).join('')}</div>`;
+}
+function bindWidgetGrid(root,after){
+  $$('.wgrid',root).forEach(g=>{const key=g.dataset.wkey;
+    const save=()=>setLayout({[key]:$$(':scope>.wg',g).map(w=>w.dataset.sid)});
+    sortable(g,{item:'.wg',handle:'.wg-edit .grip',onChange:save});
+    $$(':scope>.wg>.wg-edit .mv[data-d]',g).forEach(b=>b.onclick=()=>{const w=b.closest('.wg');moveBy(w,+b.dataset.d,'.wg');save()});
+    $$(':scope>.wg>.wg-edit .eye',g).forEach(b=>b.onclick=()=>{const w=b.closest('.wg'),id=w.dataset.sid;const L=getLayout();let h=L[key+'Hidden']??(g.dataset.defhid?JSON.parse(g.dataset.defhid):[]);
+      h=h.includes(id)?h.filter(x=>x!==id):h.concat(id);setLayout({[key+'Hidden']:h});w.classList.toggle('off',h.includes(id));b.innerHTML=ic(h.includes(id)?'eyeoff':'eye',18);b.setAttribute('aria-label',(h.includes(id)?'Mostrar ':'Ocultar ')+$('.wg-name',w).textContent)});
+  });
+}
+// Mover un elemento una posición (alternativa a arrastrar, como pide la guía de Apple)
+function moveBy(el,d,sel){const sib=d<0?el.previousElementSibling:el.nextElementSibling;if(!sib||!sib.matches(sel))return;flip(el.parentElement,()=>d<0?sib.before(el):sib.after(el));el.focus?.()}
+// Animación FLIP para que los demás elementos se acomoden suavemente
+function flip(container,mutate){const kids=[...container.children];const before=new Map(kids.map(k=>[k,k.getBoundingClientRect()]));mutate();
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  kids.forEach(k=>{const a=before.get(k),b=k.getBoundingClientRect();if(!a||k.classList.contains('dragging'))return;const dx=a.left-b.left,dy=a.top-b.top;if(dx||dy)k.animate([{transform:`translate(${dx}px,${dy}px)`},{transform:'none'}],{duration:220,easing:'cubic-bezier(.2,.8,.2,1)'})})}
+// Arrastrar para ordenar con eventos de puntero: funciona igual con mouse, dedo y lápiz
+function sortable(container,{item,handle,onChange}){
+  let drag=null,raf=0;
+  const items=()=>[...container.children].filter(c=>c.matches(item)&&c!==drag?.el);
+  container.addEventListener('pointerdown',e=>{
+    if(!document.body.classList.contains('editing'))return;
+    const h=e.target.closest(handle);if(!h||!container.contains(h))return;
+    const el=h.closest(item);if(!el||el.parentElement!==container)return;
+    e.preventDefault();const r=el.getBoundingClientRect();
+    const ph=document.createElement(el.tagName);ph.className=el.className+' ph';ph.style.height=r.height+'px';
+    el.after(ph);el.classList.add('dragging');
+    Object.assign(el.style,{position:'fixed',left:r.left+'px',top:r.top+'px',width:r.width+'px',zIndex:80,pointerEvents:'none',margin:0});
+    drag={el,ph,dx:e.clientX-r.left,dy:e.clientY-r.top,id:e.pointerId,y:e.clientY};
+    try{h.setPointerCapture(e.pointerId)}catch(_){}
+    if(navigator.vibrate)try{navigator.vibrate(8)}catch(_){}
+    const scroll=()=>{if(!drag)return;const m=70;if(drag.y<m)scrollBy(0,-10);else if(drag.y>innerHeight-m)scrollBy(0,10);raf=requestAnimationFrame(scroll)};raf=requestAnimationFrame(scroll);
+  });
+  container.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id)return;drag.y=e.clientY;
+    drag.el.style.left=(e.clientX-drag.dx)+'px';drag.el.style.top=(e.clientY-drag.dy)+'px';
+    let best=null,bd=1e9;for(const s of items()){if(s===drag.ph)continue;const r=s.getBoundingClientRect();const d=Math.hypot(e.clientX-(r.left+r.width/2),e.clientY-(r.top+r.height/2));if(d<bd){bd=d;best=s}}
+    if(!best)return;const r=best.getBoundingClientRect();const wide=r.width>container.clientWidth*.6;
+    const before=e.clientY<r.top||(e.clientY<=r.bottom&&(wide?e.clientY<r.top+r.height/2:e.clientX<r.left+r.width/2));
+    const target=before?best.previousElementSibling:best.nextElementSibling;if(target===drag.ph)return;
+    flip(container,()=>before?best.before(drag.ph):best.after(drag.ph));
+  });
+  const end=e=>{if(!drag||e.pointerId!==drag.id)return;cancelAnimationFrame(raf);const {el,ph}=drag;drag=null;
+    ph.replaceWith(el);el.classList.remove('dragging');Object.assign(el.style,{position:'',left:'',top:'',width:'',zIndex:'',pointerEvents:'',margin:''});
+    el.animate([{transform:'scale(1.02)'},{transform:'none'}],{duration:180,easing:'ease-out'});onChange&&onChange()};
+  container.addEventListener('pointerup',end);container.addEventListener('pointercancel',end);
 }
