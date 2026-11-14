@@ -8,7 +8,7 @@ import 'package:astramed/features/01_general_health/domain/scientific_criteria_e
 import 'package:astramed/features/01_general_health/domain/telemetry_view_contracts.dart';
 import 'package:astramed/features/01_general_health/models/vitals_record.dart';
 import 'package:astramed/features/01_general_health/presentation/providers/telemetry_panel_provider.dart';
-import 'package:astramed/features/01_general_health/presentation/widgets/gamified_health_guide_card.dart';
+import 'package:astramed/features/01_general_health/presentation/widgets/vital_detail_sheet.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 import 'package:astramed/features/telemetry/models/telemetry_machine.dart';
@@ -127,6 +127,27 @@ class GeneralHealthView extends ConsumerWidget {
           ),
           metadataTag: metadataTag,
           decimals: 0,
+          onTap: () => VitalDetailSheet.show(
+            context,
+            title: 'Frecuencia Cardíaca',
+            icon: Icons.favorite,
+            color: Colors.redAccent,
+            evaluation: hrEval,
+            contextAverageLabel: _formatContextAverage(
+              telemetrySnapshot.heartRateSamples,
+              activeContext,
+              'lpm',
+              decimals: 1,
+            ),
+            metadataTag: metadataTag,
+            samples: telemetrySnapshot.heartRateSamples,
+            unit: 'lpm',
+            howToMeasure:
+                'Se registra con tu prenda Bio-Monitor (ECG/PPG) o contando pulsaciones en muñeca o cuello durante 15 s y multiplicando por 4.',
+            contextMeaning: _heartRateContextTip(activeContext),
+            whenToPayAttention:
+                'Compara siempre con tu propio promedio en el mismo estado. En microgravedad puede subir ~3–4 lpm de forma habitual. Si notas palpitaciones o mareo en reposo, consulta protocolo.',
+          ),
         ),
         _buildEvaluatedMetricCard(
           icon: Icons.waves,
@@ -141,6 +162,28 @@ class GeneralHealthView extends ConsumerWidget {
           ),
           metadataTag: metadataTag,
           decimals: 1,
+          onTap: () => VitalDetailSheet.show(
+            context,
+            title: 'Frecuencia Respiratoria',
+            icon: Icons.waves,
+            color: Colors.tealAccent,
+            evaluation: rrEval,
+            contextAverageLabel: _formatContextAverage(
+              telemetrySnapshot.respiratoryRateSamples,
+              activeContext,
+              'rpm',
+              decimals: 1,
+            ),
+            metadataTag: metadataTag,
+            samples: telemetrySnapshot.respiratoryRateSamples,
+            unit: 'rpm',
+            howToMeasure:
+                'La banda torácica detecta cada ciclo respiratorio. Sin sensor, cuenta cuántas veces sube y baja tu pecho en 30 s y multiplica por 2.',
+            contextMeaning:
+                'En reposo suele estar entre 12 y 20 rpm. Durante el ejercicio sube de forma natural para aportar más oxígeno.',
+            whenToPayAttention:
+                'Una sola lectura aislada no indica un problema. Presta atención si en reposo notas falta de aire persistente o si cabina reporta CO₂ elevado.',
+          ),
         ),
         _buildEvaluatedMetricCard(
           icon: Icons.air,
@@ -155,6 +198,28 @@ class GeneralHealthView extends ConsumerWidget {
           ),
           metadataTag: metadataTag,
           decimals: 0,
+          onTap: () => VitalDetailSheet.show(
+            context,
+            title: 'Saturación SpO₂',
+            icon: Icons.air,
+            color: Colors.cyanAccent,
+            evaluation: spo2Eval,
+            contextAverageLabel: _formatContextAverage(
+              telemetrySnapshot.spO2Samples,
+              activeContext,
+              '%',
+              decimals: 1,
+            ),
+            metadataTag: metadataTag,
+            samples: telemetrySnapshot.spO2Samples,
+            unit: '%',
+            howToMeasure:
+                'Coloca el pulsioxímetro en un dedo limpio y sin movimiento unos segundos hasta que la lectura se estabilice.',
+            contextMeaning:
+                'Mide el porcentaje de hemoglobina que transporta oxígeno. En tierra una referencia común es 95–100 %, aunque el frío o movimiento alteran la señal.',
+            whenToPayAttention:
+                'Si ves un valor bajo, revisa primero que el sensor esté bien ajustado y la mano tibia. Repite en reposo antes de reportar.',
+          ),
         ),
 
         _buildMetricCard(
@@ -203,12 +268,6 @@ class GeneralHealthView extends ConsumerWidget {
           isHealthy: isGlucoseNormal,
         ),
 
-        const SizedBox(height: 12),
-        GamifiedHealthGuideCard(
-          snapshot: telemetrySnapshot,
-          activeContext: activeContext,
-          vitals: vitals,
-        ),
         const SizedBox(height: 16),
         _buildManualAssessmentButton(context, ref, astronaut),
       ],
@@ -491,6 +550,19 @@ class GeneralHealthView extends ConsumerWidget {
     return 'Media (${context.label}): ${avg.toStringAsFixed(decimals)} $unit (n=${values.length})';
   }
 
+  String _heartRateContextTip(ActivityContext context) {
+    switch (context) {
+      case ActivityContext.rest:
+        return 'En reposo, una referencia general en adultos es 60–100 lpm (personas muy entrenadas pueden tener menos).';
+      case ActivityContext.sleep:
+        return 'Durante el sueño suele bajar respecto al día. Se compara con tus propias noches anteriores.';
+      case ActivityContext.physicalActivity:
+        return 'Durante el ejercicio es normal que suba bastante; nunca se evalúa con los límites de reposo.';
+      case ActivityContext.unknown:
+        return 'Sin contexto definido es difícil interpretar el pulso. Selecciona si estás en reposo, sueño o actividad.';
+    }
+  }
+
   Widget _buildEvaluatedMetricCard({
     required IconData icon,
     required Color iconColor,
@@ -499,6 +571,7 @@ class GeneralHealthView extends ConsumerWidget {
     required String contextAverageLabel,
     required String metadataTag,
     required int decimals,
+    required VoidCallback onTap,
   }) {
     final Color statusColor;
     switch (evaluation.severity) {
@@ -532,46 +605,55 @@ class GeneralHealthView extends ConsumerWidget {
           width: 1.1,
         ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: iconColor.withValues(alpha: 0.18),
-                  child: Icon(icon, color: iconColor),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: iconColor.withValues(alpha: 0.18),
+                    child: Icon(icon, color: iconColor),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
                         ),
-                      ),
-                      Text(
-                        'Contexto: ${evaluation.context.label} • ${evaluation.severity.label}',
-                        style: TextStyle(fontSize: 11, color: statusColor),
-                      ),
-                    ],
+                        Text(
+                          'Contexto: ${evaluation.context.label} • ${evaluation.severity.label}',
+                          style: TextStyle(fontSize: 11, color: statusColor),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                Text(
-                  displayValue,
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: statusColor,
+                  Text(
+                    displayValue,
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: statusColor,
+                    ),
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(width: 4),
+                  const Icon(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: Colors.white38,
+                  ),
+                ],
+              ),
             const SizedBox(height: 8),
             Text(
               contextAverageLabel,
@@ -599,7 +681,8 @@ class GeneralHealthView extends ConsumerWidget {
                 style: const TextStyle(fontSize: 10, color: Colors.white38),
               ),
             ],
-          ],
+            ],
+          ),
         ),
       ),
     );
