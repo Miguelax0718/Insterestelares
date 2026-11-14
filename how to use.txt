@@ -1,0 +1,215 @@
+===============================================================================
+ASTRAMED / SPACE HEALTH ENGINE - GUÍA DE INSTALACIÓN Y ENTORNO DE TRABAJO
+Proyecto: NASA Space Apps Challenge - Interestelares
+===============================================================================
+
+Esta guía está diseñada paso a paso ASUMIENDO QUE NO TIENES NADA INSTALADO en 
+tu computadora. Si cualquier miembro del equipo va a colaborar en el desarrollo 
+de la app en Flutter, debe seguir estos pasos en orden para dejar su máquina 
+100% lista.
+
+-------------------------------------------------------------------------------
+TABLA DE CONTENIDOS
+-------------------------------------------------------------------------------
+1. Git (Control de Versiones)
+2. Flutter SDK (El Núcleo del Proyecto)
+3. Configuración de Variables de Entorno (PATH en Windows)
+4. Editor: Visual Studio Code y Extensiones
+5. Herramientas de Compilación (Android, Windows Desktop y Web)
+6. Verificación del Sistema con Flutter Doctor
+7. Dependencias y Paquetes Clave (pubspec.yaml)
+8. Comandos de Inicio Rápido (Cheat Sheet)
+9. Solución a Errores Comunes
+
+===============================================================================
+1. GIT (CONTROL DE VERSIONES)
+===============================================================================
+Git es obligatorio para descargar el código, crear ramas y sincronizar el trabajo.
+
+1. Descarga el instalador oficial para Windows:
+   https://git-scm.com/download/win (versión "64-bit Git for Windows Setup").
+2. Ejecuta el instalador. Puedes dejar todas las opciones por defecto recomendadas.
+3. Al finalizar, abre una terminal (PowerShell o CMD) y configura tu identidad:
+   git config --global user.name "Tu Nombre"
+   git config --global user.email "tu_correo@ejemplo.com"
+4. Verifica que funcione ejecutando:
+   git --version
+
+===============================================================================
+2. FLUTTER SDK (EL NÚCLEO DE DESARROLLO)
+===============================================================================
+Flutter es el framework multiplataforma en el que se programará AstraMed.
+
+1. Descarga el SDK oficial de Flutter para Windows:
+   https://docs.flutter.dev/get-started/install/windows/desktop
+   (Descarga el archivo .zip estable, por ejemplo `flutter_windows_x.x.x-stable.zip`).
+2. IMPORTANTE: Extrae la carpeta comprimida en una ruta sencilla y sin espacios 
+   ni privilegios de administrador restringidos.
+   - RUTA RECOMENDADA: `C:\src\flutter` o `C:\flutter`
+   - NO LO INSTALES en `C:\Program Files\` (puede causar problemas de permisos).
+
+===============================================================================
+3. CONFIGURACIÓN DE VARIABLES DE ENTORNO (PATH)
+===============================================================================
+Para que tu computadora reconozca el comando `flutter` desde cualquier terminal:
+
+1. En la barra de búsqueda de Windows escribe: "variables de entorno"
+2. Selecciona "Editar las variables de entorno del sistema".
+3. En la ventana que aparece, haz clic en el botón "Variables de entorno...".
+4. En la sección "Variables de usuario" (arriba) o "Variables del sistema" (abajo), 
+   busca la variable llamada `Path` o `PATH` y selecciónala.
+5. Haz clic en "Editar...".
+6. Haz clic en "Nuevo" y pega la ruta completa a la carpeta `bin` de tu Flutter:
+   Ejemplo: `C:\src\flutter\bin`
+7. Haz clic en Aceptar en todas las ventanas abiertas para guardar.
+8. Cierra y vuelve a abrir cualquier terminal (PowerShell o VS Code) y prueba:
+   flutter --version
+
+===============================================================================
+4. VISUAL STUDIO CODE Y EXTENSIONES
+===============================================================================
+Es el editor de código recomendado para todo el equipo.
+
+1. Descarga e instala VS Code:
+   https://code.visualstudio.com/
+2. Abre VS Code e ingresa al panel de Extensiones (Ctrl + Shift + X).
+3. Busca e instala las siguientes extensiones:
+   - "Flutter" (creada por Dart Code): Instala automáticamente la extensión de "Dart".
+   - "Awesome Flutter Snippets" (de Nash): Acelera la creación de Widgets.
+   - "Error Lens" (opcional muy recomendado): Muestra errores y warnings en línea.
+   - "Pubspec Assist" (opcional recomendado): Facilita agregar paquetes al pubspec.yaml.
+
+===============================================================================
+5. HERRAMIENTAS DE COMPILACIÓN (SEGÚN LA PLATAFORMA DE PRUEBA)
+===============================================================================
+Flutter compila a diferentes plataformas. Elige la que vayas a usar para probar:
+
+-------------------------------------------------------------------------------
+OPCIÓN A: PRUEBAS EN ANDROID / TABLETS (La experiencia de cabina espacial)
+-------------------------------------------------------------------------------
+1. Descarga e instala Android Studio:
+   https://developer.android.com/studio
+2. Abre Android Studio y completa el asistente inicial (Setup Wizard).
+3. Ve a "Settings" (Configuración) -> "Languages & Frameworks" -> "Android SDK" 
+   -> Pestaña "SDK Tools":
+   Asegúrate de marcar e instalar:
+   - [x] Android SDK Command-line Tools (latest)  <-- VITAL PARA FLUTTER
+   - [x] Android SDK Build-Tools
+   - [x] Android SDK Platform-Tools
+   - [x] Android Emulator
+4. Crear un Emulador Virtual (AVD):
+   En Android Studio, ve a "Virtual Device Manager" -> "Create Device" -> Selecciona 
+   un dispositivo (recomendado: Tablet como Pixel Tablet o móvil Pixel) con imagen 
+   de sistema reciente (API 34 o similar).
+5. O Usar tu Teléfono Físico (Mucho más rápido y consume menos memoria RAM):
+   - Activa las "Opciones de Desarrollador" en tu teléfono Android (tocando 7 veces 
+     el número de compilación en Ajustes).
+   - Activa "Depuración por USB".
+   - Conecta el teléfono por cable USB a tu laptop.
+
+-------------------------------------------------------------------------------
+OPCIÓN B: PRUEBAS EN ESCRITORIO WINDOWS (Nativo .EXE)
+-------------------------------------------------------------------------------
+Si tu laptop no tiene suficiente memoria RAM para correr emuladores de Android:
+1. Descarga Visual Studio Community:
+   https://visualstudio.microsoft.com/es/vs/community/
+2. En el instalador, marca la casilla de carga de trabajo:
+   - [x] "Desarrollo para el escritorio con C++" (Desktop development with C++)
+3. Instala y reinicia si el instalador lo solicita.
+Esto permitirá ejecutar la app en una ventana nativa de Windows al instante.
+
+-------------------------------------------------------------------------------
+OPCIÓN C: PRUEBAS EN NAVEGADOR WEB (La opción más rápida y ligera)
+-------------------------------------------------------------------------------
+- Solo necesitas tener instalado Google Chrome o Microsoft Edge.
+- Puedes probar la aplicación ejecutando directamente: `flutter run -d chrome`.
+
+===============================================================================
+6. VERIFICACIÓN DEL SISTEMA CON FLUTTER DOCTOR
+===============================================================================
+Abre PowerShell o terminal de VS Code y ejecuta:
+
+   flutter doctor
+
+Lee el reporte que arroja:
+- Si te pide aceptar licencias de Android, ejecuta:
+   flutter doctor --android-licenses
+  (Presiona 'y' y Enter a cada solicitud de licencia).
+- No es necesario que todos los checks estén en verde si solo vas a compilar 
+  para una plataforma (por ejemplo, si compilas en Chrome o Windows, no requieres 
+  obligatoriamente emulador Android).
+
+===============================================================================
+7. DEPENDENCIAS Y PAQUETES CLAVE DEL PROYECTO (pubspec.yaml)
+===============================================================================
+Para cumplir con el modelo 100% Offline-First y los requerimientos del reto, 
+estas son las librerías base que se configuran en `pubspec.yaml`:
+
+1. Base de Datos Local y Caché Offline:
+   - `hive_flutter`: Almacenamiento NoSQL ultrarrápido sin dependencias de red.
+   - `isar` / `isar_flutter_libs`: Alternativa NoSQL de alto rendimiento con índices.
+2. Gestión de Estado Modular:
+   - `flutter_riverpod`: Gestión de estado reactiva, segura y testeable.
+   - (o `provider` como alternativa ligera).
+3. Animaciones e Ilustraciones Médicas:
+   - `lottie`: Animaciones de procedimientos de primeros auxilios y signos vitales.
+   - `rive`: Gráficos interactivos dinámicos y estados de astronauta.
+4. Documentación y Guías Médicas:
+   - `flutter_markdown`: Renderizado local de protocolos médicos y manuales NASA.
+5. Biometría y Gráficos en Tiempo Real:
+   - `fl_chart`: Gráficas offline de ECG, ritmo cardíaco, radiación y telemetría.
+6. Utilidades y Sistema de Archivos:
+   - `path_provider`: Rutas locales para persistencia de archivos y assets.
+   - `intl`: Formateo de fechas, cronómetros y marcas temporales de eventos médicos.
+   - `uuid`: Generación de identificadores únicos para reportes de triage offline.
+
+*Nota:* Estas librerías se descargan automáticamente ejecutando en la raíz del 
+proyecto:
+   flutter pub get
+
+===============================================================================
+8. COMANDOS DE INICIO RÁPIDO (CHEAT SHEET)
+===============================================================================
+- Ver estado del entorno:
+   flutter doctor
+
+- Listar dispositivos conectados (físicos, emuladores o navegadores):
+   flutter devices
+
+- Descargar las dependencias del proyecto:
+   flutter pub get
+
+- Ejecutar la aplicación en modo desarrollo:
+   flutter run
+
+- Ejecutar en un dispositivo específico (ej: Chrome o Windows):
+   flutter run -d chrome
+   flutter run -d windows
+
+- Limpiar la caché de compilación en caso de errores extraños:
+   flutter clean
+   flutter pub get
+
+===============================================================================
+9. SOLUCIÓN A ERRORES COMUNES
+===============================================================================
+1. "'flutter' no se reconoce como un comando interno o externo":
+   -> Tu variable de entorno PATH no tiene agregada la ruta `C:\ruta\flutter\bin`. 
+   -> Revisa el Paso 3 y asegúrate de reiniciar la terminal o VS Code.
+
+2. "Android license status unknown":
+   -> Ejecuta en terminal: `flutter doctor --android-licenses` y acepta todo con 'y'.
+
+3. "cmdline-tools component is missing":
+   -> Abre Android Studio -> SDK Manager -> SDK Tools -> Marca "Android SDK 
+      Command-line Tools (latest)" e instala.
+
+4. "Visual Studio - Desktop development with C++ missing":
+   -> Si quieres probar nativo en Windows, instala Visual Studio Installer y 
+      agrega la carga de trabajo "Desarrollo para el escritorio con C++".
+   -> Si no tienes espacio, puedes saltarlo y ejecutar en navegador con `flutter run -d chrome`.
+
+===============================================================================
+¡Listo! Siguiendo esta guía, cualquier miembro del equipo podrá clonar el 
+repositorio y comenzar a programar de inmediato.
+===============================================================================
