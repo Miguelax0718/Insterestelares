@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:astramed/core/theme/space_theme.dart';
 import 'package:astramed/features/01_general_health/presentation/general_health_view.dart';
@@ -231,6 +233,18 @@ class _AstraMedDashboardState extends ConsumerState<AstraMedDashboard> {
               );
             },
           ),
+
+          // Acceso a URANO (análisis de orina). Es una página web empaquetada en
+          // web/urano/, así que solo está disponible en la versión web.
+          if (kIsWeb)
+            IconButton(
+              tooltip: 'Abrir URANO (análisis de orina)',
+              icon: const Icon(Icons.science_outlined, color: SpaceTheme.cyan, size: 20),
+              onPressed: () => launchUrl(
+                Uri.base.resolve('urano/index.html'),
+                webOnlyWindowName: '_self',
+              ),
+            ),
 
           // Indicador de modo 100% Offline
           IconButton(
