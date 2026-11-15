@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import 'package:astramed/core/theme/space_theme.dart';
 import 'package:astramed/features/01_general_health/presentation/general_health_view.dart';
@@ -7,6 +8,8 @@ import 'package:astramed/features/02_radiation/presentation/radiation_view.dart'
 import 'package:astramed/features/03_microgravity/presentation/microgravity_view.dart';
 import 'package:astramed/features/04_mental_health/presentation/mental_health_view.dart';
 import 'package:astramed/features/05_clinical_triage/presentation/triage_view.dart';
+import 'package:astramed/features/agent/data/persistence/agent_hive_boxes.dart';
+import 'package:astramed/features/agent/presentation/agent_canvas_view.dart';
 import 'package:astramed/features/agent/presentation/agent_test_screen.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
@@ -14,8 +17,10 @@ import 'package:astramed/features/crew/presentation/widgets/crew_sidebar_drawer.
 import 'package:astramed/features/telemetry/presentation/providers/telemetry_provider.dart';
 import 'package:astramed/features/telemetry/presentation/widgets/telemetry_config_modal.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
+  await AgentHiveBoxes.open();
   runApp(const AstraMedApp());
 }
 
@@ -170,6 +175,13 @@ class _AstraMedDashboardState extends ConsumerState<AstraMedDashboard> {
           ),
         ),
         actions: [
+          IconButton(
+            tooltip: 'Autonomous Clinical Agent',
+            icon: const Icon(Icons.smart_toy_outlined, color: SpaceTheme.cyan),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AgentCanvasView()),
+            ),
+          ),
           IconButton(
             tooltip: 'Agent console',
             icon: const Icon(Icons.graphic_eq),
