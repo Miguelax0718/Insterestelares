@@ -23,6 +23,8 @@ class FakeAgentChatService implements AgentChatService {
   Future<AgentReply> send(
     List<ChatMessage> messages, {
     Map<String, dynamic>? context,
+    List<ToolSpec>? tools,
+    List<String>? skillInstructions,
   }) {
     return onSend!(messages, context);
   }
@@ -31,6 +33,8 @@ class FakeAgentChatService implements AgentChatService {
   Stream<AgentStreamEvent> stream(
     List<ChatMessage> messages, {
     Map<String, dynamic>? context,
+    List<ToolSpec>? tools,
+    List<String>? skillInstructions,
   }) {
     return onStream!(messages, context);
   }

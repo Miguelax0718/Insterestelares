@@ -4,11 +4,15 @@ abstract interface class AgentChatService {
   Future<AgentReply> send(
     List<ChatMessage> messages, {
     Map<String, dynamic>? context,
+    List<ToolSpec>? tools,
+    List<String>? skillInstructions,
   });
 
   Stream<AgentStreamEvent> stream(
     List<ChatMessage> messages, {
     Map<String, dynamic>? context,
+    List<ToolSpec>? tools,
+    List<String>? skillInstructions,
   });
 }
 

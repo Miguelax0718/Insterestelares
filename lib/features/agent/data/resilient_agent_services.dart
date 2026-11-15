@@ -16,6 +16,8 @@ class ResilientAgentChatService implements AgentChatService {
   Future<AgentReply> send(
     List<ChatMessage> messages, {
     Map<String, dynamic>? context,
+    List<ToolSpec>? tools,
+    List<String>? skillInstructions,
   }) async {
     if (!_isRemoteConfigured) {
       throw const AgentUnavailableException(
@@ -23,7 +25,12 @@ class ResilientAgentChatService implements AgentChatService {
       );
     }
     try {
-      return await _remote.send(messages, context: context);
+      return await _remote.send(
+        messages,
+        context: context,
+        tools: tools,
+        skillInstructions: skillInstructions,
+      );
     } catch (e) {
       if (e is AgentApiException && !e.isFallbackEligible) {
         rethrow;
@@ -44,6 +51,8 @@ class ResilientAgentChatService implements AgentChatService {
   Stream<AgentStreamEvent> stream(
     List<ChatMessage> messages, {
     Map<String, dynamic>? context,
+    List<ToolSpec>? tools,
+    List<String>? skillInstructions,
   }) async* {
     if (!_isRemoteConfigured) {
       throw const AgentUnavailableException(
@@ -51,7 +60,12 @@ class ResilientAgentChatService implements AgentChatService {
       );
     }
     try {
-      await for (final event in _remote.stream(messages, context: context)) {
+      await for (final event in _remote.stream(
+        messages,
+        context: context,
+        tools: tools,
+        skillInstructions: skillInstructions,
+      )) {
         yield event;
       }
     } catch (e) {

@@ -60,17 +60,30 @@ class AgentApiClient implements AgentChatService {
   Future<AgentReply> send(
     List<ChatMessage> messages, {
     Map<String, dynamic>? context,
-  }) => chat(messages, context: context);
+    List<ToolSpec>? tools,
+    List<String>? skillInstructions,
+  }) => chat(
+    messages,
+    context: context,
+    tools: tools,
+    skillInstructions: skillInstructions,
+  );
 
   Future<AgentReply> chat(
     List<ChatMessage> messages, {
     Map<String, dynamic>? context,
+    List<ToolSpec>? tools,
+    List<String>? skillInstructions,
   }) async {
     final uri = config.resolveUri('/v1/chat');
     final body = jsonEncode({
       'messages': messages.map((m) => m.toJson()).toList(),
       'context': context,
       'stream': false,
+      if (tools != null && tools.isNotEmpty)
+        'tools': tools.map((t) => t.toJson()).toList(),
+      if (skillInstructions != null && skillInstructions.isNotEmpty)
+        'skill_instructions': skillInstructions,
     });
     try {
       final response = await _client
@@ -119,11 +132,20 @@ class AgentApiClient implements AgentChatService {
   Stream<AgentStreamEvent> stream(
     List<ChatMessage> messages, {
     Map<String, dynamic>? context,
-  }) => chatStream(messages, context: context);
+    List<ToolSpec>? tools,
+    List<String>? skillInstructions,
+  }) => chatStream(
+    messages,
+    context: context,
+    tools: tools,
+    skillInstructions: skillInstructions,
+  );
 
   Stream<AgentStreamEvent> chatStream(
     List<ChatMessage> messages, {
     Map<String, dynamic>? context,
+    List<ToolSpec>? tools,
+    List<String>? skillInstructions,
   }) async* {
     final uri = config.resolveUri('/v1/chat');
     final request = http.Request('POST', uri)
@@ -136,6 +158,10 @@ class AgentApiClient implements AgentChatService {
         'messages': messages.map((m) => m.toJson()).toList(),
         'context': context,
         'stream': true,
+        if (tools != null && tools.isNotEmpty)
+          'tools': tools.map((t) => t.toJson()).toList(),
+        if (skillInstructions != null && skillInstructions.isNotEmpty)
+          'skill_instructions': skillInstructions,
       });
 
     late final http.StreamedResponse response;
@@ -189,6 +215,10 @@ class AgentApiClient implements AgentChatService {
         }
         if (decoded.containsKey('delta')) {
           yield AgentStreamDelta(decoded['delta'] as String);
+        } else if (decoded['tool_call'] is Map<String, dynamic>) {
+          yield AgentStreamToolCall(
+            ToolCall.fromJson(decoded['tool_call'] as Map<String, dynamic>),
+          );
         } else if (decoded['done'] == true) {
           yield AgentStreamDone(decoded['model'] as String? ?? '');
         }
