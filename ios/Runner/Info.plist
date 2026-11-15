@@ -26,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Microphone access is required for voice commands and clinical speech transcription.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>On-device speech recognition is used as an offline fallback when the clinical gateway is unreachable.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
