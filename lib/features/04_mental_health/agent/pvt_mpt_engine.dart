@@ -1,5 +1,7 @@
 import 'package:astramed/features/agent/domain/agent_contracts.dart';
 
+int _actionSequence = 0;
+
 /// Clinical thresholds and pharmacological calibration constants for PVT/MPT.
 ///
 /// Thresholds follow clinical assumption D6-A1 and are isolated here for review.
@@ -436,8 +438,9 @@ abstract final class PvtMptEngine {
       );
     }
 
+    final seq = ++_actionSequence;
     final action = ConsequentialAction(
-      id: 'stimulant-${ctx.astronautId}-${ctx.now.millisecondsSinceEpoch}',
+      id: 'stimulant-${ctx.astronautId}-${ctx.now.microsecondsSinceEpoch}-$seq',
       astronautId: ctx.astronautId,
       actionType: 'check_stimulant_dose',
       description:
@@ -528,9 +531,10 @@ abstract final class PvtMptEngine {
       if (sameWindow || withinEightHours) {
         const blockReason =
             'Second nocturnal hypnotic dose deterministically blocked within 8-hour sleep window.';
+        final seq = ++_actionSequence;
         await ctx.audit.append(
           AuditEntry(
-            id: 'hypnotic-block-${ctx.astronautId}-${ctx.now.millisecondsSinceEpoch}',
+            id: 'hypnotic-block-${ctx.astronautId}-${ctx.now.microsecondsSinceEpoch}-$seq',
             astronautId: ctx.astronautId,
             actionType: 'check_hypnotic_dose',
             description:
@@ -585,8 +589,9 @@ abstract final class PvtMptEngine {
       );
     }
 
+    final seq = ++_actionSequence;
     final action = ConsequentialAction(
-      id: 'hypnotic-${ctx.astronautId}-${ctx.now.millisecondsSinceEpoch}',
+      id: 'hypnotic-${ctx.astronautId}-${ctx.now.microsecondsSinceEpoch}-$seq',
       astronautId: ctx.astronautId,
       actionType: 'check_hypnotic_dose',
       description:

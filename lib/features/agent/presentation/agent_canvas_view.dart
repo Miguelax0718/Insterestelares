@@ -46,8 +46,14 @@ class _AgentCanvasViewState extends ConsumerState<AgentCanvasView> {
   bool _transcriptExpanded = false;
   String? _voiceError;
 
+  AgentConversationController? _controllerRef;
+
   @override
   void dispose() {
+    final controller = _controllerRef;
+    if (controller != null) {
+      controller.closeSession();
+    }
     _inputController.dispose();
     super.dispose();
   }
@@ -160,6 +166,9 @@ class _AgentCanvasViewState extends ConsumerState<AgentCanvasView> {
       }
     });
 
+    _controllerRef = ref.read(agentOrchestratorProvider.notifier);
+    ref.watch(proactiveMonitorProvider);
+    ref.watch(agentNotifierProvider);
     final session = ref.watch(agentOrchestratorProvider);
     final crew = ref.watch(crewMembersProvider);
     final activeAstronaut = ref.watch(selectedAstronautProvider);

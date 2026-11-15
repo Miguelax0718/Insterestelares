@@ -4,6 +4,8 @@ import 'package:astramed/core/constants/medical_thresholds.dart';
 import 'package:astramed/features/04_mental_health/models/sleep_record.dart';
 import 'package:astramed/features/agent/domain/agent_contracts.dart';
 
+int _diarySequence = 0;
+
 /// Thresholds for acoustic speech cadence and sleep-debt fatigue correlation.
 abstract final class VoiceDiaryThresholds {
   static const double lowWpmThreshold = 105.0;
@@ -587,9 +589,10 @@ abstract final class VoiceDiaryEngine {
       'sleep ${result.sleepHours.toStringAsFixed(1)}h',
     ];
 
+    final seq = ++_diarySequence;
     await ctx.memory.save(
       MemoryEntry(
-        id: 'diary-${ctx.astronautId}-${ctx.now.millisecondsSinceEpoch}',
+        id: 'diary-${ctx.astronautId}-${ctx.now.microsecondsSinceEpoch}-$seq',
         astronautId: ctx.astronautId,
         kind: MemoryKind.clinicalEvent,
         summary: summaryParts.join(' | '),

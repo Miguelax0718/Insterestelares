@@ -11,6 +11,7 @@ import 'package:astramed/features/05_clinical_triage/presentation/triage_view.da
 import 'package:astramed/features/agent/data/persistence/agent_hive_boxes.dart';
 import 'package:astramed/features/agent/presentation/agent_canvas_view.dart';
 import 'package:astramed/features/agent/presentation/agent_test_screen.dart';
+import 'package:astramed/features/agent/providers/agent_providers.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 import 'package:astramed/features/crew/presentation/widgets/crew_sidebar_drawer.dart';
@@ -79,6 +80,8 @@ class _AstraMedDashboardState extends ConsumerState<AstraMedDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(proactiveMonitorProvider);
+    ref.watch(agentNotifierProvider);
     final activeAstronaut = ref.watch(selectedAstronautProvider);
     final criticalCount = ref.watch(criticalCrewCountProvider);
     final connectedCount = ref.watch(connectedMachinesForSelectedProvider).length;

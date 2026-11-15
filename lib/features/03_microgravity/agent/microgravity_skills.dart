@@ -6,6 +6,8 @@ import 'package:astramed/features/agent/domain/agent_contracts.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 
+int _microgravityActionSeq = 0;
+
 class MicrogravitySkillState {
   final Map<String, GraybielSession> graybielSessions = {};
   final Map<String, SansEvaluation> sansEvaluations = {};
@@ -400,8 +402,9 @@ class _ChangeMedicationRouteTool extends AgentTool {
         GraybielEngine.evaluate(session.responses, emesis: session.emesis);
     final shouldBlockEva =
         (args['block_eva'] as bool?) ?? eval.evaBlockedRecommended;
+    final seq = ++_microgravityActionSeq;
     final actionId =
-        'graybiel-route-${ctx.astronautId}-${ctx.now.millisecondsSinceEpoch}';
+        'graybiel-route-${ctx.astronautId}-${ctx.now.microsecondsSinceEpoch}-$seq';
 
     final decision = await ctx.confirm.request(
       ConsequentialAction(
@@ -634,8 +637,9 @@ class _AssignGogglesTool extends AgentTool {
       return ToolResult.fail('Unknown SANS goggle pair: $rawPair');
     }
 
+    final seq = ++_microgravityActionSeq;
     final actionId =
-        'sans-goggles-${ctx.astronautId}-${ctx.now.millisecondsSinceEpoch}';
+        'sans-goggles-${ctx.astronautId}-${ctx.now.microsecondsSinceEpoch}-$seq';
     final decision = await ctx.confirm.request(
       ConsequentialAction(
         id: actionId,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
@@ -417,6 +419,9 @@ final agentOrchestratorProvider = StateNotifierProvider<
       );
     },
   );
+  ref.onDispose(() {
+    unawaited(controller.closeSession());
+  });
   return controller;
 });
 
@@ -441,6 +446,11 @@ final proactiveMonitorProvider = Provider<ProactiveMonitor>((ref) {
     flagsReader: flags.allForAstronaut,
     memoryReader: (astronautId) => memory.recall(astronautId, limit: 20),
   );
+  ref.listen<List<dynamic>>(crewMembersProvider, (previous, next) {
+    if (previous != null) {
+      unawaited(monitor.tick());
+    }
+  });
   ref.onDispose(monitor.dispose);
   return monitor;
 });

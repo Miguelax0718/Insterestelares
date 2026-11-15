@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/persistence/session_summary_generator.dart';
 import '../domain/agent_contracts.dart';
 import '../domain/agent_exception.dart';
 import '../domain/agent_models.dart';
@@ -119,6 +122,7 @@ class AgentConversationOrchestrator {
       onComponentSubmitted;
 
   final Map<String, AgentSessionState> _sessionsByAstronaut = {};
+  final List<ChatMessage> _midTurnConfirmationMessages = [];
   AgentSessionState _state;
 
   AgentSessionState get state => _state;
@@ -130,8 +134,18 @@ class AgentConversationOrchestrator {
   }
 
   void syncPendingAction(ConsequentialAction? pending) {
+    final components = pending != null
+        ? _applyUiEvents(
+            _state.activeComponents,
+            [ShowComponentEvent(ComponentIds.confirmAction, pending.toJson())],
+          )
+        : _applyUiEvents(
+            _state.activeComponents,
+            const [HideComponentEvent(ComponentIds.confirmAction)],
+          );
     _emitState(
       _state.copyWith(
+        activeComponents: components,
         pendingAction: pending,
         clearPendingAction: pending == null,
       ),
@@ -142,11 +156,38 @@ class AgentConversationOrchestrator {
     onComponentSubmitted?.call(componentId, result);
   }
 
+  Future<MemoryEntry?> closeSession({
+    String? astronautId,
+    DateTime? now,
+  }) async {
+    final targetId = astronautId ?? _state.astronautId;
+    final session = targetId == _state.astronautId
+        ? _state
+        : _sessionsByAstronaut[targetId];
+    if (session == null || session.messages.isEmpty) {
+      return null;
+    }
+    final sink = _TurnUiSink(onSubmit: submitComponentResult);
+    final ctx = contextFactory(targetId, sink);
+    final audits = await ctx.audit.list(astronautId: targetId);
+    final generator = SessionSummaryGenerator(ctx.memory);
+    return generator.summarize(
+      astronautId: targetId,
+      transcript: session.messages,
+      audits: audits,
+      now: now ?? ctx.now,
+    );
+  }
+
   AgentSessionState switchAstronaut(String astronautId) {
     if (astronautId == _state.astronautId) {
       return _state;
     }
-    _sessionsByAstronaut[_state.astronautId] = _state;
+    final previousId = _state.astronautId;
+    _sessionsByAstronaut[previousId] = _state;
+    if (_state.messages.isNotEmpty) {
+      unawaited(closeSession(astronautId: previousId));
+    }
     final restored = _sessionsByAstronaut[astronautId] ??
         AgentSessionState(astronautId: astronautId);
     _emitState(restored);
@@ -332,12 +373,20 @@ class AgentConversationOrchestrator {
       ConfirmationDecision.expired => 'Expired: ${pending.description}.',
     };
 
+    final outcomeMessage = ChatMessage(
+      role: ChatRole.assistant,
+      content: outcomeText,
+    );
+    if (_state.busy) {
+      _midTurnConfirmationMessages.add(outcomeMessage);
+    }
+
     final nextPending = ctx.confirm.pending;
     _emitState(
       _state.copyWith(
         messages: List<ChatMessage>.unmodifiable([
           ..._state.messages,
-          ChatMessage(role: ChatRole.assistant, content: outcomeText),
+          outcomeMessage,
         ]),
         activeComponents: components,
         pendingAction: nextPending,
@@ -388,12 +437,22 @@ class AgentConversationOrchestrator {
       );
 
       if (!reply.hasToolCalls) {
+        if (_midTurnConfirmationMessages.isNotEmpty) {
+          workingMessages.addAll(_midTurnConfirmationMessages);
+          _midTurnConfirmationMessages.clear();
+        }
         if (reply.reply.isNotEmpty) {
           workingMessages.add(
             ChatMessage(role: ChatRole.assistant, content: reply.reply),
           );
         }
         final nextPending = ctx.confirm.pending;
+        if (nextPending == null) {
+          activeComponents = _applyUiEvents(
+            activeComponents,
+            const [HideComponentEvent(ComponentIds.confirmAction)],
+          );
+        }
         final done = targetState.copyWith(
           messages: List<ChatMessage>.unmodifiable(workingMessages),
           activeComponents: activeComponents,
@@ -445,6 +504,11 @@ class AgentConversationOrchestrator {
             combinedEvents.add(event);
           }
         }
+        if (ctx.confirm.pending == null) {
+          combinedEvents.add(
+            const HideComponentEvent(ComponentIds.confirmAction),
+          );
+        }
         activeComponents = _applyUiEvents(
           activeComponents,
           combinedEvents,
@@ -468,12 +532,22 @@ class AgentConversationOrchestrator {
       tools: const [],
       skillInstructions: skillInstructions,
     );
+    if (_midTurnConfirmationMessages.isNotEmpty) {
+      workingMessages.addAll(_midTurnConfirmationMessages);
+      _midTurnConfirmationMessages.clear();
+    }
     if (finalReply.reply.isNotEmpty) {
       workingMessages.add(
         ChatMessage(role: ChatRole.assistant, content: finalReply.reply),
       );
     }
     final nextPending = ctx.confirm.pending;
+    if (nextPending == null) {
+      activeComponents = _applyUiEvents(
+        activeComponents,
+        const [HideComponentEvent(ComponentIds.confirmAction)],
+      );
+    }
     final done = targetState.copyWith(
       messages: List<ChatMessage>.unmodifiable(workingMessages),
       activeComponents: activeComponents,
@@ -692,6 +766,9 @@ class AgentConversationController extends StateNotifier<AgentSessionState> {
 
   AgentSessionState switchAstronaut(String astronautId) =>
       _orchestrator.switchAstronaut(astronautId);
+
+  Future<MemoryEntry?> closeSession({String? astronautId, DateTime? now}) =>
+      _orchestrator.closeSession(astronautId: astronautId, now: now);
 
   void submitComponentResult(String componentId, Map<String, dynamic> result) =>
       _orchestrator.submitComponentResult(componentId, result);

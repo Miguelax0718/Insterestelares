@@ -10,6 +10,7 @@ class SessionSummaryGenerator {
 
   static const int _maxConcernChars = 120;
   static const int _maxConcerns = 3;
+  static int _sequence = 0;
 
   Future<MemoryEntry?> summarize({
     required String astronautId,
@@ -76,8 +77,9 @@ class SessionSummaryGenerator {
         ? parts.join('. ')
         : 'Session: ${_compact(fallbackText ?? 'completed', _maxConcernChars)}';
 
+    _sequence++;
     final entry = MemoryEntry(
-      id: 'session_${astronautId}_${timestamp.microsecondsSinceEpoch}',
+      id: 'session_${astronautId}_${timestamp.microsecondsSinceEpoch}_$_sequence',
       astronautId: astronautId,
       kind: MemoryKind.sessionSummary,
       summary: summary,

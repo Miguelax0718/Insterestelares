@@ -155,6 +155,7 @@ class ConfirmationGateImpl implements ConfirmationGate {
 
     _resolvedIds.add(current.action.id);
     _pending = null;
+    _uiSink?.emit(const HideComponentEvent(ComponentIds.confirmAction));
     if (!current.completer.isCompleted) {
       current.completer.complete(effectiveDecision);
     }
