@@ -18,14 +18,11 @@ router = APIRouter(prefix="/v1", tags=["chat"])
 
 
 def _build_turns(payload: ChatRequest) -> list[ChatTurn]:
-    turns: list[ChatTurn] = [ChatTurn(role="system", content=CLINICAL_SYSTEM_PROMPT)]
+    # One system message only: some OpenAI-compatible providers keep just one.
+    system = CLINICAL_SYSTEM_PROMPT
     if payload.context is not None:
-        turns.append(
-            ChatTurn(
-                role="system",
-                content=format_context_system_message(payload.context),
-            )
-        )
+        system = f"{system}\n\n{format_context_system_message(payload.context)}"
+    turns: list[ChatTurn] = [ChatTurn(role="system", content=system)]
     for msg in payload.messages:
         turns.append(ChatTurn(role=msg.role, content=msg.content))
     return turns

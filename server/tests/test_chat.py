@@ -39,10 +39,11 @@ def test_chat_non_stream_happy_path_and_system_prompt_injection() -> None:
     assert sent[0].role == "system"
     assert "flight surgeon" in sent[0].content.lower()
     assert "spanish" in sent[0].content.lower()
-    assert sent[1].role == "system"
-    assert "heart_rate_bpm" in sent[1].content
-    assert sent[2].role == "user"
-    assert sent[2].content == "Tengo dolor de cabeza leve"
+    # Single system message: some OpenAI-compatible providers (Gemini) keep only one.
+    assert "heart_rate_bpm" in sent[0].content
+    assert [m.role for m in sent].count("system") == 1
+    assert sent[1].role == "user"
+    assert sent[1].content == "Tengo dolor de cabeza leve"
 
 
 def test_chat_stream_sse_framing() -> None:
