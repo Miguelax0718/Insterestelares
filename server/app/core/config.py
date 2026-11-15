@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     # Auth & Security
     app_api_keys: str = ""
     auth_disabled: bool = False
-    allowed_origins: str = "*"
+    allowed_origins: str = ""
     rate_limit_per_min: int = Field(default=30, ge=0)
 
     # Provider selection
@@ -44,6 +44,8 @@ class Settings(BaseSettings):
 
     def parsed_allowed_origins(self) -> list[str]:
         raw = self.allowed_origins.strip()
-        if not raw or raw == "*":
+        if not raw:
+            return []
+        if raw == "*":
             return ["*"]
         return [origin.strip() for origin in raw.split(",") if origin.strip()]

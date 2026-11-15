@@ -27,7 +27,7 @@ Copy `.env.example` to `.env` for local runs:
 | `PORT` | `8000` | HTTP port used by the container entrypoint |
 | `APP_API_KEYS` | `""` | Comma-separated valid values for `X-AstraMed-Key` |
 | `AUTH_DISABLED` | `false` | Set `true` for local dev without keys (logs warning) |
-| `ALLOWED_ORIGINS` | `*` | Comma-separated CORS origins, or `*` |
+| `ALLOWED_ORIGINS` | *(empty: no cross-origin access)* | Comma-separated CORS origins; `*` must be set explicitly to allow any origin |
 | `RATE_LIMIT_PER_MIN` | `30` | In-memory requests/minute limit per API key or IP |
 | `LLM_PROVIDER` | `agentrouter` | `agentrouter` or `fake` |
 | `STT_PROVIDER` | `faster-whisper` | `faster-whisper` or `fake` |

@@ -72,3 +72,27 @@ def test_cors_allows_configured_origin() -> None:
     )
     assert resp.status_code in (200, 204)
     assert resp.headers.get("access-control-allow-origin") == "https://astramed.local"
+
+
+def test_cors_denies_cross_origin_by_default() -> None:
+    from app.core.config import Settings
+
+    assert Settings.model_fields["allowed_origins"].default == ""
+    client = make_client(settings=make_settings(allowed_origins=""))
+    resp = client.options(
+        "/v1/chat",
+        headers={
+            "Origin": "https://evil.example",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+    assert resp.headers.get("access-control-allow-origin") is None
+
+
+def test_cors_wildcard_requires_explicit_opt_in() -> None:
+    client = make_client(settings=make_settings(allowed_origins="*"))
+    resp = client.options(
+        "/v1/chat",
+        headers={"Origin": "https://any.example", "Access-Control-Request-Method": "POST"},
+    )
+    assert resp.headers.get("access-control-allow-origin") == "*"

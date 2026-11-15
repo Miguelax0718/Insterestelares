@@ -268,3 +268,39 @@ def test_agentrouter_adapter_stream() -> None:
         {"delta": "tripulante"},
         {"done": True, "model": "deepseek-chat"},
     ]
+
+
+def test_agentrouter_connection_failure_does_not_leak_api_key(caplog) -> None:
+    import logging
+
+    from app.adapters.fakes import FakeSTTProvider, FakeTTSProvider
+    from app.domain.ports import ProviderRegistry
+
+    secret = "sk-SECRET-PROBE-12345"
+    settings = make_settings(
+        llm_provider="agentrouter",
+        agentrouter_api_key=secret,
+        agentrouter_base_url="http://127.0.0.1:9",
+        llm_timeout_s=1.0,
+    )
+    providers = ProviderRegistry(
+        llm=AgentRouterLLMProvider(
+            base_url=settings.agentrouter_base_url,
+            api_key=settings.agentrouter_api_key,
+            model=settings.agentrouter_model,
+            timeout_s=settings.llm_timeout_s,
+        ),
+        stt=FakeSTTProvider(),
+        tts=FakeTTSProvider(),
+    )
+    client = make_client(settings=settings, providers=providers)
+    with caplog.at_level(logging.DEBUG):
+        resp = client.post(
+            "/v1/chat",
+            headers=auth_headers(),
+            json={"messages": [{"role": "user", "content": "hola"}], "stream": False},
+        )
+    assert resp.status_code in (502, 503)
+    assert resp.json()["error"]["code"] == "upstream_unavailable"
+    assert secret not in resp.text
+    assert all(secret not in rec.getMessage() for rec in caplog.records)
