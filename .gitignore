@@ -111,3 +111,7 @@ logs/
 !DB/
 !DB/**
 /mcp
+
+# Real and generated biomarker data stay local (not pushed)
+DB/real/inspiration4/
+DB/samples/biomarkers/

@@ -11,10 +11,10 @@ void main(List<String> args) {
 
   final random = _SeededRandom(20261114);
   final crew = <_CrewProfile>[
-    _CrewProfile('AST-01', 'Alex Vega', 34, 'female', 40),
-    _CrewProfile('AST-02', 'Sam Rivera', 41, 'male', 120),
-    _CrewProfile('AST-03', 'Taylor Cruz', 37, 'female', 80),
-    _CrewProfile('AST-04', 'Jordan Sol', 45, 'male', 300),
+    _CrewProfile('AST-01', 'Alex Vance', 46, 'unspecified', 40),
+    _CrewProfile('AST-02', 'Dra. Elena Ramos', 38, 'unspecified', 120),
+    _CrewProfile('AST-03', 'Ing. Mateo Torres', 34, 'unspecified', 80),
+    _CrewProfile('AST-04', 'Dra. Sarah Chen', 31, 'unspecified', 300),
   ];
 
   _writeProfiles(outputDirectory, crew);

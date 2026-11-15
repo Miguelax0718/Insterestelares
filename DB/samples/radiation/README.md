@@ -19,3 +19,7 @@ La simulación usa una semilla fija (`20261114`) y se genera con `dart run lib/f
 - El modelo no incluye por separado la dosis del SNC de iones pesados Z≥10.
 
 Las unidades de los campos por órgano siguen NASA-STD-3001 Vol. 1 Rev. C, tabla 4.8-1. La dosis efectiva de carrera y el SPE de referencia se documentan en `sources/medical/radiation_dosimetry.md`.
+
+## Shared crew identity
+
+Names and ages follow the global mock crew roster. Sex is unspecified; the global roster does not provide this field. The sample still covers only AST-01 through AST-04. AST-05 remains available in the biological demo but has no physical-dose records. Prior career-dose values and daily dose measurements are unchanged.

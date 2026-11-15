@@ -57,7 +57,7 @@ reset, and disposal. They do not constitute validation of the entire dose engine
 
 `RadiationDailySummary` provides the crew ID, mission day, career total, remaining
 budget, organ-window comparisons, SPE status, and that day's SPE component.
-The exact exchange schema still needs agreement with the biomarker contributor.
+The dated physical contract is now available as `DoseSummary` alongside `BioSummary`.
 The combined dose/biology matrix, recommendations, organ traffic lights, and
 clickable body remain shared work. Comprehensive core-engine tests are pending.
 
@@ -68,3 +68,45 @@ Reference values and their units are documented in
 `sources/medical/radiation_dosimetry.md`; the sample schema and limitations are in
 `DB/samples/radiation/README.md`. The 250 mSv SPE design reference must not be
 used as a standalone event detector or an individual clinical threshold.
+
+## Biomarker branch integration
+
+The combined screen uses the crew hub's ID/name and a shared
+`selectedMissionDayProvider`. Production starts at day 1; both mission sliders
+update that same state. The biological return day remains selectable. A missing
+physical record on that day is shown as unavailable rather than repeating the
+last in-flight dose.
+
+`radiationIntegrationOverrides` is installed in the root `ProviderScope`.
+`DoseLinkedBiomarkerRepository` adapts the existing biological simulator to the
+loaded mission duration, SPE day, personal SPE dose contribution, and shelter
+locations. The underlying biological simulator and score calculator are unchanged.
+The extreme hypothetical scenario changes biology only and is labelled separately
+from the physical mission measurements.
+
+`DoseSummary` and `BioSummary` use the same astronaut ID and end-of-day timestamp.
+`selectedDoseSummaryProvider` returns null when physical data are unavailable;
+unknown SPE status stays distinct from an inactive SPE. These contracts do not
+implement a combined clinical risk model.
+
+The global roster has five members; dosimetry currently covers AST-01–AST-04.
+AST-05 retains its own biological demo without borrowing another person's dose.
+Its lack of dosimetry is explicitly shown. Without a personal event dose, the
+realistic biological demo has no dose-dependent SPE input for that member; this
+must not be read as a measured zero exposure or a combined assessment.
+
+Sample profile names and ages match the global mock roster. Sex is marked
+`unspecified` because that roster does not provide it. These metadata changes do
+not alter the dose CSVs or prior career-dose values. No AST-05 dose is fabricated.
+
+Dates use the biological simulator's fictitious UTC launch date (2027-01-01,
+day zero); dosimetry supplies mission-day numbers, not actual calendar dates.
+The duration is inferred from the last dosimetry day. The current biological
+simulator requires at least seven days and supports at most one SPE; unsupported
+inputs must be surfaced rather than silently converted to another scenario.
+
+Integration regression tests cover dose input forwarding, biological algorithm
+preservation, shared day/crew/date, missing personal records, return-day handling,
+longer mission input, and hypothetical scenario separation. Standalone biomarker
+tests retain their original mock defaults. Tests requiring the external
+Inspiration4 source CSV may be skipped when that untracked file is absent.
