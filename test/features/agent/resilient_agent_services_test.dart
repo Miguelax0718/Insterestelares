@@ -1,11 +1,16 @@
 import 'dart:async';
+import 'dart:typed_data';
 
+import 'package:astramed/features/agent/data/agent_api_client.dart';
+import 'package:astramed/features/agent/data/remote_text_to_speech_service.dart';
 import 'package:astramed/features/agent/data/resilient_agent_services.dart';
+import 'package:astramed/features/agent/domain/agent_config.dart';
 import 'package:astramed/features/agent/domain/agent_exception.dart';
 import 'package:astramed/features/agent/domain/agent_models.dart';
 import 'package:astramed/features/agent/domain/agent_ports.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 class FakeAgentChatService implements AgentChatService {
   Future<AgentReply> Function(
@@ -452,6 +457,214 @@ void main() {
         gate2.complete();
       },
     );
+
+    test('speakSynchronized keeps isSpeaking false during synthesis and flips true when onAudioReady fires', () async {
+      final synthGate = Completer<void>();
+      final playGate = Completer<void>();
+      final timeline = <String>[];
+      final inner = _ControllableSyncFakeTts(
+        synthGate: synthGate,
+        playGate: playGate,
+        timeline: timeline,
+      );
+      final tracked = SpeakingTrackedTextToSpeechService(inner: inner);
+      addTearDown(tracked.dispose);
+
+      final events = <bool>[];
+      final sub = tracked.isSpeakingStream.listen(events.add);
+      addTearDown(sub.cancel);
+
+      final speakFuture = tracked.speakSynchronized(
+        'Oxygen nominal',
+        onAudioReady: () {
+          timeline.add('caller_ready:${tracked.isSpeaking}');
+        },
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      // During synthesis, isSpeaking must remain false.
+      expect(tracked.isSpeaking, isFalse);
+      expect(events, isEmpty);
+
+      // Complete synthesis -> onAudioReady fires and isSpeaking flips true.
+      synthGate.complete();
+      await Future<void>.delayed(Duration.zero);
+      expect(tracked.isSpeaking, isTrue);
+      expect(events, [true]);
+      expect(timeline, ['synth_done', 'caller_ready:true']);
+
+      // Complete playback -> isSpeaking flips false.
+      playGate.complete();
+      await speakFuture;
+      await Future<void>.delayed(Duration.zero);
+      expect(tracked.isSpeaking, isFalse);
+      expect(events, [true, false]);
+    });
+
+    test('speakSynchronized leaves isSpeaking false if inner throws before onAudioReady', () async {
+      final inner = _FailingSyncFakeTts(StateError('Synth boom'));
+      final tracked = SpeakingTrackedTextToSpeechService(inner: inner);
+      addTearDown(tracked.dispose);
+
+      var readyCalled = false;
+      await expectLater(
+        () => tracked.speakSynchronized(
+          'Hello',
+          onAudioReady: () => readyCalled = true,
+        ),
+        throwsStateError,
+      );
+      expect(readyCalled, isFalse);
+      expect(tracked.isSpeaking, isFalse);
+    });
+
+    test('speakSynchronized resets isSpeaking if playback throws after onAudioReady and ignores duplicate onAudioReady', () async {
+      final inner = _PostReadyFailingSyncTts(StateError('playback failed'));
+      final tracked = SpeakingTrackedTextToSpeechService(inner: inner);
+      addTearDown(tracked.dispose);
+
+      final events = <bool>[];
+      final sub = tracked.isSpeakingStream.listen(events.add);
+      addTearDown(sub.cancel);
+
+      var readyCalls = 0;
+      await expectLater(
+        () => tracked.speakSynchronized(
+          'Hello',
+          onAudioReady: () => readyCalls++,
+        ),
+        throwsStateError,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(readyCalls, 1);
+      expect(tracked.isSpeaking, isFalse);
+      expect(events, [true, false]);
+    });
+  });
+
+  group('RemoteTextToSpeechService.speakSynchronized', () {
+    test(
+      'completes synthesis before calling onAudioReady and playWav',
+      () async {
+        final synthCompleter = Completer<http.Response>();
+        final playCompleter = Completer<void>();
+        final timeline = <String>[];
+
+        final mockHttp = MockClient((request) async {
+          timeline.add('http_start');
+          return synthCompleter.future;
+        });
+        final client = AgentApiClient(
+          config: const AgentConfig(baseUrl: 'https://example.test'),
+          client: mockHttp,
+        );
+        final playback = _RecordingAudioPlayback(
+          onPlay: (_) {
+            timeline.add('play_start');
+            return playCompleter.future;
+          },
+        );
+        final service = RemoteTextToSpeechService(
+          client: client,
+          playback: playback,
+        );
+        addTearDown(service.dispose);
+
+        final speakFuture = service.speakSynchronized(
+          'Listen! Hydrate now.',
+          voice: 'am_puck',
+          onAudioReady: () {
+            timeline.add('onAudioReady');
+          },
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        // Synthesis still pending: neither onAudioReady nor playWav has run.
+        expect(timeline, ['http_start']);
+        expect(playback.playedBytes, isEmpty);
+
+        synthCompleter.complete(
+          http.Response.bytes(Uint8List.fromList([1, 2, 3, 4]), 200),
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        expect(timeline, ['http_start', 'onAudioReady', 'play_start']);
+        expect(playback.playedBytes, hasLength(1));
+
+        playCompleter.complete();
+        await speakFuture;
+      },
+    );
+
+    test('does not call onAudioReady when synthesis throws', () async {
+      final mockHttp = MockClient(
+        (_) async => http.Response('{"error":"upstream"}', 503),
+      );
+      final client = AgentApiClient(
+        config: const AgentConfig(baseUrl: 'https://example.test'),
+        client: mockHttp,
+      );
+      final playback = _RecordingAudioPlayback();
+      final service = RemoteTextToSpeechService(
+        client: client,
+        playback: playback,
+      );
+      addTearDown(service.dispose);
+
+      var readyCalled = false;
+      await expectLater(
+        () => service.speakSynchronized(
+          'Test',
+          onAudioReady: () => readyCalled = true,
+        ),
+        throwsA(isA<AgentApiException>()),
+      );
+      expect(readyCalled, isFalse);
+      expect(playback.playedBytes, isEmpty);
+    });
+  });
+
+  group('ResilientTextToSpeechService.speakSynchronized', () {
+    test(
+      'fires onAudioReady once before local fallback on 503 or unconfigured',
+      () async {
+        final remote = _FailingSyncFakeTts(
+          const AgentApiException(
+            code: AgentErrorCode.upstreamUnavailable,
+            message: 'TTS down',
+            statusCode: 503,
+          ),
+        );
+        final local = FakeTextToSpeechService();
+        final service = ResilientTextToSpeechService(
+          remote: remote,
+          local: local,
+          isRemoteConfigured: true,
+        );
+
+        var readyCount = 0;
+        await service.speakSynchronized(
+          'Fallback phrase',
+          onAudioReady: () => readyCount++,
+        );
+        expect(readyCount, 1);
+        expect(local.spokenTexts, ['Fallback phrase']);
+
+        final unconfigured = ResilientTextToSpeechService(
+          remote: remote,
+          local: local,
+          isRemoteConfigured: false,
+        );
+        var unconfiguredReadyCount = 0;
+        await unconfigured.speakSynchronized(
+          'Offline phrase',
+          onAudioReady: () => unconfiguredReadyCount++,
+        );
+        expect(unconfiguredReadyCount, 1);
+        expect(local.spokenTexts, ['Fallback phrase', 'Offline phrase']);
+      },
+    );
   });
 }
 
@@ -469,4 +682,129 @@ class _BlockingFakeTts implements TextToSpeechService {
 
   @override
   Future<void> stop() async {}
+}
+
+class _ControllableSyncFakeTts implements SynchronizedTextToSpeechService {
+  _ControllableSyncFakeTts({
+    required this.synthGate,
+    required this.playGate,
+    required this.timeline,
+  });
+
+  final Completer<void> synthGate;
+  final Completer<void> playGate;
+  final List<String> timeline;
+
+  @override
+  Future<void> speakSynchronized(
+    String text, {
+    String? voice,
+    String language = 'en-US',
+    required void Function() onAudioReady,
+  }) async {
+    await synthGate.future;
+    timeline.add('synth_done');
+    onAudioReady();
+    await playGate.future;
+  }
+
+  @override
+  Future<void> speak(String text, {String? voice, String language = 'en-US'}) =>
+      speakSynchronized(
+        text,
+        voice: voice,
+        language: language,
+        onAudioReady: () {},
+      );
+
+  @override
+  Future<void> stop() async {}
+
+  @override
+  Future<void> dispose() async {}
+}
+
+class _FailingSyncFakeTts implements SynchronizedTextToSpeechService {
+  _FailingSyncFakeTts(this.error);
+
+  final Object error;
+
+  @override
+  Future<void> speakSynchronized(
+    String text, {
+    String? voice,
+    String language = 'en-US',
+    required void Function() onAudioReady,
+  }) async {
+    throw error;
+  }
+
+  @override
+  Future<void> speak(
+    String text, {
+    String? voice,
+    String language = 'en-US',
+  }) async {
+    throw error;
+  }
+
+  @override
+  Future<void> stop() async {}
+
+  @override
+  Future<void> dispose() async {}
+}
+
+class _PostReadyFailingSyncTts implements SynchronizedTextToSpeechService {
+  _PostReadyFailingSyncTts(this.error);
+
+  final Object error;
+
+  @override
+  Future<void> speakSynchronized(
+    String text, {
+    String? voice,
+    String language = 'en-US',
+    required void Function() onAudioReady,
+  }) async {
+    onAudioReady();
+    onAudioReady();
+    throw error;
+  }
+
+  @override
+  Future<void> speak(
+    String text, {
+    String? voice,
+    String language = 'en-US',
+  }) async {
+    throw error;
+  }
+
+  @override
+  Future<void> stop() async {}
+
+  @override
+  Future<void> dispose() async {}
+}
+
+class _RecordingAudioPlayback implements AudioPlaybackPort {
+  _RecordingAudioPlayback({this.onPlay});
+
+  final Future<void> Function(Uint8List wavBytes)? onPlay;
+  final List<Uint8List> playedBytes = [];
+
+  @override
+  Future<void> playWav(Uint8List wavBytes) async {
+    playedBytes.add(wavBytes);
+    if (onPlay != null) {
+      await onPlay!(wavBytes);
+    }
+  }
+
+  @override
+  Future<void> stop() async {}
+
+  @override
+  Future<void> dispose() async {}
 }

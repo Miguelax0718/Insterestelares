@@ -42,7 +42,7 @@ class AudioplayersPlayback implements AudioPlaybackPort {
   }
 }
 
-class RemoteTextToSpeechService implements TextToSpeechService {
+class RemoteTextToSpeechService implements SynchronizedTextToSpeechService {
   RemoteTextToSpeechService({
     required this._client,
     AudioPlaybackPort? playback,
@@ -52,14 +52,28 @@ class RemoteTextToSpeechService implements TextToSpeechService {
   final AudioPlaybackPort _playback;
 
   @override
+  Future<void> speakSynchronized(
+    String text, {
+    String? voice,
+    String language = 'en-US',
+    required void Function() onAudioReady,
+  }) async {
+    final wavBytes = await _client.synthesize(text, voice: voice);
+    onAudioReady();
+    await _playback.playWav(wavBytes);
+  }
+
+  @override
   Future<void> speak(
     String text, {
     String? voice,
     String language = 'en-US',
-  }) async {
-    final wavBytes = await _client.synthesize(text, voice: voice);
-    await _playback.playWav(wavBytes);
-  }
+  }) => speakSynchronized(
+    text,
+    voice: voice,
+    language: language,
+    onAudioReady: () {},
+  );
 
   @override
   Future<void> stop() => _playback.stop();

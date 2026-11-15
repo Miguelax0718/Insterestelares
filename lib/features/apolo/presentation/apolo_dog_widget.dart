@@ -10,13 +10,15 @@ import '../domain/apolo_models.dart';
 /// Supports helmet glass reflection (hidden in high-contrast mode), gentle
 /// bobbing float, periodic blink, pointer pupil look-tracking (`lookOffset`),
 /// ear perk when `isListening`, animated talking mouth when `isSpeaking`,
-/// mood expressions (`ok`, `warn`, `crit` with sweat drop), and tap wiggle.
+/// contemplative glance + orbital thought dots when `isThinking`, mood
+/// expressions (`ok`, `warn`, `crit` with sweat drop), and tap wiggle.
 class ApoloDogWidget extends StatefulWidget {
   const ApoloDogWidget({
     super.key,
     required this.severity,
     this.isListening = false,
     this.isSpeaking = false,
+    this.isThinking = false,
     this.highContrast = false,
     this.lookOffset = Offset.zero,
     this.size = 220,
@@ -26,6 +28,7 @@ class ApoloDogWidget extends StatefulWidget {
   final ApoloSeverity severity;
   final bool isListening;
   final bool isSpeaking;
+  final bool isThinking;
   final bool highContrast;
   final Offset lookOffset;
   final double size;
@@ -39,10 +42,14 @@ class _ApoloDogWidgetState extends State<ApoloDogWidget>
     with TickerProviderStateMixin {
   late final AnimationController _ambientController;
   late final AnimationController _talkController;
+  late final AnimationController _thinkController;
   late final AnimationController _wiggleController;
   late final AnimationController _blinkController;
   Timer? _blinkTimer;
   bool _animationsDisabled = false;
+
+  bool get _activelyThinking =>
+      widget.isThinking && !widget.isSpeaking && !widget.isListening;
 
   @override
   void initState() {
@@ -54,6 +61,10 @@ class _ApoloDogWidgetState extends State<ApoloDogWidget>
     _talkController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 200),
+    );
+    _thinkController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
     );
     _wiggleController = AnimationController(
       vsync: this,
@@ -75,7 +86,9 @@ class _ApoloDogWidgetState extends State<ApoloDogWidget>
   @override
   void didUpdateWidget(covariant ApoloDogWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.isSpeaking != widget.isSpeaking) {
+    if (oldWidget.isSpeaking != widget.isSpeaking ||
+        oldWidget.isThinking != widget.isThinking ||
+        oldWidget.isListening != widget.isListening) {
       _syncAnimations();
     }
   }
@@ -84,6 +97,7 @@ class _ApoloDogWidgetState extends State<ApoloDogWidget>
     if (_animationsDisabled) {
       _ambientController.stop();
       _talkController.stop();
+      _thinkController.stop();
       _blinkController.stop();
       _blinkTimer?.cancel();
       _blinkTimer = null;
@@ -100,6 +114,16 @@ class _ApoloDogWidgetState extends State<ApoloDogWidget>
       if (_talkController.isAnimating) {
         _talkController.stop();
         _talkController.value = 0.0;
+      }
+    }
+    if (_activelyThinking) {
+      if (!_thinkController.isAnimating) {
+        _thinkController.repeat();
+      }
+    } else {
+      if (_thinkController.isAnimating) {
+        _thinkController.stop();
+        _thinkController.value = 0.0;
       }
     }
     _scheduleNextBlink();
@@ -136,6 +160,7 @@ class _ApoloDogWidgetState extends State<ApoloDogWidget>
     _blinkTimer?.cancel();
     _ambientController.dispose();
     _talkController.dispose();
+    _thinkController.dispose();
     _wiggleController.dispose();
     _blinkController.dispose();
     super.dispose();
@@ -149,7 +174,7 @@ class _ApoloDogWidgetState extends State<ApoloDogWidget>
     return Semantics(
       button: widget.onTap != null,
       label:
-          'Apolo assistant dog, status ${widget.severity.label}${widget.isListening ? ', listening' : ''}${widget.isSpeaking ? ', speaking' : ''}',
+          'Apolo assistant dog, status ${widget.severity.label}${widget.isListening ? ', listening' : ''}${widget.isSpeaking ? ', speaking' : ''}${widget.isThinking ? ', thinking' : ''}',
       child: GestureDetector(
         onTap: _handleTap,
         behavior: HitTestBehavior.opaque,
@@ -157,11 +182,13 @@ class _ApoloDogWidgetState extends State<ApoloDogWidget>
           animation: Listenable.merge([
             _ambientController,
             _talkController,
+            _thinkController,
             _wiggleController,
             _blinkController,
           ]),
           builder: (context, _) {
             final t = disableAnimations ? 0.0 : _ambientController.value;
+            final thinkT = disableAnimations ? 0.0 : _thinkController.value;
             final bobWave = disableAnimations ? 0.0 : math.sin(t * math.pi * 2);
             final bobY = disableAnimations ? 0.0 : -5.0 + bobWave * 5.0;
             final bobRot = disableAnimations ? 0.0 : -0.01 + bobWave * 0.01;
@@ -205,11 +232,13 @@ class _ApoloDogWidgetState extends State<ApoloDogWidget>
                             severity: widget.severity,
                             isListening: widget.isListening,
                             isSpeaking: widget.isSpeaking,
+                            isThinking: _activelyThinking,
                             highContrast: widget.highContrast,
                             lookOffset: disableAnimations
                                 ? Offset.zero
                                 : widget.lookOffset,
                             ambientPhase: t,
+                            thinkPhase: thinkT,
                             animate: !disableAnimations,
                             blinkScaleY: blinkScaleY,
                             talkScale: talkScale,
@@ -253,9 +282,11 @@ class _ApoloDogPainter extends CustomPainter {
     required this.severity,
     required this.isListening,
     required this.isSpeaking,
+    required this.isThinking,
     required this.highContrast,
     required this.lookOffset,
     required this.ambientPhase,
+    required this.thinkPhase,
     required this.animate,
     required this.blinkScaleY,
     required this.talkScale,
@@ -265,9 +296,11 @@ class _ApoloDogPainter extends CustomPainter {
   final ApoloSeverity severity;
   final bool isListening;
   final bool isSpeaking;
+  final bool isThinking;
   final bool highContrast;
   final Offset lookOffset;
   final double ambientPhase;
+  final double thinkPhase;
   final bool animate;
   final double blinkScaleY;
   final double talkScale;
@@ -282,6 +315,8 @@ class _ApoloDogPainter extends CustomPainter {
   static const _blush = Color(0xFFFF9AA6);
   static const _collar = Color(0xFF8367C7);
   static const _tag = Color(0xFFF0FFF1);
+  static const _thoughtLav = Color(0xFFA994E0);
+  static const _thoughtMint = Color(0xFFB3E9C7);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -346,6 +381,10 @@ class _ApoloDogPainter extends CustomPainter {
     if (isListening) {
       leftEarAngle = -12 * math.pi / 180;
       rightEarAngle = 12 * math.pi / 180;
+    } else if (isThinking) {
+      final earWave = animate ? math.sin(thinkPhase * math.pi * 2) * 3.0 : 0.0;
+      leftEarAngle = (-6.0 + earWave) * math.pi / 180;
+      rightEarAngle = (-3.0 - earWave * 0.5) * math.pi / 180;
     } else if (severity == ApoloSeverity.crit) {
       leftEarAngle = 14 * math.pi / 180;
       rightEarAngle = -14 * math.pi / 180;
@@ -414,8 +453,15 @@ class _ApoloDogPainter extends CustomPainter {
     );
     canvas.restore();
 
-    // 6. Head group (tilts on listening, wiggles on tap).
-    final headAngle = (isListening ? -7 * math.pi / 180 : 0.0) + wiggleAngle;
+    // 6. Head group (tilts on listening or thinking, wiggles on tap).
+    final thinkTiltDeg = isThinking
+        ? (animate ? 5.0 + math.sin(thinkPhase * math.pi * 2) * 2.0 : 5.0)
+        : 0.0;
+    final headAngle =
+        (isListening
+            ? -7 * math.pi / 180
+            : thinkTiltDeg * math.pi / 180) +
+        wiggleAngle;
     canvas.save();
     canvas.translate(110, 150);
     canvas.rotate(headAngle);
@@ -489,7 +535,13 @@ class _ApoloDogPainter extends CustomPainter {
     }
 
     // Eyes + pupil tracking + blink
-    final clampedLook = _clampOffset(lookOffset, 3.0);
+    final effectiveLook = isThinking
+        ? Offset(
+            animate ? math.sin(thinkPhase * math.pi * 2) * 2.1 : 1.8,
+            -2.4,
+          )
+        : lookOffset;
+    final clampedLook = _clampOffset(effectiveLook, 3.0);
     _drawEye(
       canvas,
       center: const Offset(86, 104),
@@ -630,6 +682,35 @@ class _ApoloDogPainter extends CustomPainter {
       );
     }
 
+    // 8. Rising orbital thought dots when thinking.
+    if (isThinking) {
+      final dots = <(Offset center, double radius, Color color, double phaseShift)>[
+        (const Offset(168, 56), 3.6, _thoughtLav, 0.0),
+        (const Offset(182, 40), 5.0, _thoughtMint, 0.28),
+        (const Offset(198, 22), 6.6, _thoughtLav, 0.56),
+      ];
+      for (final (baseCenter, radius, color, shift) in dots) {
+        final wave = animate
+            ? math.sin((thinkPhase + shift) * math.pi * 2) * 0.5 + 0.5
+            : 0.75;
+        final bobDy = animate ? -wave * 4.0 : 0.0;
+        final alpha = 0.45 + wave * 0.55;
+        final dotCenter = baseCenter + Offset(0, bobDy);
+        if (!highContrast) {
+          canvas.drawCircle(
+            dotCenter,
+            radius + 3.0,
+            Paint()..color = color.withValues(alpha: alpha * 0.28),
+          );
+        }
+        canvas.drawCircle(
+          dotCenter,
+          radius,
+          Paint()..color = (highContrast ? Colors.white : color).withValues(alpha: alpha),
+        );
+      }
+    }
+
     canvas.restore();
   }
 
@@ -697,9 +778,11 @@ class _ApoloDogPainter extends CustomPainter {
     return oldDelegate.severity != severity ||
         oldDelegate.isListening != isListening ||
         oldDelegate.isSpeaking != isSpeaking ||
+        oldDelegate.isThinking != isThinking ||
         oldDelegate.highContrast != highContrast ||
         oldDelegate.lookOffset != lookOffset ||
         oldDelegate.ambientPhase != ambientPhase ||
+        oldDelegate.thinkPhase != thinkPhase ||
         oldDelegate.animate != animate ||
         oldDelegate.blinkScaleY != blinkScaleY ||
         oldDelegate.talkScale != talkScale ||
