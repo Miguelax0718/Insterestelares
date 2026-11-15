@@ -7,6 +7,7 @@ import 'package:astramed/features/02_radiation/presentation/radiation_view.dart'
 import 'package:astramed/features/03_microgravity/presentation/microgravity_view.dart';
 import 'package:astramed/features/04_mental_health/presentation/mental_health_view.dart';
 import 'package:astramed/features/05_clinical_triage/presentation/triage_view.dart';
+import 'package:astramed/features/agent/presentation/agent_test_screen.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 import 'package:astramed/features/crew/presentation/widgets/crew_sidebar_drawer.dart';
@@ -169,6 +170,13 @@ class _AstraMedDashboardState extends ConsumerState<AstraMedDashboard> {
           ),
         ),
         actions: [
+          IconButton(
+            tooltip: 'Agent console',
+            icon: const Icon(Icons.graphic_eq),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AgentTestScreen()),
+            ),
+          ),
           // Badge rápido de estado de riesgo del astronauta activo
           Container(
             margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
