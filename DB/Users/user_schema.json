@@ -1,0 +1,516 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://astramed.space/schemas/user_schema.json",
+  "title": "AstronautProfileRecord",
+  "description": "Esquema formal de validación para los registros médicos, operacionales y de procedencia telemétrica de los tripulantes del sistema AstraMed (NASA Space Apps Challenge)",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "role",
+    "rank",
+    "callsign",
+    "avatarInitials",
+    "age",
+    "bloodType",
+    "currentZone",
+    "linkedMachineIds",
+    "vitals",
+    "radiation",
+    "sleep",
+    "exercise",
+    "riskLevel",
+    "riskTitle",
+    "riskDescription",
+    "activeAlerts",
+    "lastUpdated"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^AST-[0-9]{2}$",
+      "description": "Identificador único del tripulante (p. ej. AST-01)"
+    },
+    "name": {
+      "type": "string",
+      "description": "Nombre completo del astronauta"
+    },
+    "role": {
+      "type": "string",
+      "description": "Rol asignado dentro de la misión"
+    },
+    "rank": {
+      "type": "string",
+      "description": "Rango militar o científico del tripulante"
+    },
+    "callsign": {
+      "type": "string",
+      "description": "Indicativo de llamada táctico en misiones espaciales"
+    },
+    "avatarInitials": {
+      "type": "string",
+      "maxLength": 3,
+      "description": "Iniciales para avatar visual de UI"
+    },
+    "age": {
+      "type": "integer",
+      "minimum": 18,
+      "maximum": 80,
+      "description": "Edad del tripulante en años terrestres"
+    },
+    "bloodType": {
+      "type": "string",
+      "enum": ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"],
+      "description": "Grupo sanguíneo y factor Rh"
+    },
+    "currentZone": {
+      "type": "string",
+      "description": "Ubicación actual dentro del hábitat, módulo o esclusa espacial"
+    },
+    "linkedMachineIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Identificadores de dispositivos y sensores médicos de cabina vinculados activamente a la telemetría del tripulante"
+    },
+    "vitals": {
+      "type": "object",
+      "required": [
+        "timestamp",
+        "astronautId",
+        "source",
+        "deviceId",
+        "device",
+        "protocol",
+        "measurementMethod",
+        "activityState",
+        "signalQuality",
+        "recordType",
+        "algorithm",
+        "criterionReference",
+        "heartRate",
+        "systolicBP",
+        "diastolicBP",
+        "spO2",
+        "bodyTemp",
+        "bloodGlucose",
+        "respiratoryRate",
+        "capillaryRefillSeconds"
+      ],
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Fecha y hora ISO8601 de la última medición de signos vitales"
+        },
+        "astronautId": {
+          "type": "string",
+          "pattern": "^AST-[0-9]{2}$",
+          "description": "ID del astronauta propietario de la medición"
+        },
+        "source": {
+          "type": "string",
+          "enum": ["telemetry", "manual"],
+          "description": "Origen del dato médico (telemetría automática de máquina o ingreso manual)"
+        },
+        "deviceId": {
+          "type": "string",
+          "description": "Identificador técnico del equipo médico o registro manual (ej. DEV-ASTROSKIN)"
+        },
+        "device": {
+          "type": "string",
+          "description": "Nombre legible del dispositivo o fuente que generó la lectura"
+        },
+        "protocol": {
+          "type": "string",
+          "description": "Protocolo de comunicación del bus espacial utilizado"
+        },
+        "measurementMethod": {
+          "type": "string",
+          "description": "Método clínico o instrumental de obtención de los signos vitales"
+        },
+        "activityState": {
+          "type": "string",
+          "enum": ["active_duty", "resting", "post_eva", "exercise", "sleep", "emergency_triage"],
+          "description": "Estado de actividad o contexto fisiológico durante la captura"
+        },
+        "signalQuality": {
+          "type": "string",
+          "description": "Indicador de calidad o confiabilidad de la señal (ej. optimal (98%), manual_verified)"
+        },
+        "recordType": {
+          "type": "string",
+          "enum": ["instrumental", "estimación", "manual", "subjetiva"],
+          "description": "Clasificación metodológica del registro"
+        },
+        "algorithm": {
+          "type": "string",
+          "description": "Algoritmo de procesamiento o calibración aplicado"
+        },
+        "criterionReference": {
+          "type": "string",
+          "description": "Norma o criterio médico de referencia (ej. NASA-STD-3001)"
+        },
+        "heartRate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 300,
+          "description": "Frecuencia cardíaca en latidos por minuto (bpm)"
+        },
+        "systolicBP": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 300,
+          "description": "Presión arterial sistólica en mmHg"
+        },
+        "diastolicBP": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 200,
+          "description": "Presión arterial diastólica en mmHg"
+        },
+        "spO2": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Saturación de oxígeno periférico en porcentaje (%)"
+        },
+        "bodyTemp": {
+          "type": "number",
+          "minimum": 30.0,
+          "maximum": 45.0,
+          "description": "Temperatura corporal central en grados Celsius (°C)"
+        },
+        "bloodGlucose": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 600,
+          "description": "Nivel de glucosa en sangre en mg/dL"
+        },
+        "respiratoryRate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 80,
+          "description": "Frecuencia respiratoria en respiraciones por minuto (rpm)"
+        },
+        "capillaryRefillSeconds": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 15,
+          "description": "Tiempo de llenado capilar distal en segundos"
+        }
+      },
+      "additionalProperties": false
+    },
+    "radiation": {
+      "type": "object",
+      "required": [
+        "timestamp",
+        "astronautId",
+        "source",
+        "deviceId",
+        "device",
+        "protocol",
+        "measurementMethod",
+        "activityState",
+        "signalQuality",
+        "recordType",
+        "algorithm",
+        "criterionReference",
+        "doseRateMicroSvPerHour",
+        "cumulativeDoseMilliSv",
+        "severity"
+      ],
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Fecha y hora ISO8601 del registro de dosimetría radiológica"
+        },
+        "astronautId": {
+          "type": "string",
+          "pattern": "^AST-[0-9]{2}$",
+          "description": "ID del astronauta propietario de la medición"
+        },
+        "source": {
+          "type": "string",
+          "enum": ["telemetry", "manual"],
+          "description": "Origen del dato (telemetría o ingreso manual)"
+        },
+        "deviceId": {
+          "type": "string",
+          "description": "Identificador técnico del dosímetro (ej. DEV-HERA)"
+        },
+        "device": {
+          "type": "string",
+          "description": "Nombre del dosímetro o fuente"
+        },
+        "protocol": {
+          "type": "string",
+          "description": "Protocolo de bus dosimétrico"
+        },
+        "measurementMethod": {
+          "type": "string",
+          "description": "Técnica de detección o espectrometría dosimétrica"
+        },
+        "activityState": {
+          "type": "string",
+          "enum": ["active_duty", "resting", "post_eva", "exercise", "sleep", "emergency_triage"],
+          "description": "Contexto operacional durante la lectura radiológica"
+        },
+        "signalQuality": {
+          "type": "string",
+          "description": "Calidad de señal del dosímetro o verificación manual"
+        },
+        "recordType": {
+          "type": "string",
+          "enum": ["instrumental", "estimación", "manual", "subjetiva"],
+          "description": "Clasificación metodológica del registro"
+        },
+        "algorithm": {
+          "type": "string",
+          "description": "Algoritmo dosimétrico utilizado"
+        },
+        "criterionReference": {
+          "type": "string",
+          "description": "Límites normativos de referencia (PEL)"
+        },
+        "doseRateMicroSvPerHour": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Tasa instantánea de radiación absorbida en microsieverts por hora (µSv/h)"
+        },
+        "cumulativeDoseMilliSv": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Dosis acumulada en la misión en milisieverts (mSv)"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["normal", "warning", "critical"],
+          "description": "Clasificación de severidad radiológica según umbrales de la NASA"
+        }
+      },
+      "additionalProperties": false
+    },
+    "sleep": {
+      "type": "object",
+      "required": [
+        "date",
+        "astronautId",
+        "source",
+        "deviceId",
+        "device",
+        "protocol",
+        "measurementMethod",
+        "activityState",
+        "signalQuality",
+        "recordType",
+        "algorithm",
+        "criterionReference",
+        "sleepHours",
+        "wakeEpisodes",
+        "morningMood"
+      ],
+      "properties": {
+        "date": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Fecha y hora de referencia del ciclo de sueño"
+        },
+        "astronautId": {
+          "type": "string",
+          "pattern": "^AST-[0-9]{2}$",
+          "description": "ID del astronauta propietario del registro"
+        },
+        "source": {
+          "type": "string",
+          "enum": ["telemetry", "manual"],
+          "description": "Origen del dato (telemetría actigráfica o reporte manual)"
+        },
+        "deviceId": {
+          "type": "string",
+          "description": "ID del monitor circadiano o bitácora manual"
+        },
+        "device": {
+          "type": "string",
+          "description": "Nombre del sensor circadiano o bitácora"
+        },
+        "protocol": {
+          "type": "string",
+          "description": "Protocolo de sincronización"
+        },
+        "measurementMethod": {
+          "type": "string",
+          "description": "Método de medición actigráfica o reporte subjetivo"
+        },
+        "activityState": {
+          "type": "string",
+          "enum": ["active_duty", "resting", "post_eva", "exercise", "sleep", "emergency_triage"],
+          "description": "Estado de reposo o contexto de evaluación circadiana"
+        },
+        "signalQuality": {
+          "type": "string",
+          "description": "Calidad de señal del sensor o validación subjetiva"
+        },
+        "recordType": {
+          "type": "string",
+          "enum": ["instrumental", "estimación", "manual", "subjetiva"],
+          "description": "Clasificación metodológica del registro de sueño"
+        },
+        "algorithm": {
+          "type": "string",
+          "description": "Algoritmo de análisis circadiano o bitácora"
+        },
+        "criterionReference": {
+          "type": "string",
+          "description": "Estándar de salud conductual y circadiana aplicable"
+        },
+        "sleepHours": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 24,
+          "description": "Total de horas de sueño efectivo"
+        },
+        "wakeEpisodes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Cantidad de episodios de interrupción o despertares nocturnos"
+        },
+        "morningMood": {
+          "type": "string",
+          "enum": ["great", "good", "neutral", "fatigued", "stressed"],
+          "description": "Estado de ánimo y evaluación subjetiva matutina del tripulante"
+        }
+      },
+      "additionalProperties": false
+    },
+    "exercise": {
+      "type": "object",
+      "required": [
+        "date",
+        "astronautId",
+        "source",
+        "deviceId",
+        "device",
+        "protocol",
+        "measurementMethod",
+        "activityState",
+        "signalQuality",
+        "recordType",
+        "algorithm",
+        "criterionReference",
+        "deviceName",
+        "durationMinutes",
+        "caloriesBurned",
+        "targetReached"
+      ],
+      "properties": {
+        "date": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Fecha y hora de la sesión de contramedidas físicas"
+        },
+        "astronautId": {
+          "type": "string",
+          "pattern": "^AST-[0-9]{2}$",
+          "description": "ID del astronauta propietario de la sesión"
+        },
+        "source": {
+          "type": "string",
+          "enum": ["telemetry", "manual"],
+          "description": "Origen del registro de ejercicio"
+        },
+        "deviceId": {
+          "type": "string",
+          "description": "ID de la máquina de contramedidas (ej. DEV-ARED, DEV-CEVIS)"
+        },
+        "device": {
+          "type": "string",
+          "description": "Nombre completo del hardware de ejercicio"
+        },
+        "protocol": {
+          "type": "string",
+          "description": "Protocolo del bus de datos del hardware"
+        },
+        "measurementMethod": {
+          "type": "string",
+          "description": "Método cinemático o metabólico de registro de contramedidas"
+        },
+        "activityState": {
+          "type": "string",
+          "enum": ["active_duty", "resting", "post_eva", "exercise", "sleep", "emergency_triage"],
+          "description": "Estado operacional durante la sesión física"
+        },
+        "signalQuality": {
+          "type": "string",
+          "description": "Calidad de la telemetría de ejercicio"
+        },
+        "recordType": {
+          "type": "string",
+          "enum": ["instrumental", "estimación", "manual", "subjetiva"],
+          "description": "Clasificación metodológica del cálculo físico/metabólico"
+        },
+        "algorithm": {
+          "type": "string",
+          "description": "Modelo o algoritmo de estimación metabólica/cinemática"
+        },
+        "criterionReference": {
+          "type": "string",
+          "description": "Protocolo de contramedidas musculoesqueléticas/aeróbicas NASA"
+        },
+        "deviceName": {
+          "type": "string",
+          "description": "Equipo de contramedida utilizado (ej. ARED, T2, CEVIS)"
+        },
+        "durationMinutes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Duración de la sesión de ejercicio en minutos"
+        },
+        "caloriesBurned": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Gasto calórico estimado en kilocalorías (kcal)"
+        },
+        "targetReached": {
+          "type": "boolean",
+          "description": "Indica si se cumplió la prescripción física diaria"
+        }
+      },
+      "additionalProperties": false
+    },
+    "riskLevel": {
+      "type": "string",
+      "enum": ["nominal", "warning", "critical"],
+      "description": "Nivel global de riesgo biomédico y operacional"
+    },
+    "riskTitle": {
+      "type": "string",
+      "description": "Título o categoría de diagnóstico resumen del estado de riesgo"
+    },
+    "riskDescription": {
+      "type": "string",
+      "description": "Descripción clínica y contextual del estado de salud del tripulante"
+    },
+    "activeAlerts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Lista de alertas y notificaciones activas para el tripulante"
+    },
+    "lastTelemetrySync": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Marca temporal ISO8601 de la última sincronización de telemetría"
+    },
+    "lastUpdated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Marca temporal ISO8601 de la última actualización en base de datos"
+    }
+  },
+  "additionalProperties": false
+}
