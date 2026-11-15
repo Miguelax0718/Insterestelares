@@ -44,12 +44,33 @@ Los modelos de lenguaje generativos (LLMs) aportan empatía, lenguaje natural y 
 
 ---
 
-## 3. Modo Simulación e Integraciones Pendientes
+## 3. Arquitectura de Base de Datos Local y Telemetría (`DB/` + `CrewDatabaseService`)
+
+La aplicación utiliza una **base de datos documental local 100% Offline-First** empaquetada como assets en `DB/` (cuya estructura base de tripulación y catálogo proviene de `main`, ampliada y optimizada en este PR):
+
+### 3.1 Repositorios de Datos en `DB/`
+- **Perfiles y Esquema de Tripulación (`DB/Users/`):**
+  - `DB/Users/user_schema.json`: Esquema formal **JSON Schema Draft-07** (`AstronautProfileRecord`) que valida identidad (`AST-01`..`AST-05`), `linkedMachineIds`, dominios biomédicos (`vitals`, `radiation`, `sleep`, `exercise`), `riskLevel`, `activeAlerts` y metadatos de procedencia telemétrica (`astronautId`, `source`, `device`, `measurementMethod`, `activityState`, `signalQuality`, `recordType`, `algorithm`, `criterionReference`).
+  - `DB/Users/crew_index.json` y archivos individuales `DB/Users/AST-01_alex_vance.json` a `DB/Users/AST-05_leo_morales.json`: Registros clínicos y operacionales de los 5 tripulantes. **Actualizado en este PR:** se completó `linkedMachineIds` en los 5 perfiles para vincular los 7 dispositivos del catálogo.
+- **Catálogo de Hardware Biomédico (`DB/Information/telemetry_machines_catalog.json`):**
+  - Catálogo maestro (`version: 1.0.0`, `totalDevices: 7`) con protocolos, tasa de muestreo (`telemetryRateHz`), método de medición y referencia normativa (`NASA-STD-3001` / `NASA-ISS CHeCS`) para `DEV-ASTROSKIN`, `DEV-HERA`, `DEV-EPM`, `DEV-ARED`, `DEV-CEVIS`, `DEV-ISTAT` y `DEV-ACTIWATCH`.
+- **Base de Conocimiento Científico (`DB/scientific_criteria.json`, añadido en este PR):**
+  - Base JSON versionada (`schema_version: 1.0.0`) que desacopla los rangos fisiológicos contextuales, unidades, población de referencia y limitaciones metodológicas respecto al código UI, consumida directamente por `ScientificCriteriaEngine` y respaldada por `DB/references.md`.
+- **Muestra Sintética de Dosimetría (`DB/samples/radiation/`):**
+  - Archivos `crew_profiles.json`, `dosimetry_daily.csv`, `space_weather.csv` y `README.md` integrados tras la sincronización con `main` para simulación radiológica (`AST-01`..`AST-04`).
+
+### 3.2 Capa de Acceso y Caché (`CrewDatabaseService`)
+- `lib/core/storage/crew_database_service.dart` carga `DB/Users/crew_index.json` y todos los perfiles JSON en **paralelo** mediante `Future.wait(...)` dentro de `loadCrewFromDbUsers`.
+- Incorpora caché en memoria (`_memoryCache`, controlable con `forceReload = false`) para eliminar relecturas redundantes en recargas y navegación, además de utilidades `getCachedProfile`, `getAllCached`, `exportAstronautJson` y `saveAstronautProfile`, con respaldo automático a `MockCrewData.getInitialCrew()` si falla la lectura local.
+
+---
+
+## 4. Modo Simulación e Integraciones Pendientes
 Documentado en `DB/simulation_and_pending_integrations.md`: ante la falta de hardware biomédico físico en el entorno de desarrollo, los equipos (`SpaceMachinesCatalog`) operan en modo simulación explícitamente etiquetado, dejando definidas las interfaces para conectar drivers BLE/ANT+/SpaceBus reales.
 
 ---
 
-## 4. Archivos Principales y Verificación
+## 5. Archivos Principales y Verificación
 - `lib/features/01_general_health/domain/scientific_criteria_engine.dart`
 - `lib/features/01_general_health/presentation/general_health_view.dart`
 - `lib/features/01_general_health/presentation/widgets/vital_detail_full_screen_view.dart`
@@ -59,5 +80,6 @@ Documentado en `DB/simulation_and_pending_integrations.md`: ante la falta de har
 - `lib/features/05_clinical_triage/presentation/triage_view.dart`
 - `lib/core/storage/crew_database_service.dart`
 - `DB/scientific_criteria.json`, `DB/references.md`, `DB/simulation_and_pending_integrations.md`, `DB/PR_JUSTIFICACION_COMPLETA.md`
+- `DB/Users/AST-01_alex_vance.json` .. `DB/Users/AST-05_leo_morales.json`, `DB/Users/crew_index.json`, `DB/Users/user_schema.json`, `DB/Information/telemetry_machines_catalog.json`, `DB/README.md`
 - `test/features/01_general_health/scientific_criteria_engine_test.dart`
 - `test/features/05_clinical_triage/hybrid_llm_triage_service_test.dart`
