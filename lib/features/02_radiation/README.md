@@ -72,8 +72,8 @@ used as a standalone event detector or an individual clinical threshold.
 ## Biomarker branch integration
 
 The combined screen uses the crew hub's ID/name and a shared
-`selectedMissionDayProvider`. Production starts at day 1; both mission sliders
-update that same state. The biological return day remains selectable. A missing
+`selectedMissionDayProvider`. Production starts at day 1; a single mission slider
+updates that shared state; the biological panel displays the selected day. The biological return day remains selectable. A missing
 physical record on that day is shown as unavailable rather than repeating the
 last in-flight dose.
 

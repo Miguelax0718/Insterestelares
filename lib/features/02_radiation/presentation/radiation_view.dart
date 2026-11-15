@@ -145,6 +145,7 @@ class _CombinedMissionView extends ConsumerWidget {
             ),
           ),
         BiomarkerPanel(
+          showMissionDaySelector: false,
           realisticDoseDescription: linked == null
               ? null
               : eventDose == null

@@ -165,12 +165,15 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.byType(BiomarkerPanel), findsOneWidget);
+      expect(find.byType(Slider), findsOneWidget);
       expect(find.byType(CumulativeDoseChart), findsOneWidget);
       final slider = tester.widget<Slider>(
         find.byKey(const Key('radiationMissionDaySlider')),
       );
       slider.onChanged!(96);
       await tester.pumpAndSettle();
+      expect(find.text('Día de misión: 96 de 180'), findsOneWidget);
+      expect(find.byType(Slider), findsOneWidget);
       expect(
         c.read(selectedBioSummaryProvider).date,
         c.read(selectedDoseSummaryProvider)!.date,

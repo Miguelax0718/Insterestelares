@@ -38,9 +38,14 @@ enum BioLevel {
 /// Panel de biomarcadores (parte de Juan): astronauta, día de misión,
 /// puntaje B con semáforo, cambios por marcador y gráfica de la misión.
 class BiomarkerPanel extends ConsumerWidget {
-  const BiomarkerPanel({super.key, this.realisticDoseDescription});
+  const BiomarkerPanel({
+    super.key,
+    this.realisticDoseDescription,
+    this.showMissionDaySelector = true,
+  });
 
   final String? realisticDoseDescription;
+  final bool showMissionDaySelector;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -88,15 +93,16 @@ class BiomarkerPanel extends ConsumerWidget {
             ),
             Text('Día de misión: $day de ${repo.missionDays}'
                 '${day > repo.missionDays ? ' (regreso)' : ''}'),
-            Slider(
-              min: 1,
-              max: (repo.missionDays + 1).toDouble(),
-              divisions: repo.missionDays,
-              value: day.toDouble().clamp(1, repo.missionDays + 1),
-              label: '$day',
-              onChanged: (v) =>
-                  ref.read(selectedMissionDayProvider.notifier).state = v.round(),
-            ),
+            if (showMissionDaySelector)
+              Slider(
+                min: 1,
+                max: (repo.missionDays + 1).toDouble(),
+                divisions: repo.missionDays,
+                value: day.toDouble().clamp(1, repo.missionDays + 1),
+                label: '$day',
+                onChanged: (v) =>
+                    ref.read(selectedMissionDayProvider.notifier).state = v.round(),
+              ),
             _ScoreTile(summary: summary, level: level),
             const SizedBox(height: 12),
             _MarkerTable(summary: summary),
