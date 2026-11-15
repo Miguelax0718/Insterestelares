@@ -27,24 +27,30 @@ void main() {
   );
 
   group('ChatMessage tool wire shapes', () {
-    test('assistant tool call message serializes tool_calls and null content',
-        () {
-      const message = ChatMessage.assistantToolCalls([
-        ToolCall(id: 'call_1', name: 'get_vitals', arguments: {'astronaut_id': 'AST-01'}),
-      ]);
+    test(
+      'assistant tool call message serializes tool_calls and null content',
+      () {
+        const message = ChatMessage.assistantToolCalls([
+          ToolCall(
+            id: 'call_1',
+            name: 'get_vitals',
+            arguments: {'astronaut_id': 'AST-01'},
+          ),
+        ]);
 
-      expect(message.toJson(), {
-        'role': 'assistant',
-        'content': null,
-        'tool_calls': [
-          {
-            'id': 'call_1',
-            'name': 'get_vitals',
-            'arguments': {'astronaut_id': 'AST-01'},
-          },
-        ],
-      });
-    });
+        expect(message.toJson(), {
+          'role': 'assistant',
+          'content': null,
+          'tool_calls': [
+            {
+              'id': 'call_1',
+              'name': 'get_vitals',
+              'arguments': {'astronaut_id': 'AST-01'},
+            },
+          ],
+        });
+      },
+    );
 
     test('tool result message serializes role tool and tool_call_id', () {
       const message = ChatMessage.toolResult(
@@ -184,6 +190,21 @@ void main() {
         ),
         AgentStreamDone('m'),
       ]);
+    });
+
+    test('ToolCall preserves extra_content across fromJson and toJson', () {
+      const extra = {
+        'google': {'thought_signature': 'sig-abc-123'},
+      };
+      final parsed = ToolCall.fromJson({
+        'id': 'call_9',
+        'name': 'get_vitals',
+        'arguments': {'astronaut_id': 'AST-01'},
+        'extra_content': extra,
+      });
+
+      expect(parsed.extraContent, extra);
+      expect(parsed.toJson()['extra_content'], extra);
     });
   });
 }

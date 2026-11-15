@@ -73,8 +73,9 @@ class AgentRouterLLMProvider:
             if m.role == "assistant":
                 entry: dict[str, Any] = {"role": "assistant", "content": m.content}
                 if m.tool_calls:
-                    entry["tool_calls"] = [
-                        {
+                    serialized_tcs: list[dict[str, Any]] = []
+                    for tc in m.tool_calls:
+                        tc_dict: dict[str, Any] = {
                             "id": tc.id,
                             "type": "function",
                             "function": {
@@ -86,8 +87,10 @@ class AgentRouterLLMProvider:
                                 ),
                             },
                         }
-                        for tc in m.tool_calls
-                    ]
+                        if tc.extra_content is not None:
+                            tc_dict["extra_content"] = tc.extra_content
+                        serialized_tcs.append(tc_dict)
+                    entry["tool_calls"] = serialized_tcs
                 mapped.append(entry)
             elif m.role == "tool":
                 mapped.append(
@@ -161,12 +164,15 @@ class AgentRouterLLMProvider:
             fn_name = getattr(fn, "name", None) or ""
             raw_args = getattr(fn, "arguments", None)
             args, invalid = _parse_tool_arguments(raw_args)
+            raw_extra = (getattr(tc, "model_extra", None) or {}).get("extra_content")
+            extra_content = raw_extra if isinstance(raw_extra, dict) else None
             parsed_tool_calls.append(
                 ToolCall(
                     id=tc_id,
                     name=fn_name,
                     arguments=args,
                     invalid_arguments=invalid,
+                    extra_content=extra_content,
                 )
             )
         return ChatResult(reply=reply, model=resolved_model, tool_calls=parsed_tool_calls)
@@ -204,10 +210,16 @@ class AgentRouterLLMProvider:
                     idx = getattr(dtc, "index", None)
                     if idx is None:
                         idx = 0
-                    entry = acc.setdefault(idx, {"id": None, "name": "", "arguments_parts": []})
+                    entry = acc.setdefault(
+                        idx,
+                        {"id": None, "name": "", "arguments_parts": [], "extra_content": None},
+                    )
                     dtc_id = getattr(dtc, "id", None)
                     if dtc_id:
                         entry["id"] = dtc_id
+                    dtc_extra = (getattr(dtc, "model_extra", None) or {}).get("extra_content")
+                    if isinstance(dtc_extra, dict):
+                        entry["extra_content"] = dtc_extra
                     fn = getattr(dtc, "function", None)
                     if fn is not None:
                         fn_name = getattr(fn, "name", None)
@@ -245,6 +257,7 @@ class AgentRouterLLMProvider:
                     name=entry["name"],
                     arguments=args,
                     invalid_arguments=invalid,
+                    extra_content=entry["extra_content"],
                 ),
                 done=False,
                 model=resolved_model,

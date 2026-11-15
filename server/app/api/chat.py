@@ -28,7 +28,12 @@ def _build_turns(payload: ChatRequest) -> list[ChatTurn]:
     turns: list[ChatTurn] = [ChatTurn(role="system", content=system)]
     for msg in payload.messages:
         tool_calls = [
-            ToolCall(id=tc.id, name=tc.name, arguments=tc.arguments)
+            ToolCall(
+                id=tc.id,
+                name=tc.name,
+                arguments=tc.arguments,
+                extra_content=tc.extra_content,
+            )
             for tc in (msg.tool_calls or ())
         ]
         turns.append(
@@ -59,6 +64,8 @@ def _serialize_tool_call(tc: ToolCall) -> dict[str, Any]:
     }
     if tc.invalid_arguments:
         data["invalid_arguments"] = True
+    if tc.extra_content is not None:
+        data["extra_content"] = tc.extra_content
     return data
 
 
@@ -84,6 +91,7 @@ async def post_chat(request: Request, payload: ChatRequest) -> ChatResponse | St
                     name=tc.name,
                     arguments=tc.arguments,
                     invalid_arguments=True if tc.invalid_arguments else None,
+                    extra_content=tc.extra_content,
                 )
                 for tc in result.tool_calls
             ],

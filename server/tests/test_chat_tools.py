@@ -756,3 +756,159 @@ def test_empty_tools_list_omits_tools_upstream_and_tool_rules() -> None:
     }
     assert "tools" not in captured_bodies[0]
     assert "Tool rules:" not in captured_bodies[0]["messages"][0]["content"]
+
+
+def test_tool_call_preserves_extra_content_roundtrip_non_stream_and_stream() -> None:
+    captured_bodies: list[dict] = []
+    extra = {"google": {"thought_signature": "sig-roundtrip-123"}}
+    call_count = 0
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        nonlocal call_count
+        body = json.loads(request.content.decode("utf-8"))
+        captured_bodies.append(body)
+        call_count += 1
+        if body.get("stream"):
+            sse = (
+                "data: "
+                + json.dumps(
+                    {
+                        "id": "chatcmpl-s1",
+                        "model": "gemini-3.5-flash-lite",
+                        "choices": [
+                            {
+                                "index": 0,
+                                "delta": {
+                                    "role": "assistant",
+                                    "tool_calls": [
+                                        {
+                                            "index": 0,
+                                            "id": "call_s1",
+                                            "type": "function",
+                                            "function": {
+                                                "name": "get_vitals",
+                                                "arguments": '{"astronaut_id":"AST-01"}',
+                                            },
+                                            "extra_content": extra,
+                                        }
+                                    ],
+                                },
+                                "finish_reason": None,
+                            }
+                        ],
+                    }
+                )
+                + "\n\n"
+                + "data: [DONE]\n\n"
+            )
+            return httpx2.Response(
+                200,
+                content=sse.encode("utf-8"),
+                headers={"content-type": "text/event-stream"},
+            )
+        if call_count == 1:
+            return httpx2.Response(
+                200,
+                json={
+                    "id": "chatcmpl-1",
+                    "object": "chat.completion",
+                    "created": 1700000000,
+                    "model": "gemini-3.5-flash-lite",
+                    "choices": [
+                        {
+                            "index": 0,
+                            "message": {
+                                "role": "assistant",
+                                "content": None,
+                                "tool_calls": [
+                                    {
+                                        "id": "call_1",
+                                        "type": "function",
+                                        "function": {
+                                            "name": "get_vitals",
+                                            "arguments": '{"astronaut_id":"AST-01"}',
+                                        },
+                                        "extra_content": extra,
+                                    }
+                                ],
+                            },
+                            "finish_reason": "tool_calls",
+                        }
+                    ],
+                },
+            )
+        return httpx2.Response(
+            200,
+            json={
+                "id": "chatcmpl-2",
+                "object": "chat.completion",
+                "created": 1700000001,
+                "model": "gemini-3.5-flash-lite",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "Todo estable."},
+                        "finish_reason": "stop",
+                    }
+                ],
+            },
+        )
+
+    provider = AgentRouterLLMProvider(
+        base_url="https://agentrouter.test/v1",
+        api_key="sk-test",
+        model="gemini-3.5-flash-lite",
+        timeout_s=5.0,
+        http_client=openai.DefaultAsyncHttpxClient(transport=httpx2.MockTransport(handler)),
+    )
+    client = make_client(
+        settings=make_settings(llm_provider="agentrouter", agentrouter_api_key="sk-test"),
+        providers=make_providers(llm=provider),
+    )
+
+    r1 = client.post(
+        "/v1/chat",
+        headers=auth_headers(),
+        json={
+            "messages": [{"role": "user", "content": "Signos"}],
+            "tools": [{"name": "get_vitals", "description": "d", "parameters": {"type": "object"}}],
+            "stream": False,
+        },
+    )
+    assert r1.status_code == 200
+    tc_out = r1.json()["tool_calls"][0]
+    assert tc_out["extra_content"] == extra
+
+    r2 = client.post(
+        "/v1/chat",
+        headers=auth_headers(),
+        json={
+            "messages": [
+                {"role": "user", "content": "Signos"},
+                {"role": "assistant", "content": None, "tool_calls": [tc_out]},
+                {"role": "tool", "tool_call_id": "call_1", "content": '{"hr":72}'},
+            ],
+            "tools": [{"name": "get_vitals", "description": "d", "parameters": {"type": "object"}}],
+            "stream": False,
+        },
+    )
+    assert r2.status_code == 200
+    assert captured_bodies[1]["messages"][2]["tool_calls"][0]["extra_content"] == extra
+
+    rs = client.post(
+        "/v1/chat",
+        headers=auth_headers(),
+        json={
+            "messages": [{"role": "user", "content": "Signos"}],
+            "tools": [{"name": "get_vitals", "description": "d", "parameters": {"type": "object"}}],
+            "stream": True,
+        },
+    )
+    assert rs.status_code == 200
+    events = [
+        json.loads(line[6:])
+        for line in rs.text.splitlines()
+        if line.startswith("data: ")
+    ]
+    tc_events = [e["tool_call"] for e in events if "tool_call" in e]
+    assert tc_events[0]["extra_content"] == extra

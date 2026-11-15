@@ -33,6 +33,7 @@ class ToolCallIn(BaseModel):
     id: str = Field(min_length=1, max_length=256)
     name: str = Field(min_length=1, max_length=64)
     arguments: dict[str, Any]
+    extra_content: dict[str, Any] | None = None
 
 
 class ToolCallOut(BaseModel):
@@ -40,6 +41,7 @@ class ToolCallOut(BaseModel):
     name: str
     arguments: dict[str, Any]
     invalid_arguments: bool | None = None
+    extra_content: dict[str, Any] | None = None
 
 
 class ToolSpecIn(BaseModel):

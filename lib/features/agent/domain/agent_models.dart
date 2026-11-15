@@ -43,6 +43,7 @@ class ToolCall {
     required this.name,
     required this.arguments,
     this.invalidArguments = false,
+    this.extraContent,
   });
 
   factory ToolCall.fromJson(Map<String, dynamic> json) {
@@ -50,11 +51,16 @@ class ToolCall {
     final args = rawArgs is Map<String, dynamic>
         ? Map<String, dynamic>.unmodifiable(rawArgs)
         : const <String, dynamic>{};
+    final rawExtra = json['extra_content'];
+    final extra = rawExtra is Map<String, dynamic>
+        ? Map<String, dynamic>.unmodifiable(rawExtra)
+        : null;
     return ToolCall(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
       arguments: args,
       invalidArguments: json['invalid_arguments'] as bool? ?? false,
+      extraContent: extra,
     );
   }
 
@@ -62,12 +68,14 @@ class ToolCall {
   final String name;
   final Map<String, dynamic> arguments;
   final bool invalidArguments;
+  final Map<String, dynamic>? extraContent;
 
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
     'arguments': arguments,
     if (invalidArguments) 'invalid_arguments': true,
+    if (extraContent != null) 'extra_content': extraContent,
   };
 
   @override
@@ -77,15 +85,43 @@ class ToolCall {
             other.id == id &&
             other.name == name &&
             other.invalidArguments == invalidArguments &&
-            mapEquals(other.arguments, arguments);
+            _deepJsonEquals(other.arguments, arguments) &&
+            _deepJsonEquals(other.extraContent, extraContent);
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, invalidArguments, Object.hashAll(arguments.entries));
+  int get hashCode => Object.hash(
+    id,
+    name,
+    invalidArguments,
+    Object.hashAll(arguments.entries),
+    extraContent == null ? null : Object.hashAll(extraContent!.entries),
+  );
 
   @override
   String toString() => 'ToolCall(id: $id, name: $name, arguments: $arguments)';
+}
+
+bool _deepJsonEquals(Object? a, Object? b) {
+  if (identical(a, b)) return true;
+  if (a is Map && b is Map) {
+    if (a.length != b.length) return false;
+    for (final entry in a.entries) {
+      if (!b.containsKey(entry.key) ||
+          !_deepJsonEquals(entry.value, b[entry.key])) {
+        return false;
+      }
+    }
+    return true;
+  }
+  if (a is List && b is List) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (!_deepJsonEquals(a[i], b[i])) return false;
+    }
+    return true;
+  }
+  return a == b;
 }
 
 class ChatMessage {
@@ -96,12 +132,10 @@ class ChatMessage {
     this.toolCallId,
   });
 
-  const ChatMessage.assistantToolCalls(
-    this.toolCalls, {
-    String? content,
-  }) : role = ChatRole.assistant,
-       content = content ?? '',
-       toolCallId = null;
+  const ChatMessage.assistantToolCalls(this.toolCalls, {String? content})
+    : role = ChatRole.assistant,
+      content = content ?? '',
+      toolCallId = null;
 
   const ChatMessage.toolResult({
     required String this.toolCallId,

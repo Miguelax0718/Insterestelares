@@ -10,6 +10,7 @@ class ToolCall:
     name: str
     arguments: dict[str, Any]
     invalid_arguments: bool = False
+    extra_content: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True, slots=True)
