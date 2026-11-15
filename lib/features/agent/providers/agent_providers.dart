@@ -19,6 +19,7 @@ import '../../03_microgravity/agent/microgravity_skills.dart';
 import '../../03_microgravity/agent/procedures_engine.dart';
 import '../../03_microgravity/agent/sans_engine.dart';
 import '../../04_mental_health/agent/mental_health_skills.dart';
+import '../../05_clinical_triage/agent/clinical_navigation_and_procedures_skill.dart';
 import '../../05_clinical_triage/agent/proactive_monitor.dart';
 import '../../05_clinical_triage/agent/triage_agent_skills.dart';
 import '../../05_clinical_triage/domain/hybrid_llm_triage_service.dart';
@@ -261,6 +262,28 @@ final operationalEnvironmentProvider = StateProvider<SpaceOperationalEnvironment
   (ref) => SpaceOperationalEnvironment.spaceStation,
 );
 
+class ClinicalNavigationRequest {
+  const ClinicalNavigationRequest({
+    this.tabIndex = 0,
+    this.openManualVitals = false,
+    this.procedureId,
+    required this.nonce,
+  });
+
+  /// 0=Salud, 1=Radiación, 2=Microgravedad, 3=Descanso, 4=Triage.
+  final int tabIndex;
+  final bool openManualVitals;
+  final String? procedureId;
+  final int nonce;
+}
+
+final clinicalNavigationRequestProvider =
+    StateProvider<ClinicalNavigationRequest?>((ref) => null);
+
+final pendingManualVitalsDialogProvider = StateProvider<bool>((ref) => false);
+
+final pendingProcedureSelectionProvider = StateProvider<String?>((ref) => null);
+
 final hybridAiConfigProvider = StateProvider<HybridAiConfig>(
   (ref) => const HybridAiConfig(),
 );
@@ -270,7 +293,10 @@ final hybridLlmTriageServiceProvider = Provider<HybridLlmTriageService>(
 );
 
 final extraAgentSkillsProvider = Provider<List<AgentSkill>>(
-  (ref) => scientificTelemetryAgentSkills(),
+  (ref) => [
+    ...scientificTelemetryAgentSkills(),
+    clinicalNavigationAndProceduresSkill(),
+  ],
 );
 
 final extraComponentSpecsProvider =
