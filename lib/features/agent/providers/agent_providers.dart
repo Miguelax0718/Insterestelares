@@ -8,6 +8,8 @@ import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 
 import '../../01_general_health/agent/general_health_skills.dart';
+import '../../01_general_health/agent/scientific_telemetry_agent_skill.dart';
+import '../../01_general_health/domain/telemetry_view_contracts.dart';
 import '../../02_radiation/agent/donki_space_weather_service.dart';
 import '../../02_radiation/agent/radiation_agent_skills.dart';
 import '../../02_radiation/agent/radiation_health_skills.dart';
@@ -19,6 +21,8 @@ import '../../03_microgravity/agent/sans_engine.dart';
 import '../../04_mental_health/agent/mental_health_skills.dart';
 import '../../05_clinical_triage/agent/proactive_monitor.dart';
 import '../../05_clinical_triage/agent/triage_agent_skills.dart';
+import '../../05_clinical_triage/domain/hybrid_llm_triage_service.dart';
+import '../../apolo/providers/apolo_providers.dart';
 import '../../crew/presentation/providers/crew_provider.dart';
 import '../../pharmacy/data/asset_pharmacy_inventory_repository.dart';
 import '../../pharmacy/domain/deterministic_medication_safety.dart';
@@ -253,7 +257,21 @@ final medicationSafetyProvider = Provider<MedicationSafety>((ref) {
   );
 });
 
-final extraAgentSkillsProvider = Provider<List<AgentSkill>>((ref) => const []);
+final operationalEnvironmentProvider = StateProvider<SpaceOperationalEnvironment>(
+  (ref) => SpaceOperationalEnvironment.spaceStation,
+);
+
+final hybridAiConfigProvider = StateProvider<HybridAiConfig>(
+  (ref) => const HybridAiConfig(),
+);
+
+final hybridLlmTriageServiceProvider = Provider<HybridLlmTriageService>(
+  (ref) => HybridLlmTriageService(httpClient: ref.watch(httpClientProvider)),
+);
+
+final extraAgentSkillsProvider = Provider<List<AgentSkill>>(
+  (ref) => scientificTelemetryAgentSkills(),
+);
 
 final extraComponentSpecsProvider =
     Provider<Map<String, ComponentSpec<AgentViewModel>>>((ref) => const {});
@@ -265,6 +283,7 @@ final skillRegistryProvider = Provider<SkillRegistry>((ref) {
   final weather = ref.watch(donkiSpaceWeatherServiceProvider);
   final pharmacyRepo = ref.watch(pharmacyInventoryRepositoryProvider);
   final extraSkills = ref.watch(extraAgentSkillsProvider);
+  final apoloSkill = ref.watch(apoloUrineSkillProvider);
 
   return SkillRegistry([
     coreSkill(),
@@ -277,6 +296,7 @@ final skillRegistryProvider = Provider<SkillRegistry>((ref) {
     ...microgravitySkills(),
     ...mentalHealthSkills(),
     ...triageAgentSkills(),
+    apoloSkill,
     ...extraSkills,
   ]);
 });

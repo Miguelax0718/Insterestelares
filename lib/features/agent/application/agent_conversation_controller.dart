@@ -901,7 +901,9 @@ class AgentConversationOrchestrator {
 
     final step = isContinuing
         ? await activeFlow.advance(query, ctx)
-        : await activeFlow.start(ctx);
+        : (activeFlow is QueryAwareDeterministicFlow
+              ? await activeFlow.startWithQuery(query, ctx)
+              : await activeFlow.start(ctx));
 
     final nextComponents = _applyUiEvents(
       _state.activeComponents,
