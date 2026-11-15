@@ -77,8 +77,8 @@ Delivery: ask-on-risk; user authorized pushing in several commits. Runners: `ser
 | T6 | S5,S8 | delegated writer (wave 2): microgravity skills (03) | done | cc9221c |
 | T7 | S5,S8 | delegated writer (wave 2): mental-health skills (04) | done | cc9221c |
 | T8 | S3,S5 | delegated writer (wave 2): general-health skills (01) | done | cc9221c |
-| T9 | S4,S5,S9 | wave 3: readiness + proactive monitor (05) | pending | — |
-| T10 | S7 | wave 3: agent canvas, component placeholders, crew sidebar, Hive init, main wiring, frontend handoff doc | pending | — |
+| T9 | S4,S5,S9 | wave 3: readiness + proactive monitor (05) | done | 5c4c627 |
+| T10 | S7 | wave 3: agent canvas, component placeholders, crew sidebar, Hive init, main wiring, frontend handoff doc | done | 037b664 |
 | T11 | S8 | independent verifier: confirmation gate + medication safety (Risk item 2) | pending | — |
 
 Shared files and owners: `pubspec.yaml`, `lib/main.dart`, `lib/features/agent/domain/**` → parent. Writers that need an asset path or contract change report it instead of editing.
