@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="400" viewBox="0 0 1280 400" role="img" aria-labelledby="title desc">
+  <title id="title">APOLO — Your health companion beyond Earth</title>
+  <desc id="desc">Interestelares, Space Apps 2026. AI-assisted SVG layout and artwork prepared with OpenAI Codex. Original geometric design; no agency logos or mission insignia.</desc>
+  <defs>
+    <linearGradient id="sky" x2="1" y2="1"><stop stop-color="#0b1024"/><stop offset="1" stop-color="#211a48"/></linearGradient>
+    <radialGradient id="glow"><stop stop-color="#b3e9c7" stop-opacity=".15"/><stop offset="1" stop-color="#b3e9c7" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1280" height="400" rx="24" fill="url(#sky)"/>
+  <circle cx="1020" cy="190" r="240" fill="url(#glow)"/>
+  <g fill="#f0fff1" opacity=".45"><circle cx="57" cy="46" r="2"/><circle cx="344" cy="34" r="1.5"/><circle cx="640" cy="68" r="2"/><circle cx="804" cy="38" r="1"/><circle cx="1208" cy="78" r="2"/><circle cx="1180" cy="323" r="1.5"/><circle cx="718" cy="320" r="1.5"/><circle cx="83" cy="335" r="1"/><circle cx="573" cy="359" r="1"/><circle cx="901" cy="352" r="2"/></g>
+  <g font-family="Arial, Helvetica, sans-serif">
+    <text x="72" y="82" fill="#b3e9c7" font-size="16" letter-spacing="4">INTERESTELARES / SPACE APPS 2026</text>
+    <text x="65" y="208" fill="#f0fff1" font-size="116" font-weight="700" letter-spacing="8">APOLO</text>
+    <text x="73" y="259" fill="#f0fff1" font-size="28">Your health companion beyond Earth.</text>
+    <text x="74" y="308" fill="#b8b7cf" font-size="17">Visual health insights. Guided assessments. A companion for the crew.</text>
+    <text x="74" y="369" fill="#a7a8bd" font-size="12">AI-assisted vector artwork and layout · OpenAI Codex</text>
+  </g>
+  <g transform="translate(1030 196)">
+    <circle r="106" fill="#f0fff1" fill-opacity=".04" stroke="#b3e9c7" stroke-opacity=".5" stroke-width="2"/>
+    <ellipse rx="168" ry="53" transform="rotate(-28)" fill="none" stroke="#b3e9c7" stroke-opacity=".25" stroke-width="2"/>
+    <ellipse rx="128" ry="151" transform="rotate(38)" fill="none" stroke="#b3e9c7" stroke-opacity=".15"/>
+    <g fill="#b3e9c7"><ellipse cx="-29" cy="-14" rx="14" ry="19" transform="rotate(-22 -29 -14)"/><ellipse cx="0" cy="-32" rx="13" ry="18"/><ellipse cx="29" cy="-14" rx="14" ry="19" transform="rotate(22 29 -14)"/><path d="M-35 30C-42 9-21-9 0-9S42 9 35 30C30 48 13 37 0 37S-30 48-35 30Z"/></g>
+    <circle cx="145" cy="-78" r="10" fill="#ffd23f"/><circle cx="-124" cy="74" r="8" fill="#b3e9c7"/><circle cx="39" cy="-137" r="6" fill="#a994e0"/>
+  </g>
+</svg>
