@@ -1,5 +1,6 @@
 import 'package:astramed/core/constants/medical_thresholds.dart';
 import 'package:astramed/core/storage/crew_database_service.dart';
+import 'package:astramed/features/01_general_health/domain/scientific_criteria_engine.dart';
 import 'package:astramed/features/01_general_health/models/vitals_record.dart';
 import 'package:astramed/features/02_radiation/models/radiation_dose.dart';
 import 'package:astramed/features/03_microgravity/models/microgravity_data.dart';
@@ -87,6 +88,9 @@ class CrewNotifier extends StateNotifier<List<AstronautProfile>> {
         m.containsKey('bloodGlucose') ||
         m.containsKey('respiratoryRate') ||
         m.containsKey('capillaryRefillSeconds')) {
+      final bool isPrimaryKinematicSource =
+          packet.machineId == 'DEV-ASTROSKIN' || packet.source == 'manual';
+
       updatedVitals = profile.vitals.copyWith(
         timestamp: packet.timestamp,
         astronautId: profile.id,
@@ -95,7 +99,9 @@ class CrewNotifier extends StateNotifier<List<AstronautProfile>> {
         device: deviceLabel,
         protocol: packet.protocol,
         measurementMethod: packet.measurementMethod,
-        activityState: packet.activityState,
+        activityState: isPrimaryKinematicSource
+            ? packet.activityState
+            : profile.vitals.activityState,
         signalQuality: packet.signalQuality,
         recordType: packet.recordType,
         algorithm: packet.algorithm,
@@ -116,6 +122,23 @@ class CrewNotifier extends StateNotifier<List<AstronautProfile>> {
         capillaryRefillSeconds:
             (m['capillaryRefillSeconds'] as num?)?.toDouble() ??
                 profile.vitals.capillaryRefillSeconds,
+        missionDay: (m['missionDay'] as num?)?.toInt() ??
+            (profile.vitals.missionDay as int? ?? 18),
+        accelerometryRmsG: (m['accelerometryRmsG'] as num?)?.toDouble() ??
+            (profile.vitals.accelerometryRmsG as double? ?? 0.024),
+        hrvRmssdMs: (m['hrvRmssdMs'] as num?)?.toDouble() ??
+            (profile.vitals.hrvRmssdMs as double? ?? 56.0),
+        hydrationBioimpedanceIndex:
+            (m['hydrationBioimpedanceIndex'] as num?)?.toDouble() ??
+                (profile.vitals.hydrationBioimpedanceIndex as double? ?? 78.0),
+        localCo2MmHg: (m['localCo2MmHg'] as num?)?.toDouble() ??
+            (profile.vitals.localCo2MmHg as double? ?? 2.2),
+        localO2Percent: (m['localO2Percent'] as num?)?.toDouble() ??
+            (profile.vitals.localO2Percent as double? ?? 20.9),
+        localCh4Ppm: (m['localCh4Ppm'] as num?)?.toDouble() ??
+            (profile.vitals.localCh4Ppm as double? ?? 0.0),
+        cabinPressureKPa: (m['cabinPressureKPa'] as num?)?.toDouble() ??
+            (profile.vitals.cabinPressureKPa as double? ?? 101.3),
       );
     }
 
@@ -248,6 +271,13 @@ class CrewNotifier extends StateNotifier<List<AstronautProfile>> {
     bool isCritical = false;
     bool isWarning = false;
 
+    final bool isPhysicalExercise =
+        ((vitals.activityState == 'exercise' ||
+                    vitals.activityState == 'post_eva') &&
+                vitals.accelerometryRmsG >= 0.15) ||
+            vitals.accelerometryRmsG >
+                ScientificCriteriaEngine.exerciseMotionThresholdG;
+
     // SpO2
     if (vitals.spO2 < 90.0) {
       alerts.add('SpO2 Crítico: ${vitals.spO2}% (Hipoxia aguda)');
@@ -257,49 +287,82 @@ class CrewNotifier extends StateNotifier<List<AstronautProfile>> {
       isWarning = true;
     }
 
-    // Frecuencia Cardíaca
-    if (vitals.heartRate > 115.0) {
-      alerts.add(
-          'FC Elevada: ${vitals.heartRate.toStringAsFixed(0)} bpm (Taquicardia)');
-      isCritical = true;
-    } else if (vitals.heartRate > MedicalThresholds.maxHeartRate) {
-      alerts.add(
-          'FC Elevada: ${vitals.heartRate.toStringAsFixed(0)} bpm (Taquicardia)');
-      isWarning = true;
-    } else if (vitals.heartRate < 45.0) {
-      alerts.add(
-          'FC Crítica: ${vitals.heartRate.toStringAsFixed(0)} bpm (Bradicardia severa)');
-      isCritical = true;
-    } else if (vitals.heartRate < MedicalThresholds.minHeartRate) {
-      alerts.add(
-          'FC Baja: ${vitals.heartRate.toStringAsFixed(0)} bpm (Bradicardia)');
-      isWarning = true;
+    // Frecuencia Cardíaca contextualizada (evita falsos positivos durante ejercicio ARED/CEVIS)
+    if (isPhysicalExercise) {
+      if (vitals.heartRate > 175.0) {
+        alerts.add(
+            'FC Crítica en Esfuerzo: ${vitals.heartRate.toStringAsFixed(0)} bpm (>175 bpm)');
+        isCritical = true;
+      }
+    } else {
+      if (vitals.heartRate > 115.0) {
+        alerts.add(
+            'FC Elevada: ${vitals.heartRate.toStringAsFixed(0)} bpm (Taquicardia)');
+        isCritical = true;
+      } else if (vitals.heartRate > MedicalThresholds.maxHeartRate) {
+        alerts.add(
+            'FC Elevada: ${vitals.heartRate.toStringAsFixed(0)} bpm (Taquicardia)');
+        isWarning = true;
+      } else if (vitals.heartRate < 45.0) {
+        alerts.add(
+            'FC Crítica: ${vitals.heartRate.toStringAsFixed(0)} bpm (Bradicardia severa)');
+        isCritical = true;
+      } else if (vitals.heartRate < MedicalThresholds.minHeartRate &&
+          vitals.activityState != 'sleep') {
+        alerts.add(
+            'FC Baja: ${vitals.heartRate.toStringAsFixed(0)} bpm (Bradicardia)');
+        isWarning = true;
+      }
     }
 
-    // Presión Arterial
-    if (vitals.systolicBP < 85.0 || vitals.systolicBP > 160.0) {
-      alerts.add(
-          'Presión Arterial Crítica: ${vitals.systolicBP.toStringAsFixed(0)}/${vitals.diastolicBP.toStringAsFixed(0)} mmHg');
-      isCritical = true;
-    } else if (vitals.systolicBP < MedicalThresholds.minSystolicBP) {
-      alerts.add(
-          'Presión Arterial Baja: ${vitals.systolicBP.toStringAsFixed(0)}/${vitals.diastolicBP.toStringAsFixed(0)} mmHg');
-      isWarning = true;
-    } else if (vitals.systolicBP > MedicalThresholds.maxSystolicBP ||
-        vitals.diastolicBP > 89.0) {
-      alerts.add(
-          'Presión Arterial: ${vitals.systolicBP.toStringAsFixed(0)}/${vitals.diastolicBP.toStringAsFixed(0)} mmHg');
-      isWarning = true;
+    // Presión Arterial contextualizada
+    if (isPhysicalExercise) {
+      if (vitals.systolicBP > 185.0 || vitals.systolicBP < 85.0) {
+        alerts.add(
+            'Presión Arterial Extrema en Ejercicio: ${vitals.systolicBP.toStringAsFixed(0)}/${vitals.diastolicBP.toStringAsFixed(0)} mmHg');
+        isCritical = true;
+      }
+    } else {
+      if (vitals.systolicBP < 85.0 || vitals.systolicBP > 160.0) {
+        alerts.add(
+            'Presión Arterial Crítica: ${vitals.systolicBP.toStringAsFixed(0)}/${vitals.diastolicBP.toStringAsFixed(0)} mmHg');
+        isCritical = true;
+      } else if (vitals.systolicBP < MedicalThresholds.minSystolicBP) {
+        alerts.add(
+            'Presión Arterial Baja: ${vitals.systolicBP.toStringAsFixed(0)}/${vitals.diastolicBP.toStringAsFixed(0)} mmHg');
+        isWarning = true;
+      } else if (vitals.systolicBP > MedicalThresholds.maxSystolicBP ||
+          vitals.diastolicBP > 89.0) {
+        alerts.add(
+            'Presión Arterial: ${vitals.systolicBP.toStringAsFixed(0)}/${vitals.diastolicBP.toStringAsFixed(0)} mmHg');
+        isWarning = true;
+      }
     }
 
-    // Frecuencia Respiratoria
-    if (vitals.respiratoryRate >= 26.0) {
+    // Frecuencia Respiratoria contextualizada
+    if (isPhysicalExercise) {
+      if (vitals.respiratoryRate > 38.0) {
+        alerts.add(
+            'Frec. Resp Excesiva en Esfuerzo: ${vitals.respiratoryRate.toStringAsFixed(0)} rpm');
+        isWarning = true;
+      }
+    } else {
+      if (vitals.respiratoryRate >= 26.0) {
+        alerts.add(
+            'Frec. Resp: ${vitals.respiratoryRate.toStringAsFixed(0)} rpm (Polipnea)');
+        isCritical = true;
+      } else if (vitals.respiratoryRate > 22.0) {
+        alerts.add(
+            'Frec. Resp: ${vitals.respiratoryRate.toStringAsFixed(0)} rpm (Polipnea)');
+        isWarning = true;
+      }
+    }
+
+    // Hipercapnia ambiental focal en microgravedad (bolsillo de CO2)
+    if (!isPhysicalExercise &&
+        vitals.localCo2MmHg >= ScientificCriteriaEngine.co2FocalPocketAlertMmHg) {
       alerts.add(
-          'Frec. Resp: ${vitals.respiratoryRate.toStringAsFixed(0)} rpm (Polipnea)');
-      isCritical = true;
-    } else if (vitals.respiratoryRate > 22.0) {
-      alerts.add(
-          'Frec. Resp: ${vitals.respiratoryRate.toStringAsFixed(0)} rpm (Polipnea)');
+          'CO₂ Local Elevado: ${vitals.localCo2MmHg.toStringAsFixed(1)} mmHg (Revisar ventilación)');
       isWarning = true;
     }
 
@@ -313,13 +376,20 @@ class CrewNotifier extends StateNotifier<List<AstronautProfile>> {
       isWarning = true;
     }
 
-    // Temperatura
-    if (vitals.bodyTemp > 38.0) {
-      alerts.add('Fiebre Alta: ${vitals.bodyTemp} °C');
-      isCritical = true;
-    } else if (vitals.bodyTemp > 37.3) {
-      alerts.add('Temperatura limítrofe: ${vitals.bodyTemp} °C');
-      isWarning = true;
+    // Temperatura contextualizada
+    if (isPhysicalExercise) {
+      if (vitals.bodyTemp > 38.6) {
+        alerts.add('Hipertermia en Esfuerzo: ${vitals.bodyTemp} °C');
+        isCritical = true;
+      }
+    } else {
+      if (vitals.bodyTemp > 38.0) {
+        alerts.add('Fiebre Alta: ${vitals.bodyTemp} °C');
+        isCritical = true;
+      } else if (vitals.bodyTemp > 37.3) {
+        alerts.add('Temperatura limítrofe: ${vitals.bodyTemp} °C');
+        isWarning = true;
+      }
     }
 
     // Radiación
@@ -451,6 +521,102 @@ class CrewNotifier extends StateNotifier<List<AstronautProfile>> {
         else
           profile,
     ];
+  }
+
+  /// Aplica escenarios de simulación fisiológica desde la consola externa
+  /// (TelemetryConfigModal) para probar contexto, actigrafía y CO2 sin alterar la UI principal.
+  void applySimulationScenario(String astronautId, String scenarioId) {
+    final profile = state.firstWhere(
+      (p) => p.id == astronautId,
+      orElse: () => state.first,
+    );
+    final base = profile.vitals;
+    VitalsRecord next;
+
+    switch (scenarioId) {
+      case 'sleep_bimodal':
+        next = base.copyWith(
+          timestamp: DateTime.now(),
+          source: 'telemetry',
+          activityState: 'sleep',
+          heartRate: 53.0,
+          respiratoryRate: 11.5,
+          systolicBP: 112.0,
+          diastolicBP: 70.0,
+          bodyTemp: 36.3,
+          accelerometryRmsG: 0.018,
+          hrvRmssdMs: 74.0,
+          localCo2MmHg: 2.3,
+        );
+        break;
+      case 'exercise_ared':
+        next = base.copyWith(
+          timestamp: DateTime.now(),
+          source: 'telemetry',
+          activityState: 'exercise',
+          heartRate: 152.0,
+          respiratoryRate: 28.0,
+          systolicBP: 158.0,
+          diastolicBP: 82.0,
+          bodyTemp: 37.8,
+          accelerometryRmsG: 0.72,
+          hrvRmssdMs: 18.0,
+          localCo2MmHg: 2.5,
+        );
+        break;
+      case 'co2_pocket':
+        next = base.copyWith(
+          timestamp: DateTime.now(),
+          source: 'telemetry',
+          activityState: 'resting',
+          heartRate: 108.0,
+          respiratoryRate: 23.0,
+          systolicBP: 126.0,
+          diastolicBP: 80.0,
+          bodyTemp: 36.8,
+          accelerometryRmsG: 0.032,
+          hrvRmssdMs: 28.0,
+          localCo2MmHg: 4.6,
+        );
+        break;
+      case 'fluid_shift_day2':
+        next = base.copyWith(
+          timestamp: DateTime.now(),
+          source: 'telemetry',
+          activityState: 'resting',
+          missionDay: 2,
+          heartRate: 71.0,
+          respiratoryRate: 15.0,
+          systolicBP: 120.0,
+          diastolicBP: 78.0,
+          bodyTemp: 36.6,
+          accelerometryRmsG: 0.025,
+          hrvRmssdMs: 52.0,
+          hydrationBioimpedanceIndex: 72.0,
+          localCo2MmHg: 2.2,
+        );
+        break;
+      case 'nominal_rest':
+      default:
+        next = base.copyWith(
+          timestamp: DateTime.now(),
+          source: 'telemetry',
+          activityState: 'resting',
+          missionDay: 18,
+          heartRate: 66.0,
+          respiratoryRate: 14.0,
+          systolicBP: 118.0,
+          diastolicBP: 76.0,
+          bodyTemp: 36.6,
+          accelerometryRmsG: 0.024,
+          hrvRmssdMs: 58.0,
+          hydrationBioimpedanceIndex: 78.0,
+          localCo2MmHg: 2.1,
+        );
+        break;
+    }
+
+    updateVitals(astronautId, next);
   }
 
   /// Restablece la tripulación a su estado inicial simulado

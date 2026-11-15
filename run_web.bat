@@ -9,5 +9,11 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8080 ^| findstr LISTENING') 
     taskkill /F /PID %%a >nul 2>&1
 )
 
+set PUB_FLAG=
+if exist ".dart_tool\package_config.json" (
+    set PUB_FLAG=--no-pub
+)
+
 echo [2/2] Iniciando AstraMed en http://localhost:8080 ...
-flutter run -d chrome --web-port=8080
+echo [TIP] Manten esta ventana abierta y usa 'r' (Hot Reload) o 'R' (Hot Restart) sin reiniciar todo.
+flutter run -d chrome --web-port=8080 %PUB_FLAG%

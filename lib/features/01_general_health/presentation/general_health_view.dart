@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import 'package:astramed/core/constants/medical_thresholds.dart';
 import 'package:astramed/core/theme/space_theme.dart';
 import 'package:astramed/features/01_general_health/domain/scientific_criteria_engine.dart';
 import 'package:astramed/features/01_general_health/domain/telemetry_view_contracts.dart';
@@ -26,10 +25,22 @@ class GeneralHealthView extends ConsumerWidget {
     final telemetryState = ref.watch(telemetryProvider);
     final vitals = astronaut.vitals;
     final telemetrySnapshot = ref.watch(telemetrySeriesSnapshotProvider);
+    final activeEnvironment = ref.watch(selectedEnvironmentProvider);
+    final missionLogs = ref.watch(clinicalMissionLogsProvider);
 
-    final detectedContext = mapActivityStateToContext(vitals.activityState);
-    final manualOverride = ref.watch(manualActivityContextOverrideProvider);
-    final activeContext = manualOverride ?? detectedContext;
+    void recordMissionLog(ClinicalMissionLogEntry entry) {
+      ref.read(clinicalMissionLogsProvider.notifier).addEntry(entry);
+    }
+
+    final actigraphyEval = ScientificCriteriaEngine.inferActivityAndValidateHrv(
+      accelerometryRmsG: vitals.accelerometryRmsG,
+      heartRateBpm: vitals.heartRate,
+      respiratoryRateRpm: vitals.respiratoryRate,
+      rawActivityState: vitals.activityState,
+      restingWakefulHrBaselineBpm:
+          telemetrySnapshot.individualHrBaselineBpm ?? 68.0,
+    );
+    final activeContext = actigraphyEval.inferredContext;
 
     final connectedMachines = telemetryState.machines
         .where((m) => m.isConnectedFor(astronaut.id))
@@ -39,11 +50,14 @@ class GeneralHealthView extends ConsumerWidget {
       bpm: vitals.heartRate,
       context: activeContext,
       individualBaselineBpm: telemetrySnapshot.individualHrBaselineBpm,
+      localCo2MmHg: vitals.localCo2MmHg,
+      missionDay: vitals.missionDay,
     );
     final rrEval = ScientificCriteriaEngine.evaluateRespiratoryRate(
       rpm: vitals.respiratoryRate,
       context: activeContext,
       individualBaselineRpm: telemetrySnapshot.individualRrBaselineRpm,
+      localCo2MmHg: vitals.localCo2MmHg,
     );
     final spo2Eval = ScientificCriteriaEngine.evaluateSpO2(
       percent: vitals.spO2,
@@ -51,12 +65,33 @@ class GeneralHealthView extends ConsumerWidget {
       individualBaselinePercent: telemetrySnapshot.individualSpo2BaselinePercent,
     );
 
-    final isBpNormal = vitals.systolicBP >= MedicalThresholds.minSystolicBP &&
-        vitals.systolicBP <= MedicalThresholds.maxSystolicBP;
-    final isTempNormal = vitals.bodyTemp >= 36.0 && vitals.bodyTemp <= 37.2;
-    final isCapillaryNormal = vitals.capillaryRefillSeconds <= 2.0;
-    final isGlucoseNormal =
-        vitals.bloodGlucose >= 70 && vitals.bloodGlucose <= 140;
+    final bpEval = ScientificCriteriaEngine.evaluateBloodPressureContextual(
+      systolicMmHg: vitals.systolicBP,
+      diastolicMmHg: vitals.diastolicBP,
+      context: activeContext,
+    );
+    final capillaryEval =
+        ScientificCriteriaEngine.evaluateCapillaryRefillContextual(
+      seconds: vitals.capillaryRefillSeconds,
+      context: activeContext,
+    );
+    final tempEval = ScientificCriteriaEngine.evaluateBodyTemperatureContextual(
+      tempCelsius: vitals.bodyTemp,
+      context: activeContext,
+    );
+    final glucoseEval = ScientificCriteriaEngine.evaluateBloodGlucoseContextual(
+      mgDl: vitals.bloodGlucose,
+      context: activeContext,
+    );
+    final hydrationEval = ScientificCriteriaEngine.evaluateHydrationContextual(
+      calibratedHydrationPercent: vitals.calibratedHydrationIndex,
+      missionDay: vitals.missionDay,
+      context: activeContext,
+    );
+    final hrvEval = ScientificCriteriaEngine.evaluateHrvContextual(
+      hrvRmssdMs: vitals.hrvRmssdMs,
+      actigraphy: actigraphyEval,
+    );
 
     final lastUpdateLabel = DateFormat('dd/MM HH:mm:ss').format(vitals.timestamp);
     final metadataTag =
@@ -77,10 +112,27 @@ class GeneralHealthView extends ConsumerWidget {
         ),
         const SizedBox(height: 12),
 
+        _buildEnvironmentConditionsBanner(
+          context,
+          ref,
+          activeEnvironment,
+          vitals,
+        ),
+        const SizedBox(height: 12),
+
         if (astronaut.riskLevel != CrewRiskLevel.nominal) ...[
           _buildRiskBanner(astronaut),
           const SizedBox(height: 12),
         ],
+
+        _CircumstantialGamificationCard(
+          astronautId: astronaut.id,
+          vitals: vitals,
+          activeContext: activeContext,
+          activeEnvironment: activeEnvironment,
+          actigraphyJustification: actigraphyEval.justification,
+        ),
+        const SizedBox(height: 14),
 
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -89,6 +141,25 @@ class GeneralHealthView extends ConsumerWidget {
               child: Text(
                 'Signos Vitales y Telemetría Médica',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: SpaceTheme.cyan.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: SpaceTheme.cyan.withValues(alpha: 0.45),
+                ),
+              ),
+              child: Text(
+                'Auto: ${activeContext.label}',
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: SpaceTheme.cyan,
+                ),
               ),
             ),
             Row(
@@ -102,15 +173,6 @@ class GeneralHealthView extends ConsumerWidget {
               ],
             ),
           ],
-        ),
-        const SizedBox(height: 10),
-
-        _buildContextSelector(
-          ref,
-          activeContext: activeContext,
-          detectedContext: detectedContext,
-          rawActivityState: vitals.activityState,
-          isManualOverride: manualOverride != null,
         ),
         const SizedBox(height: 12),
 
@@ -137,11 +199,15 @@ class GeneralHealthView extends ConsumerWidget {
             samples: telemetrySnapshot.heartRateSamples,
             unit: 'lpm',
             howToMeasure:
-                'Se registra con tu prenda Bio-Monitor (ECG/PPG) o contando pulsaciones en muñeca o cuello durante 15 s y multiplicando por 4.',
+                'Registro continuo con prenda Bio-Monitor (CSA / protocolo CARDIOBREATH) mediante ECG de parches secos y PPG multi-longitud de onda (precisión 95–98 % en reposo/sueño; 88–92 % en ejercicio).',
             contextMeaning: _heartRateContextTip(activeContext),
             whenToPayAttention:
-                'Compara siempre con tu propio promedio en el mismo estado. En microgravedad puede subir ~3–4 lpm de forma habitual. Si notas palpitaciones o mareo en reposo, consulta protocolo.',
+                'Compara siempre con tu propio promedio basal en el mismo estado. En microgravedad sube +3.44 lpm en promedio por fluid shift. Si supera 115 lpm en reposo sin movimiento en acelerometría (≤0.12 g), dispara alerta crítica.',
             activeContext: activeContext,
+            astronautId: astronaut.id,
+            missionDay: vitals.missionDay,
+            activeEnvironment: activeEnvironment,
+            onMissionLogCreated: recordMissionLog,
           ),
         ),
         _buildEvaluatedMetricCard(
@@ -167,12 +233,16 @@ class GeneralHealthView extends ConsumerWidget {
             samples: telemetrySnapshot.respiratoryRateSamples,
             unit: 'rpm',
             howToMeasure:
-                'La banda torácica detecta cada ciclo respiratorio. Sin sensor, cuenta cuántas veces sube y baja tu pecho en 30 s y multiplica por 2.',
+                'Bandas torácicas de pletismografía inductiva integradas en Bio-Monitor y sensores piezo/inductivos continuos (precisión 93–97 % en entornos presurizados).',
             contextMeaning:
-                'En reposo suele estar entre 12 y 20 rpm. Durante el ejercicio sube de forma natural para aportar más oxígeno.',
+                'En reposo oscila entre 12 y 20 rpm. Ante bolsones de CO₂ (>4.0 mmHg) en Estación o Nave puede elevarse de forma compensatoria antes de aparecer cefalea.',
             whenToPayAttention:
-                'Una sola lectura aislada no indica un problema. Presta atención si en reposo notas falta de aire persistente o si cabina reporta CO₂ elevado.',
+                'Revisa simultáneamente el nivel de CO₂ en cabina, exposición a polvo de regolito en Base Planetaria y presencia de disnea en reposo.',
             activeContext: activeContext,
+            astronautId: astronaut.id,
+            missionDay: vitals.missionDay,
+            activeEnvironment: activeEnvironment,
+            onMissionLogCreated: recordMissionLog,
           ),
         ),
         _buildEvaluatedMetricCard(
@@ -198,142 +268,613 @@ class GeneralHealthView extends ConsumerWidget {
             samples: telemetrySnapshot.spO2Samples,
             unit: '%',
             howToMeasure:
-                'Coloca el pulsioxímetro en un dedo limpio y sin movimiento unos segundos hasta que la lectura se estabilice.',
+                'Pulsioximetría infrarroja validada FDA 510(k) e integrada en oxímetros portátiles de dedo y monitoreo nocturno continuo (precisión 93–97 %).',
             contextMeaning:
-                'Mide el porcentaje de hemoglobina que transporta oxígeno. En tierra una referencia común es 95–100 %, aunque el frío o movimiento alteran la señal.',
+                'Estima la saturación arterial de oxígeno en hemoglobina (95–100 % nominal). En trajes EVA a baja presión (29.6 kPa) o tras inhalación de regolito fino puede descender ligeramente.',
             whenToPayAttention:
-                'Si ves un valor bajo, revisa primero que el sensor esté bien ajustado y la mano tibia. Repite en reposo antes de reportar.',
+                'Verifica perfusión periférica, ajuste del sensor y presión O₂ de cabina/traje. Valores <94 % en reposo o <90 % crítico requieren evaluación médica inmediata.',
             activeContext: activeContext,
+            astronautId: astronaut.id,
+            missionDay: vitals.missionDay,
+            activeEnvironment: activeEnvironment,
+            onMissionLogCreated: recordMissionLog,
           ),
         ),
 
-        _buildMetricCard(
+        _buildEvaluatedMetricCard(
           icon: Icons.speed,
           iconColor: Colors.blueAccent,
           title: 'Presión Arterial',
-          value:
-              '${vitals.systolicBP.toInt()} / ${vitals.diastolicBP.toInt()} mmHg',
-          status: isBpNormal
-              ? 'Dentro de rango orientativo (90–130 mmHg sistólica)'
-              : 'Fuera de rango orientativo (90–130 mmHg sistólica)',
+          evaluation: bpEval,
           metadataTag: metadataTag,
-          isHealthy: isBpNormal,
+          decimals: 0,
+          customValueText:
+              '${vitals.systolicBP.toInt()} / ${vitals.diastolicBP.toInt()} mmHg',
+          onTap: () => VitalDetailFullScreenView.navigate(
+            context,
+            title: 'Presión Arterial',
+            icon: Icons.speed,
+            color: Colors.blueAccent,
+            evaluation: bpEval,
+            contextAverageLabel: _formatContextAverage(
+              telemetrySnapshot.systolicBpSamples,
+              activeContext,
+              'mmHg (sist.)',
+              decimals: 0,
+            ),
+            metadataTag: metadataTag,
+            samples: telemetrySnapshot.systolicBpSamples,
+            unit: 'mmHg',
+            customValueDisplay:
+                '${vitals.systolicBP.toInt()} / ${vitals.diastolicBP.toInt()} mmHg',
+            howToMeasure:
+                'Módulo EPM Cardiocavity (fotopletismografía arterial de dedo y tonometría cardiovascular no invasiva) con confirmación por manguito oscilométrico a la altura del corazón.',
+            contextMeaning:
+                'En microgravedad los fluidos se desplazan al tórax y cabeza, alterando el reflejo barorreceptor. Durante ejercicio ARED/CEVIS la sistólica sube fisiológicamente hasta ~180 mmHg.',
+            whenToPayAttention:
+                'En fases de tránsito / hipergravedad (Nave) o pos-EVA vigila hipotensión ortostática (<90/60); en reposo sostenido >140/90 requiere confirmación con protocolo EPM.',
+            activeContext: activeContext,
+            astronautId: astronaut.id,
+            missionDay: vitals.missionDay,
+            activeEnvironment: activeEnvironment,
+            onMissionLogCreated: recordMissionLog,
+          ),
         ),
-        _buildMetricCard(
+        _buildEvaluatedMetricCard(
           icon: Icons.touch_app,
           iconColor: Colors.purpleAccent,
           title: 'Tiempo de Llenado Capilar',
-          value: '${vitals.capillaryRefillSeconds.toStringAsFixed(1)} s',
-          status: isCapillaryNormal
-              ? 'Registro dentro de referencia (<2 s)'
-              : 'Registro prolongado (>2 s) • Verificar perfusión y temperatura',
+          evaluation: capillaryEval,
           metadataTag: metadataTag,
-          isHealthy: isCapillaryNormal,
+          decimals: 1,
+          onTap: () => VitalDetailFullScreenView.navigate(
+            context,
+            title: 'Tiempo de Llenado Capilar',
+            icon: Icons.touch_app,
+            color: Colors.purpleAccent,
+            evaluation: capillaryEval,
+            contextAverageLabel: _formatContextAverage(
+              telemetrySnapshot.capillaryRefillSamples,
+              activeContext,
+              's',
+              decimals: 1,
+            ),
+            metadataTag: metadataTag,
+            samples: telemetrySnapshot.capillaryRefillSamples,
+            unit: 's',
+            howToMeasure:
+                'Compresión ungueal controlada de 5 s durante chequeo en Bahía Médica y correlación microvascular con tonometría del módulo EPM Cardiocavity.',
+            contextMeaning:
+                'Refleja la perfusión microvascular periférica. En reposo y ejercicio suele ser <= 2.0 s; durante sueño o en cabina fría puede alargarse levemente.',
+            whenToPayAttention:
+                'Si supera 2.5–3.0 s en cabina cálida y en reposo, valida hidratación por bioimpedancia BIS y electrolitos en Abbott i-STAT Alinity.',
+            activeContext: activeContext,
+            astronautId: astronaut.id,
+            missionDay: vitals.missionDay,
+            activeEnvironment: activeEnvironment,
+            onMissionLogCreated: recordMissionLog,
+          ),
         ),
-        _buildMetricCard(
+        _buildEvaluatedMetricCard(
           icon: Icons.thermostat,
           iconColor: Colors.orangeAccent,
           title: 'Temperatura Corporal',
-          value: '${vitals.bodyTemp.toStringAsFixed(1)} °C',
-          status: isTempNormal
-              ? 'Dentro de intervalo orientativo (36.0–37.2 °C)'
-              : 'Fuera de intervalo orientativo (36.0–37.2 °C)',
+          evaluation: tempEval,
           metadataTag: metadataTag,
-          isHealthy: isTempNormal,
+          decimals: 1,
+          onTap: () => VitalDetailFullScreenView.navigate(
+            context,
+            title: 'Temperatura Corporal',
+            icon: Icons.thermostat,
+            color: Colors.orangeAccent,
+            evaluation: tempEval,
+            contextAverageLabel: _formatContextAverage(
+              telemetrySnapshot.bodyTempSamples,
+              activeContext,
+              '°C',
+              decimals: 1,
+            ),
+            metadataTag: metadataTag,
+            samples: telemetrySnapshot.bodyTempSamples,
+            unit: '°C',
+            howToMeasure:
+                'Sensor térmico no invasivo Draeger Double Sensor validado por DLR y NASA mediante flujo de calor cutáneo (heat-flux; precisión 96–98 %, error < ±0.2 °C respecto a temperatura central).',
+            contextMeaning:
+                'En 0 g desaparece la convección natural y en Rover EVA el traje depende del bucle de enfriamiento líquido (LCVG), acelerando el ascenso térmico en ejercicio hasta ~38.4 °C.',
+            whenToPayAttention:
+                'Distingue hipertermia pos-esfuerzo en Rover/ARED de fiebre infecciosa en reposo (>= 37.8 °C sin carga física reciente).',
+            activeContext: activeContext,
+            astronautId: astronaut.id,
+            missionDay: vitals.missionDay,
+            activeEnvironment: activeEnvironment,
+            onMissionLogCreated: recordMissionLog,
+          ),
         ),
-        _buildMetricCard(
+        _buildEvaluatedMetricCard(
           icon: Icons.bloodtype,
           iconColor: Colors.pinkAccent,
           title: 'Glucosa en Sangre',
-          value: '${vitals.bloodGlucose.toInt()} mg/dL',
-          status: isGlucoseNormal
-              ? 'Dentro de intervalo orientativo (70–140 mg/dL)'
-              : 'Fuera de intervalo orientativo (70–140 mg/dL)',
+          evaluation: glucoseEval,
           metadataTag: metadataTag,
-          isHealthy: isGlucoseNormal,
+          decimals: 0,
+          onTap: () => VitalDetailFullScreenView.navigate(
+            context,
+            title: 'Glucosa en Sangre',
+            icon: Icons.bloodtype,
+            color: Colors.pinkAccent,
+            evaluation: glucoseEval,
+            contextAverageLabel: _formatContextAverage(
+              telemetrySnapshot.bloodGlucoseSamples,
+              activeContext,
+              'mg/dL',
+              decimals: 0,
+            ),
+            metadataTag: metadataTag,
+            samples: telemetrySnapshot.bloodGlucoseSamples,
+            unit: 'mg/dL',
+            howToMeasure:
+                'Analizador clínico portátil Abbott i-STAT Alinity POCT (glucemia junto con ionograma Ca²⁺/Na⁺/K⁺, creatinina y hemoglobina en cartucho único de sangre capilar) y biosensor intersticial continuo.',
+            contextMeaning:
+                'El vuelo espacial induce resistencia subclínica leve a la insulina en reposo, mientras que los protocolos EVA de Rover y ARED consumen glucógeno muscular rápidamente.',
+            whenToPayAttention:
+                'Valores <70 mg/dL antes o durante travesía EVA representan riesgo de hipoglucemia operativa y requieren aporte glucídico inmediato.',
+            activeContext: activeContext,
+            astronautId: astronaut.id,
+            missionDay: vitals.missionDay,
+            activeEnvironment: activeEnvironment,
+            onMissionLogCreated: recordMissionLog,
+          ),
+        ),
+        _buildEvaluatedMetricCard(
+          icon: Icons.water_drop,
+          iconColor: Colors.lightBlueAccent,
+          title: 'Hidratación (Día ${vitals.missionDay})',
+          evaluation: hydrationEval,
+          metadataTag:
+              'Bodystat BIS ${vitals.hydrationBioimpedanceIndex.toStringAsFixed(0)}% • CO₂ ${vitals.localCo2MmHg.toStringAsFixed(1)} mmHg',
+          decimals: 1,
+          onTap: () => VitalDetailFullScreenView.navigate(
+            context,
+            title: 'Hidratación (Día ${vitals.missionDay})',
+            icon: Icons.water_drop,
+            color: Colors.lightBlueAccent,
+            evaluation: hydrationEval,
+            contextAverageLabel: _formatContextAverage(
+              telemetrySnapshot.hydrationSamples,
+              activeContext,
+              '%',
+              decimals: 1,
+            ),
+            metadataTag:
+                'Parches Bodystat BIS ${vitals.hydrationBioimpedanceIndex.toStringAsFixed(0)}% • Compensación fluid shift Día ${vitals.missionDay}',
+            samples: telemetrySnapshot.hydrationSamples,
+            unit: '%',
+            howToMeasure:
+                'Espectroscopia de bioimpedancia eléctrica multifrecuencia (parches dermables Bodystat BIS; precisión 90–94 % con corrección por software del desplazamiento cefálico de fluidos).',
+            contextMeaning:
+                'Durante los días 1–7 de vuelo se produce diuresis compensatoria (~10–15 % de volumen plasmático). Alcanzar equilibrio sostenido desbloquea la insignia Equilibrio Metabólico Perfecto.',
+            whenToPayAttention:
+                'Si cae <68 % (o <55 % crítico), especialmente antes o después de operación EVA/Rover, activa reposición isotónica inmediata.',
+            activeContext: activeContext,
+            astronautId: astronaut.id,
+            missionDay: vitals.missionDay,
+            activeEnvironment: activeEnvironment,
+            onMissionLogCreated: recordMissionLog,
+          ),
+        ),
+        _buildEvaluatedMetricCard(
+          icon: Icons.bedtime,
+          iconColor: Colors.indigoAccent,
+          title: 'HRV y Actigrafía Bimodal',
+          evaluation: hrvEval,
+          metadataTag:
+              'IMU ${vitals.accelerometryRmsG.toStringAsFixed(3)} g • Presión ${vitals.cabinPressureKPa.toStringAsFixed(1)} kPa',
+          decimals: 0,
+          onTap: () => VitalDetailFullScreenView.navigate(
+            context,
+            title: 'HRV y Actigrafía Bimodal',
+            icon: Icons.bedtime,
+            color: Colors.indigoAccent,
+            evaluation: hrvEval,
+            contextAverageLabel: _formatContextAverage(
+              telemetrySnapshot.hrvSamples,
+              activeContext,
+              'ms',
+              decimals: 0,
+            ),
+            metadataTag:
+                'IMU ${vitals.accelerometryRmsG.toStringAsFixed(3)} g • ${actigraphyEval.justification}',
+            samples: telemetrySnapshot.hrvSamples,
+            unit: 'ms',
+            howToMeasure:
+                'HRV en dominio del tiempo (RMSSD/SDNN por ECG Bio-Monitor, precisión 95–98 %) fusionada con actígrafo biométrico de muñeca grado médico (Cole-Kripke, 90–95 % vs PSG) y vigilancia psicomotriz pasiva PVT-B (>500 ms).',
+            contextMeaning:
+                'En 0 g un astronauta flotando dormido mantiene micro-movimiento basal no-cero (0.005–0.065 g) por balistocardiografía; combinado con descenso de FC confirma descanso real.',
+            whenToPayAttention:
+                'Durante ejercicio CEVIS/ARED la HRV baja fisiológicamente por retiro vagal. Evalúa estrés autonómico y fatiga circadiana solo en reposo o sueño validado.',
+            activeContext: activeContext,
+            astronautId: astronaut.id,
+            missionDay: vitals.missionDay,
+            activeEnvironment: activeEnvironment,
+            onMissionLogCreated: recordMissionLog,
+          ),
         ),
 
         const SizedBox(height: 16),
         _buildManualAssessmentButton(context, ref, astronaut),
+
+        const SizedBox(height: 16),
+        _buildClinicalLogsSection(
+          logs: missionLogs,
+          activeAstronautId: astronaut.id,
+        ),
       ],
     );
   }
 
-  Widget _buildContextSelector(
-    WidgetRef ref, {
-    required ActivityContext activeContext,
-    required ActivityContext detectedContext,
-    required String rawActivityState,
-    required bool isManualOverride,
-  }) {
+  Widget _buildEnvironmentConditionsBanner(
+    BuildContext context,
+    WidgetRef ref,
+    SpaceOperationalEnvironment activeEnv,
+    VitalsRecord vitals,
+  ) {
+    final accent = Color(activeEnv.accentHex);
+    final co2Warning = vitals.localCo2MmHg >= 3.5;
+
+    Widget buildInfoColumn({
+      required String header,
+      required IconData icon,
+      required Color iconColor,
+      required List<String> items,
+    }) {
+      return Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: SpaceTheme.card,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.white10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 14, color: iconColor),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    header,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: iconColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            ...items.take(3).map(
+                  (item) => Padding(
+                    padding: const EdgeInsets.only(bottom: 3),
+                    child: Text(
+                      '• $item',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.white70,
+                        height: 1.25,
+                      ),
+                    ),
+                  ),
+                ),
+          ],
+        ),
+      );
+    }
+
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: SpaceTheme.surface,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accent.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.public, color: accent, size: 18),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Entorno Operacional: Condiciones y Riesgos',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: accent.withValues(alpha: 0.45)),
+                ),
+                child: Text(
+                  activeEnv.gravityProfile,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: accent,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: SpaceOperationalEnvironment.values.map((env) {
+              final selected = env == activeEnv;
+              final envColor = Color(env.accentHex);
+              return ChoiceChip(
+                label: Text(
+                  env.shortLabel,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                    color: selected ? Colors.black : Colors.white70,
+                  ),
+                ),
+                selected: selected,
+                selectedColor: envColor,
+                backgroundColor: SpaceTheme.card,
+                side: BorderSide(
+                  color: selected ? envColor : Colors.white12,
+                ),
+                visualDensity: VisualDensity.compact,
+                onSelected: (_) {
+                  ref.read(selectedEnvironmentProvider.notifier).state = env;
+                },
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: SpaceTheme.card,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: co2Warning
+                    ? SpaceTheme.warningYellow.withValues(alpha: 0.6)
+                    : Colors.white10,
+              ),
+            ),
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 4,
+              children: [
+                Text(
+                  'CO₂ cabina: ${vitals.localCo2MmHg.toStringAsFixed(1)} mmHg',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: co2Warning ? SpaceTheme.warningYellow : SpaceTheme.cyan,
+                  ),
+                ),
+                Text(
+                  'O₂: ${vitals.localO2Percent.toStringAsFixed(1)}%',
+                  style: const TextStyle(fontSize: 11, color: Colors.white70),
+                ),
+                Text(
+                  'CH₄: ${vitals.localCh4Ppm.toStringAsFixed(1)} ppm',
+                  style: const TextStyle(fontSize: 11, color: Colors.white70),
+                ),
+                Text(
+                  'Presión: ${vitals.cabinPressureKPa.toStringAsFixed(1)} kPa',
+                  style: const TextStyle(fontSize: 11, color: Colors.white70),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final condCard = buildInfoColumn(
+                header: 'Condiciones Físicas Vigiladas',
+                icon: Icons.sensors,
+                iconColor: accent,
+                items: activeEnv.physicalConditions,
+              );
+              final riskCard = buildInfoColumn(
+                header: 'Riesgos Clínicos Monitoreados',
+                icon: Icons.health_and_safety,
+                iconColor: SpaceTheme.warningYellow,
+                items: activeEnv.clinicalRisks,
+              );
+              if (constraints.maxWidth >= 560) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: condCard),
+                    const SizedBox(width: 8),
+                    Expanded(child: riskCard),
+                  ],
+                );
+              }
+              return Column(
+                children: [
+                  condCard,
+                  const SizedBox(height: 8),
+                  riskCard,
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildClinicalLogsSection({
+    required List<ClinicalMissionLogEntry> logs,
+    required String activeAstronautId,
+  }) {
+    final sortedLogs = [
+      ...logs.where((e) => e.astronautId == activeAstronautId),
+      ...logs.where((e) => e.astronautId != activeAstronautId),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: SpaceTheme.surface,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.white12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
+              const Icon(Icons.assignment_turned_in,
+                  color: SpaceTheme.cyan, size: 18),
+              const SizedBox(width: 8),
+              const Expanded(
                 child: Text(
-                  isManualOverride
-                      ? 'Contexto manual: ${activeContext.label} (telemetría: $rawActivityState)'
-                      : 'Contexto automático desde telemetría: ${detectedContext.label} ($rawActivityState)',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white70,
+                  'Bitácora de Evaluaciones Registradas',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
               ),
-              if (isManualOverride)
-                TextButton(
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                  ),
-                  onPressed: () {
-                    ref
-                        .read(manualActivityContextOverrideProvider.notifier)
-                        .state = null;
-                  },
-                  child: const Text(
-                    'Usar auto',
-                    style: TextStyle(fontSize: 11, color: SpaceTheme.cyan),
-                  ),
-                ),
+              Text(
+                '${logs.length} reg.',
+                style: const TextStyle(fontSize: 11, color: Colors.white54),
+              ),
             ],
           ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: ActivityContext.values.map((ctx) {
-              final selected = ctx == activeContext;
-              return ChoiceChip(
-                label: Text(ctx.label),
-                selected: selected,
-                visualDensity: VisualDensity.compact,
-                selectedColor: SpaceTheme.cyan.withValues(alpha: 0.25),
-                backgroundColor: SpaceTheme.card,
-                labelStyle: TextStyle(
-                  fontSize: 11,
-                  color: selected ? SpaceTheme.cyan : Colors.white70,
-                  fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+          const SizedBox(height: 8),
+          if (sortedLogs.isEmpty)
+            const Text(
+              'Aún no hay cuestionarios clínicos archivados en este turno.',
+              style: TextStyle(fontSize: 12, color: Colors.white54),
+            )
+          else
+            ...sortedLogs.take(5).map((entry) {
+              final envColor = Color(entry.environment.accentHex);
+              final isForActive = entry.astronautId == activeAstronautId;
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: SpaceTheme.card,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isForActive
+                        ? SpaceTheme.cyan.withValues(alpha: 0.35)
+                        : Colors.white10,
+                  ),
                 ),
-                onSelected: (_) {
-                  ref
-                      .read(manualActivityContextOverrideProvider.notifier)
-                      .state = ctx;
-                },
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: SpaceTheme.surface,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.white12),
+                          ),
+                          child: Text(
+                            '${entry.astronautId} • Día ${entry.missionDay}',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white70,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: envColor.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            entry.environment.shortLabel,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: envColor,
+                            ),
+                          ),
+                        ),
+                        if (entry.badgeEarned != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: SpaceTheme.green.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '★ ${entry.badgeEarned} (+${entry.xpAwarded} XP)',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: SpaceTheme.green,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      entry.title,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      entry.summary,
+                      style:
+                          const TextStyle(fontSize: 11, color: Colors.white70),
+                    ),
+                    if (entry.answers.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      ...entry.answers.entries.map(
+                        (kv) => Text(
+                          '• ${kv.key}: ${kv.value}',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Colors.white54,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               );
-            }).toList(),
-          ),
+            }),
         ],
       ),
     );
@@ -556,6 +1097,7 @@ class GeneralHealthView extends ConsumerWidget {
     required String metadataTag,
     required int decimals,
     required VoidCallback onTap,
+    String? customValueText,
   }) {
     final Color statusColor;
     switch (evaluation.severity) {
@@ -570,7 +1112,8 @@ class GeneralHealthView extends ConsumerWidget {
     }
 
     final displayValue = evaluation.hasData
-        ? '${evaluation.value!.toStringAsFixed(decimals)} ${evaluation.unit}'
+        ? (customValueText ??
+            '${evaluation.value!.toStringAsFixed(decimals)} ${evaluation.unit}')
         : 'Sin datos';
 
     final criterion = evaluation.appliedCriterion;
@@ -827,65 +1370,6 @@ class GeneralHealthView extends ConsumerWidget {
     );
   }
 
-  Widget _buildMetricCard({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String value,
-    required String status,
-    required String metadataTag,
-    required bool isHealthy,
-  }) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      color: SpaceTheme.card,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: isHealthy ? Colors.white12 : SpaceTheme.warningYellow,
-          width: isHealthy ? 1.0 : 1.3,
-        ),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        leading: CircleAvatar(
-          backgroundColor: iconColor.withValues(alpha: 0.18),
-          child: Icon(icon, color: iconColor),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              status,
-              style: TextStyle(
-                fontSize: 12,
-                color: isHealthy ? Colors.white70 : SpaceTheme.warningYellow,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              metadataTag,
-              style: const TextStyle(fontSize: 10, color: Colors.white38),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-        trailing: Text(
-          value,
-          style: TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.bold,
-            color: isHealthy ? Colors.greenAccent : SpaceTheme.warningYellow,
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildManualAssessmentButton(
     BuildContext context,
     WidgetRef ref,
@@ -1062,6 +1546,760 @@ class GeneralHealthView extends ConsumerWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _CircumstantialMission {
+  final String id;
+  final String badgeLabel;
+  final String title;
+  final String actionLabel;
+  final String notificationText;
+  final int xpReward;
+  final Color accentColor;
+  final IconData icon;
+
+  const _CircumstantialMission({
+    required this.id,
+    required this.badgeLabel,
+    required this.title,
+    required this.actionLabel,
+    required this.notificationText,
+    required this.xpReward,
+    required this.accentColor,
+    required this.icon,
+  });
+}
+
+/// Panel de gamificación y alertas preventivas activadas por circunstancias reales
+/// (CO₂ local, fluid shift por Día de Misión, esfuerzo ARED/CEVIS o sueño bimodal).
+class _CircumstantialGamificationCard extends ConsumerStatefulWidget {
+  final String astronautId;
+  final VitalsRecord vitals;
+  final ActivityContext activeContext;
+  final SpaceOperationalEnvironment activeEnvironment;
+  final String actigraphyJustification;
+
+  const _CircumstantialGamificationCard({
+    required this.astronautId,
+    required this.vitals,
+    required this.activeContext,
+    required this.activeEnvironment,
+    required this.actigraphyJustification,
+  });
+
+  @override
+  ConsumerState<_CircumstantialGamificationCard> createState() =>
+      _CircumstantialGamificationCardState();
+}
+
+class _CircumstantialGamificationCardState
+    extends ConsumerState<_CircumstantialGamificationCard> {
+  final Map<String, Map<String, int>> _completedXpByAstronaut = {};
+  int _selectedMissionIdx = 0;
+
+  List<_CircumstantialMission> _evaluateActiveMissions() {
+    final v = widget.vitals;
+    final missions = <_CircumstantialMission>[];
+
+    if (v.localCo2MmHg >= 3.5) {
+      missions.add(_CircumstantialMission(
+        id: 'co2_pocket_${v.localCo2MmHg.toStringAsFixed(1)}',
+        badgeLabel: 'RIESGO HIPERCAPNIA 0g',
+        title:
+            'Riesgo de Hipercapnia por Convección Nula (CO₂ ${v.localCo2MmHg.toStringAsFixed(1)} mmHg)',
+        actionLabel: 'Iniciar Cuestionario y Contramedida CO₂ (+60 XP)',
+        notificationText:
+            'Contramedida CO₂ y triaje adaptativo archivados (+60 XP).',
+        xpReward: 60,
+        accentColor: SpaceTheme.dangerRed,
+        icon: Icons.air,
+      ));
+    }
+
+    if (v.missionDay <= 7 || v.calibratedHydrationIndex < 72.0) {
+      missions.add(_CircumstantialMission(
+        id: 'fluid_shift_d${v.missionDay}',
+        badgeLabel: 'FLUID SHIFT / SANS',
+        title:
+            'Adaptación 0g (Día ${v.missionDay}) • Riesgo Hipovolemia y SANS',
+        actionLabel:
+            'Abrir Cuestionario Neuro-Ocular e Hidratación (+50 XP)',
+        notificationText:
+            'Control Fluid Shift / SANS archivado en bitácora (+50 XP).',
+        xpReward: 50,
+        accentColor: SpaceTheme.warningYellow,
+        icon: Icons.water_drop,
+      ));
+    }
+
+    if (widget.activeContext == ActivityContext.physicalActivity) {
+      missions.add(const _CircumstantialMission(
+        id: 'ared_cevis_cooldown',
+        badgeLabel: 'CONTRAMEDIDA ACTIVA',
+        title: 'Contramedida ARED / CEVIS / EVA • Umbral Dinámico Activo',
+        actionLabel:
+            'Completar Evaluación Post-Esfuerzo y Recuperación (+45 XP)',
+        notificationText:
+            'Evaluación metabólica post-esfuerzo archivada (+45 XP).',
+        xpReward: 45,
+        accentColor: SpaceTheme.cyan,
+        icon: Icons.fitness_center,
+      ));
+    }
+
+    if (widget.activeContext == ActivityContext.sleep || v.hrvRmssdMs < 42.0) {
+      missions.add(_CircumstantialMission(
+        id: 'sleep_bimodal_guard',
+        badgeLabel: 'PROTECCIÓN CIRCADIANA',
+        title:
+            'Actigrafía Bimodal (${v.accelerometryRmsG.toStringAsFixed(3)} g) • Protección Circadiana',
+        actionLabel: 'Responder Chequeo Circadiano POMS / Sueño (+40 XP)',
+        notificationText:
+            'Chequeo circadiano y POMS guardado en bitácora (+40 XP).',
+        xpReward: 40,
+        accentColor: Colors.indigoAccent,
+        icon: Icons.bedtime,
+      ));
+    }
+
+    if (missions.isEmpty) {
+      missions.add(const _CircumstantialMission(
+        id: 'daily_nominal_check',
+        badgeLabel: 'PREVENCIÓN NOMINAL',
+        title: 'Condiciones Ambientales y Fisiológicas Estables en Cabina',
+        actionLabel: 'Completar Cuestionario Periódico de Control (+35 XP)',
+        notificationText:
+            'Control periódico archivado • Insignia Vigilancia Nominal (+35 XP).',
+        xpReward: 35,
+        accentColor: SpaceTheme.green,
+        icon: Icons.verified_user,
+      ));
+    }
+
+    return missions;
+  }
+
+  ({
+    String q1Title,
+    List<String> q1Options,
+    String q2TitleNominal,
+    List<String> q2OptionsNominal,
+    String q2TitleSymptomatic,
+    List<String> q2OptionsSymptomatic,
+    String q3Title,
+    List<String> q3Options,
+    String suggestedBadge,
+  }) _questionnaireSchemaForMission(_CircumstantialMission mission) {
+    if (mission.id.startsWith('co2_pocket')) {
+      return (
+        q1Title:
+            '1. Presencia de síntomas atribuibles a CO₂ (${widget.vitals.localCo2MmHg.toStringAsFixed(1)} mmHg) en ${widget.activeEnvironment.shortLabel}:',
+        q1Options: const [
+          'Asintomático (ventilación dispersa adecuadamente)',
+          'Fatiga leve o embotamiento sin cefalea',
+          'Cefalea frontal pulsátil, disnea o náuseas',
+        ],
+        q2TitleNominal:
+            '2. Verificación preventiva ECLSS y vigilancia cognitiva (PVT-B):',
+        q2OptionsNominal: const [
+          'Ventilación forzada verificada • PVT-B nominal (<500 ms)',
+          'Cambio de zona programado con ventilador portátil',
+          'Pendiente de inspección de filtros de CO₂',
+        ],
+        q2TitleSymptomatic:
+            '2. Evaluación de Severidad de CO₂ (1-10) y Exposición a Gases:',
+        q2OptionsSymptomatic: const [
+          'Molestia leve (2-3/10) • Sin fuga de CH₄ ni humo',
+          'Moderada (4-6/10) • Mejora parcial al ventilar zona',
+          'Alta (>=7/10) • Requiere SpO₂ + evaluación CMO urgente',
+        ],
+        q3Title: '3. Hardware de confirmación y contramedida registrada:',
+        q3Options: const [
+          'Ventilación forzada activa + pulsioximetría FDA SpO₂',
+          'Rotación de módulo + Bio-Monitor (FR / HRV)',
+          'Confirmación bioquímica Abbott i-STAT Alinity',
+        ],
+        suggestedBadge: 'Vigilancia Nominal',
+      );
+    }
+
+    if (mission.id.startsWith('fluid_shift')) {
+      return (
+        q1Title:
+            '1. Cribado neuro-ocular (ToF/SANS) y percepción de congestión cefálica:',
+        q1Options: const [
+          'Distancia de lectura ToF estable • Sin alteración visual',
+          'Congestión facial leve sin cambio refractivo en tableta',
+          'Visión cercana borrosa (+0.5 D o más) / presión retroocular',
+        ],
+        q2TitleNominal:
+            '2. Pauta hídrica y control bioimpedancia Bodystat BIS:',
+        q2OptionsNominal: const [
+          'Hidratación isotónica al 100% + registro Bodystat BIS',
+          'Reposición parcial; se completará en la siguiente hora',
+          'Restricción calórica / baja ingesta reportada hoy',
+        ],
+        q2TitleSymptomatic:
+            '2. Protocolo Clínico SANS: escala y evolución visual:',
+        q2OptionsSymptomatic: const [
+          'Cambio leve en distancia ToF • Sin escotomas ni dolor',
+          'Cefalea leve (3-5/10) + desplazamiento hiperópico en pantalla',
+          'Déficit visual o dolor (>=6/10) • Solicitar oftalmoscopia / ONSD',
+        ],
+        q3Title: '3. Método instrumental utilizado en el control actual:',
+        q3Options: const [
+          'Sensor ToF pasivo + optotipos + Bodystat BIS',
+          'Fondo de ojo digital + medición ToF en tableta de misión',
+          'Ecografía ocular ONSD (Butterfly iQ+) + i-STAT',
+        ],
+        suggestedBadge: 'Visión de Águila Espacial',
+      );
+    }
+
+    if (mission.id == 'ared_cevis_cooldown') {
+      return (
+        q1Title:
+            '1. Estado físico y térmico durante/tras carga en ${widget.activeEnvironment.shortLabel}:',
+        q1Options: const [
+          'Esfuerzo tolerado • Recuperación cardíaca progresiva nominal',
+          'Fatiga muscular localizada o sobrecarga térmica en LCVG',
+          'Mareo ortostático, dolor agudo articular o calambres',
+        ],
+        q2TitleNominal:
+            '2. Contramedida musculoesquelética (ARED/QUS) e ingesta metabólica:',
+        q2OptionsNominal: const [
+          'Sesión completa + electrolitos y carbohidratos ingeridos',
+          'Sesión completada; reposición hídrica en curso',
+          'Sesión abreviada por agenda de cabina',
+        ],
+        q2TitleSymptomatic:
+            '2. Protocolo Biomecánico & Metabólico en Misión:',
+        q2OptionsSymptomatic: const [
+          'Dolor o fatiga leve (2-3/10) sin traumatismo inercial IMU',
+          'Sobrecarga moderada (4-6/10) o hipoglucemia sospechada (<75 mg/dL)',
+          'Trauma inercial / dolor intenso (>=7/10) • Activar protocolo FAST',
+        ],
+        q3Title: '3. Equipo de respaldo y validación clínica:',
+        q3Options: const [
+          'Bio-Monitor (ECG/PPG) + Draeger Double Sensor térmico',
+          'Densitometría QUS (SOS/BUA) + Abbott i-STAT (Ca²⁺/glucosa)',
+          'IMU triaxial traje EVA + tonometría EPM Cardiocavity',
+        ],
+        suggestedBadge: 'Estructura Ósea Invulnerable',
+      );
+    }
+
+    if (mission.id == 'sleep_bimodal_guard') {
+      return (
+        q1Title:
+            '1. Estado psicoemocional POMS/PANAS y calidad de sueño por actigrafía:',
+        q1Options: const [
+          'Descanso reparador • Ánimo estable y vigor conservado',
+          'Sueño fragmentado leve por ciclo orbital / ruido cabina',
+          'Insomnio persistente, irritabilidad o lapsos PVT-B >500 ms',
+        ],
+        q2TitleNominal:
+            '2. Higiene circadiana e iluminación de módulo verificadas:',
+        q2OptionsNominal: const [
+          'Luz azul atenuada + anclaje de saco + HRV nocturna estable',
+          'Anclaje verificado; ajuste de horario circadiano pendiente',
+          'Turno rotativo con exposición lumínica irregular',
+        ],
+        q2TitleSymptomatic:
+            '2. Protocolo Circadiano & Rendimiento Cognitivo:',
+        q2OptionsSymptomatic: const [
+          'Fatiga leve (2-3/10) sin error en tareas operativas',
+          'Somnolencia moderada (4-6/10) • Requiere descanso programado',
+          'Deterioro cognitivo significativo • Restringir EVA / acoplamiento',
+        ],
+        q3Title: '3. Instrumentación que respalda el registro:',
+        q3Options: const [
+          'Actígrafo de muñeca (Cole-Kripke) + Bio-Monitor HRV nocturno',
+          'PVT-B de fondo en tableta + cuestionario POMS/PANAS',
+          'Pupilometría infrarroja pasiva (NPi / PLR) + oximetría nocturna',
+        ],
+        suggestedBadge: 'Vigilancia Nominal',
+      );
+    }
+
+    return (
+      q1Title:
+          '1. Autochequeo multiorgánico periódico en ${widget.activeEnvironment.shortLabel}:',
+      q1Options: const [
+        'Sin síntomas • Todos los dominios fisiológicos estables',
+        'Molestia menor adaptativa (sed, fatiga leve o congestión nasal)',
+        'Síntoma focal nuevo que amerita seguimiento adaptativo',
+      ],
+      q2TitleNominal:
+          '2. Cumplimiento de controles preventivos periódicos (Doc 2):',
+      q2OptionsNominal: const [
+        'Balance hídrico, optotipos/ToF y actividad ARED/CEVIS al día',
+        'Control ocular y metabólico i-STAT programado hoy',
+        'Requiere recordatorio para hidratación isotónica',
+      ],
+      q2TitleSymptomatic:
+          '2. Triaje Clínico Inicial de Síntomas (Severidad 1-10):',
+      q2OptionsSymptomatic: const [
+        'Gravedad baja (1-3/10) • Sin exposición a regolito ni gases',
+        'Gravedad moderada (4-6/10) • Monitoreo cada 2 h con i-STAT',
+        'Gravedad alta (>=7/10) • Escalado a Oficial Médico (CMO)',
+      ],
+      q3Title: '3. Panel instrumental asociado al registro:',
+      q3Options: const [
+        'Bio-Monitor (CSA) + Abbott i-STAT Alinity POCT',
+        'ToF ocular + QUS óseo + Bodystat BIS',
+        'EPM Cardiocavity + Draeger Double Sensor',
+      ],
+      suggestedBadge: 'Equilibrio Metabólico Perfecto',
+    );
+  }
+
+  Future<void> _showAdaptiveMissionQuestionnaireModal(
+    _CircumstantialMission mission,
+    Map<String, int> completedMap,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final schema = _questionnaireSchemaForMission(mission);
+    int step = 0;
+    int q1Index = 0;
+    int q2Index = 0;
+    int q3Index = 0;
+    final noteController = TextEditingController();
+
+    final submitted = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            final isSymptomatic = q1Index > 0;
+            final q2Title =
+                isSymptomatic ? schema.q2TitleSymptomatic : schema.q2TitleNominal;
+            final q2Options = isSymptomatic
+                ? schema.q2OptionsSymptomatic
+                : schema.q2OptionsNominal;
+
+            Widget buildOptionList({
+              required List<String> options,
+              required int currentIndex,
+              required void Function(int idx) onSelect,
+            }) {
+              return Column(
+                children: List.generate(options.length, (i) {
+                  final chosen = currentIndex == i;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: () => setModalState(() => onSelect(i)),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(11),
+                        decoration: BoxDecoration(
+                          color: chosen
+                              ? mission.accentColor.withValues(alpha: 0.16)
+                              : SpaceTheme.card,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: chosen ? mission.accentColor : Colors.white12,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              chosen
+                                  ? Icons.radio_button_checked
+                                  : Icons.radio_button_off,
+                              size: 16,
+                              color:
+                                  chosen ? mission.accentColor : Colors.white38,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                options[i],
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: chosen ? Colors.white : Colors.white70,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              );
+            }
+
+            return AlertDialog(
+              backgroundColor: SpaceTheme.surface,
+              title: Row(
+                children: [
+                  Icon(mission.icon, color: mission.accentColor, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Cuestionario Adaptativo • Paso ${step + 1}/3',
+                      style: const TextStyle(fontSize: 15, color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    LinearProgressIndicator(
+                      value: (step + 1) / 3,
+                      minHeight: 4,
+                      backgroundColor: Colors.white12,
+                      color: mission.accentColor,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Entorno: ${widget.activeEnvironment.label} • Día ${widget.vitals.missionDay}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: SpaceTheme.cyan,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    if (step == 0) ...[
+                      Text(
+                        schema.q1Title,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      buildOptionList(
+                        options: schema.q1Options,
+                        currentIndex: q1Index,
+                        onSelect: (idx) {
+                          q1Index = idx;
+                          q2Index = 0;
+                        },
+                      ),
+                    ] else if (step == 1) ...[
+                      Text(
+                        q2Title,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      buildOptionList(
+                        options: q2Options,
+                        currentIndex: q2Index,
+                        onSelect: (idx) => q2Index = idx,
+                      ),
+                    ] else ...[
+                      Text(
+                        schema.q3Title,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      buildOptionList(
+                        options: schema.q3Options,
+                        currentIndex: q3Index,
+                        onSelect: (idx) => q3Index = idx,
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: noteController,
+                        style:
+                            const TextStyle(fontSize: 12, color: Colors.white),
+                        decoration: const InputDecoration(
+                          isDense: true,
+                          labelText: 'Nota médica o comentario de turno (opcional)',
+                          labelStyle:
+                              TextStyle(fontSize: 11, color: Colors.white54),
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: SpaceTheme.green.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: SpaceTheme.green.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: Text(
+                          'Insignia al completar: ${schema.suggestedBadge} (+${mission.xpReward} XP)',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: SpaceTheme.green,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    if (step > 0) {
+                      setModalState(() => step -= 1);
+                    } else {
+                      Navigator.of(dialogCtx).pop(false);
+                    }
+                  },
+                  child: Text(step > 0 ? 'Atrás' : 'Cancelar'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: mission.accentColor,
+                    foregroundColor: Colors.black,
+                  ),
+                  onPressed: () {
+                    if (step < 2) {
+                      setModalState(() => step += 1);
+                    } else {
+                      Navigator.of(dialogCtx).pop(true);
+                    }
+                  },
+                  child: Text(
+                    step < 2 ? 'Siguiente' : 'Finalizar y Guardar (+${mission.xpReward} XP)',
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (submitted != true || !mounted) {
+      noteController.dispose();
+      return;
+    }
+
+    final isSymptomatic = q1Index > 0;
+    final q2Answer = isSymptomatic
+        ? schema.q2OptionsSymptomatic[q2Index]
+        : schema.q2OptionsNominal[q2Index];
+    final q1Answer = schema.q1Options[q1Index];
+    final q3Answer = schema.q3Options[q3Index];
+    final extraNote = noteController.text.trim();
+    noteController.dispose();
+
+    final entry = ClinicalMissionLogEntry(
+      id: 'MIS-${DateTime.now().millisecondsSinceEpoch}',
+      astronautId: widget.astronautId,
+      timestamp: DateTime.now(),
+      missionDay: widget.vitals.missionDay,
+      environment: widget.activeEnvironment,
+      category: mission.badgeLabel,
+      title: mission.title,
+      summary:
+          '$q1Answer • $q2Answer${extraNote.isNotEmpty ? " ($extraNote)" : ""}',
+      answers: {
+        'Evaluación inicial': q1Answer,
+        isSymptomatic ? 'Triaje adaptativo (Ada)' : 'Prevención / hábito':
+            q2Answer,
+        'Hardware confirmatorio': q3Answer,
+        if (extraNote.isNotEmpty) 'Observación': extraNote,
+      },
+      badgeEarned: schema.suggestedBadge,
+      xpAwarded: mission.xpReward,
+    );
+
+    ref.read(clinicalMissionLogsProvider.notifier).addEntry(entry);
+
+    setState(() {
+      completedMap[mission.id] = mission.xpReward;
+    });
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          '${mission.notificationText} • Insignia: ${schema.suggestedBadge}',
+        ),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final completedMap =
+        _completedXpByAstronaut.putIfAbsent(widget.astronautId, () => {});
+    final activeMissions = _evaluateActiveMissions();
+    final safeIdx = _selectedMissionIdx.clamp(0, activeMissions.length - 1);
+    final currentMission = activeMissions[safeIdx];
+    final isDone = completedMap.containsKey(currentMission.id);
+
+    final displayXp =
+        completedMap.values.fold<int>(0, (sum, xp) => sum + xp);
+    final completedActiveCount =
+        activeMissions.where((m) => completedMap.containsKey(m.id)).length;
+    final progressValue =
+        (completedActiveCount / activeMissions.length).clamp(0.0, 1.0);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: SpaceTheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: currentMission.accentColor.withValues(alpha: 0.55),
+          width: 1.2,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(currentMission.icon,
+                  color: currentMission.accentColor, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  currentMission.badgeLabel,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.6,
+                    color: currentMission.accentColor,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: SpaceTheme.card,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Text(
+                  'Día ${widget.vitals.missionDay} • $completedActiveCount/${activeMissions.length} • $displayXp XP',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: SpaceTheme.cyan,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            currentMission.title,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            widget.actigraphyJustification,
+            style: const TextStyle(fontSize: 11, color: Colors.white60),
+          ),
+          if (activeMissions.length > 1) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: List.generate(activeMissions.length, (i) {
+                final m = activeMissions[i];
+                final selected = i == safeIdx;
+                final done = completedMap.containsKey(m.id);
+                return InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () => setState(() => _selectedMissionIdx = i),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? m.accentColor.withValues(alpha: 0.2)
+                          : SpaceTheme.card,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: selected ? m.accentColor : Colors.white12,
+                      ),
+                    ),
+                    child: Text(
+                      '${done ? "✓ " : ""}${m.badgeLabel}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight:
+                            selected ? FontWeight.bold : FontWeight.normal,
+                        color: selected ? Colors.white : Colors.white60,
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ],
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progressValue == 0.0 ? 0.12 : progressValue,
+              minHeight: 5,
+              backgroundColor: Colors.white12,
+              color: progressValue >= 1.0
+                  ? SpaceTheme.green
+                  : currentMission.accentColor,
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor:
+                    isDone ? SpaceTheme.green : currentMission.accentColor,
+                side: BorderSide(
+                  color: isDone ? SpaceTheme.green : currentMission.accentColor,
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              icon: Icon(
+                isDone ? Icons.check_circle : Icons.quiz_outlined,
+                size: 16,
+              ),
+              label: Text(
+                isDone
+                    ? 'Cuestionario Completado y Archivado (+${currentMission.xpReward} XP)'
+                    : currentMission.actionLabel,
+                style:
+                    const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+              ),
+              onPressed: isDone
+                  ? null
+                  : () => _showAdaptiveMissionQuestionnaireModal(
+                        currentMission,
+                        completedMap,
+                      ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -99,6 +99,8 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                   targetAstronaut,
                   connectedMachines.length,
                 ),
+                const SizedBox(height: 12),
+                _buildScenarioSimulatorSection(context, targetAstronaut),
                 const SizedBox(height: 14),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -409,6 +411,82 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                 onPressed: () => _showJsonPreviewDialog(context, targetAstronaut),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScenarioSimulatorSection(
+    BuildContext context,
+    AstronautProfile targetAstronaut,
+  ) {
+    final scenarios = <Map<String, String>>[
+      {'id': 'nominal_rest', 'label': 'Reposo Nominal (Día 18)'},
+      {'id': 'sleep_bimodal', 'label': 'Sueño Bimodal (0.018g + Dip FC)'},
+      {'id': 'exercise_ared', 'label': 'Ejercicio ARED (152 lpm sin falsa alarma)'},
+      {'id': 'co2_pocket', 'label': 'Bolsillo CO₂ 0g (4.6 mmHg)'},
+      {'id': 'fluid_shift_day2', 'label': 'Día 2 Misión (Fluid Shift 0g)'},
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: SpaceTheme.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: SpaceTheme.cyan.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.science_outlined, size: 16, color: SpaceTheme.cyan),
+              SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Inyector de Escenarios de Simulación (Fuera de UI de Uso)',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Estado actual: Día ${targetAstronaut.vitals.missionDay} • Actigrafía ${targetAstronaut.vitals.accelerometryRmsG.toStringAsFixed(3)} g • CO₂ ${targetAstronaut.vitals.localCo2MmHg.toStringAsFixed(1)} mmHg',
+            style: const TextStyle(fontSize: 11, color: Colors.white60),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: scenarios.map((sc) {
+              return ActionChip(
+                backgroundColor: SpaceTheme.surface,
+                side: BorderSide(color: SpaceTheme.cyan.withValues(alpha: 0.45)),
+                label: Text(
+                  sc['label']!,
+                  style: const TextStyle(fontSize: 11, color: SpaceTheme.cyan),
+                ),
+                onPressed: () {
+                  ref
+                      .read(crewMembersProvider.notifier)
+                      .applySimulationScenario(targetAstronaut.id, sc['id']!);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Escenario "${sc['label']}" inyectado en ${targetAstronaut.callsign}.',
+                      ),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                },
+              );
+            }).toList(),
           ),
         ],
       ),

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:astramed/core/constants/medical_thresholds.dart';
 import 'package:astramed/core/theme/space_theme.dart';
-import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 
 import '../widgets/biomarker_panel.dart';

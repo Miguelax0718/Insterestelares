@@ -98,8 +98,9 @@ class AstronautProfile {
       riskLevel: riskLevel ?? this.riskLevel,
       riskTitle: riskTitle ?? this.riskTitle,
       riskDescription: riskDescription ?? this.riskDescription,
-      activeAlerts: activeAlerts ?? this.activeAlerts,
-      linkedMachineIds: linkedMachineIds ?? this.linkedMachineIds,
+      activeAlerts: activeAlerts ?? (this.activeAlerts as List<String>? ?? const []),
+      linkedMachineIds:
+          linkedMachineIds ?? (this.linkedMachineIds as List<String>? ?? const []),
       lastTelemetrySync: lastTelemetrySync ?? this.lastTelemetrySync,
     );
   }

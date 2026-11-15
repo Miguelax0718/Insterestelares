@@ -1,157 +1,542 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import 'package:astramed/core/theme/space_theme.dart';
+import 'package:astramed/features/01_general_health/domain/telemetry_view_contracts.dart';
+import 'package:astramed/features/01_general_health/presentation/providers/telemetry_panel_provider.dart';
+import 'package:astramed/features/05_clinical_triage/domain/apollo_triage_engine.dart';
+import 'package:astramed/features/05_clinical_triage/models/triage_decision.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 
-class TriageView extends ConsumerWidget {
+/// Proveedor del historial de chat de APOLO
+final apolloChatProvider =
+    StateNotifierProvider<ApolloChatNotifier, List<ApolloChatMessage>>((ref) {
+  return ApolloChatNotifier();
+});
+
+class ApolloChatNotifier extends StateNotifier<List<ApolloChatMessage>> {
+  ApolloChatNotifier() : super(_initialMessages());
+
+  static List<ApolloChatMessage> _initialMessages() {
+    return [
+      ApolloChatMessage(
+        id: 'INIT-01',
+        sender: 'apollo',
+        text:
+            'Saludos. Soy APOLO, tu Asistente Médico Autónomo y Sistema de Triaje Clínico.\n\nEstoy enlazado a tu telemetría biológica y a las condiciones del entorno activo. ¿Presentas algún síntoma, sospecha de intoxicación, traumatismo o consulta de salud?',
+        timestamp: DateTime.now(),
+        triageLevel: TriagePriority.green,
+        recommendedHardware: 'Bio-Monitor CSA / Draeger Double Sensor',
+        actionChecklist: const [
+          'Puedes escribir tu molestia o usar los accesos directos de protocolos frecuentes abajo.',
+          'En caso de dolor agudo o hemorragia, prioriza el protocolo de emergencia.',
+        ],
+        followUpOptions: const [
+          'Cefalea y visión borrosa (SANS)',
+          'Traumatismo por golpe o caída',
+          'Dolor lumbar agudo (Cálculo Renal)',
+          'Sensación de asfixia o bolsa de CO₂',
+        ],
+      ),
+    ];
+  }
+
+  void sendMessage({
+    required String query,
+    required AstronautProfile astronaut,
+    required SpaceOperationalEnvironment environment,
+    required void Function(ClinicalMissionLogEntry) onLogEntry,
+  }) {
+    final now = DateTime.now();
+    final userMsg = ApolloChatMessage(
+      id: 'USER-${now.millisecondsSinceEpoch}',
+      sender: 'astronaut',
+      text: query,
+      timestamp: now,
+    );
+
+    final apolloReply = ApolloTriageEngine.processQuery(
+      query: query,
+      astronaut: astronaut,
+      environment: environment,
+    );
+
+    state = [...state, userMsg, apolloReply];
+
+    // Si tiene severidad moderada o crítica, se archiva de inmediato en la bitácora
+    if (apolloReply.triageLevel == TriagePriority.yellow ||
+        apolloReply.triageLevel == TriagePriority.red) {
+      onLogEntry(
+        ClinicalMissionLogEntry(
+          id: 'APOLLO-LOG-${now.millisecondsSinceEpoch}',
+          astronautId: astronaut.id,
+          timestamp: now,
+          missionDay: astronaut.vitals.missionDay,
+          environment: environment,
+          category: 'Triaje APOLO: ${apolloReply.triageLevel?.name.toUpperCase()}',
+          title: 'Evaluación APOLO: "$query"',
+          summary: apolloReply.text.split('\n\n').first,
+          answers: {
+            'Consulta del tripulante': query,
+            'Severidad': apolloReply.triageLevel?.name ?? 'normal',
+            if (apolloReply.recommendedHardware != null)
+              'Hardware sugerido': apolloReply.recommendedHardware!,
+          },
+          badgeEarned: apolloReply.triageLevel == TriagePriority.red
+              ? 'Intervención Oportuna'
+              : 'Vigilancia Nominal',
+          xpAwarded: 45,
+        ),
+      );
+    }
+  }
+
+  void resetChat() {
+    state = _initialMessages();
+  }
+}
+
+class TriageView extends ConsumerStatefulWidget {
   const TriageView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TriageView> createState() => _TriageViewState();
+}
+
+class _TriageViewState extends ConsumerState<TriageView> {
+  final TextEditingController _inputController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _inputController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  void _handleSend(String query) {
+    final text = query.trim();
+    if (text.isEmpty) return;
+
+    final astronaut = ref.read(selectedAstronautProvider);
+    final environment = ref.read(selectedEnvironmentProvider);
+
+    ref.read(apolloChatProvider.notifier).sendMessage(
+          query: text,
+          astronaut: astronaut,
+          environment: environment,
+          onLogEntry: (entry) {
+            ref.read(clinicalMissionLogsProvider.notifier).addEntry(entry);
+          },
+        );
+
+    _inputController.clear();
+    _scrollToBottom();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final astronaut = ref.watch(selectedAstronautProvider);
+    final environment = ref.watch(selectedEnvironmentProvider);
+    final chatMessages = ref.watch(apolloChatProvider);
     final isCritical = astronaut.riskLevel == CrewRiskLevel.critical;
 
-    return ListView(
-      padding: const EdgeInsets.all(16.0),
+    return Column(
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Triage Clínico Autónomo',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  'Paciente activo: ${astronaut.name} [${astronaut.callsign}]',
-                  style: const TextStyle(fontSize: 12, color: SpaceTheme.cyan),
-                ),
-              ],
+        // ── CABECERA Y CONTEXTO DEL ENTORNO DE APOLO ──
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: SpaceTheme.surface,
+            border: const Border(
+              bottom: BorderSide(color: Colors.white12),
             ),
-          ],
-        ),
-        const SizedBox(height: 14),
-
-        // ── ALERTA PRIORITARIA SI EL ASTRONAUTA ESTÁ CRÍTICO ──
-        if (isCritical) ...[
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: SpaceTheme.dangerRed.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: SpaceTheme.dangerRed, width: 1.5),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
+          ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: SpaceTheme.cyan.withValues(alpha: 0.2),
+                radius: 18,
+                child: const Icon(Icons.smart_toy, color: SpaceTheme.cyan, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.emergency, color: SpaceTheme.dangerRed, size: 24),
-                    SizedBox(width: 8),
+                    Row(
+                      children: [
+                        const Text(
+                          'APOLO • Asistente Médico de Triaje',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Color(environment.accentHex).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Color(environment.accentHex)),
+                          ),
+                          child: Text(
+                            environment.shortLabel,
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: Color(environment.accentHex),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                     Text(
-                      'INTERVENCIÓN PRIORITARIA REQUERIDA',
-                      style: TextStyle(
-                        color: SpaceTheme.dangerRed,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        letterSpacing: 0.8,
-                      ),
+                      'Paciente: ${astronaut.name} [${astronaut.callsign}] • FC: ${astronaut.vitals.heartRate.toInt()} lpm • SpO₂: ${astronaut.vitals.spO2.toInt()}%',
+                      style: const TextStyle(fontSize: 11, color: Colors.white60),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  astronaut.riskDescription,
-                  style: const TextStyle(color: Colors.white, fontSize: 13),
-                ),
-                const SizedBox(height: 12),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: SpaceTheme.dangerRed,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 38),
+              ),
+              IconButton(
+                tooltip: 'Reiniciar conversación',
+                icon: const Icon(Icons.refresh, color: Colors.white54, size: 20),
+                onPressed: () => ref.read(apolloChatProvider.notifier).resetChat(),
+              ),
+            ],
+          ),
+        ),
+
+        // ── BANNER DE ALERTA CRÍTICA SI PROCEDE ──
+        if (isCritical)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            color: SpaceTheme.dangerRed.withValues(alpha: 0.18),
+            child: Row(
+              children: [
+                const Icon(Icons.warning, color: SpaceTheme.dangerRed, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Alerta en Telemetría: ${astronaut.riskDescription}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: SpaceTheme.dangerRed,
+                    ),
                   ),
-                  icon: const Icon(Icons.medical_services, size: 18),
-                  label: const Text('Iniciar Protocolo de Oxigenoterapia & Soporte'),
+                ),
+              ],
+            ),
+          ),
+
+        // ── LISTA DE MENSAJES CONVERSACIONALES ──
+        Expanded(
+          child: ListView.builder(
+            controller: _scrollController,
+            padding: const EdgeInsets.all(14),
+            itemCount: chatMessages.length,
+            itemBuilder: (context, index) {
+              final msg = chatMessages[index];
+              return _buildMessageBubble(msg);
+            },
+          ),
+        ),
+
+        // ── BOTONES DE ACCESO RÁPIDO (PRESETS JUSTIFICADOS) ──
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          color: SpaceTheme.surface,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildQuickActionChip(
+                  icon: Icons.remove_red_eye,
+                  label: 'Cefalea / Visión borrosa (SANS)',
+                  query: 'Tengo dolor de cabeza y noto visión borrosa al leer',
+                ),
+                const SizedBox(width: 6),
+                _buildQuickActionChip(
+                  icon: Icons.air,
+                  label: 'Bolsa de CO₂ / Asfixia',
+                  query: 'Siento falta de aire y sospecho bolsa de CO2 focal',
+                ),
+                const SizedBox(width: 6),
+                _buildQuickActionChip(
+                  icon: Icons.local_hospital,
+                  label: 'Dolor Lumbar / Cálculo Renal',
+                  query: 'Tengo un dolor lumbar agudo intermitente hacia la ingle',
+                ),
+                const SizedBox(width: 6),
+                _buildQuickActionChip(
+                  icon: Icons.healing,
+                  label: 'Golpe / Trauma',
+                  query: 'Sufrí un golpe biomecánico fuerte contra el mamparo',
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // ── BARRA DE ENTRADA DE TEXTO Y BOTÓN DE VOZ FUTURO ──
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: SpaceTheme.card,
+            border: const Border(
+              top: BorderSide(color: Colors.white12),
+            ),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Row(
+              children: [
+                IconButton(
+                  tooltip: 'Entrada por Voz (Enlace futuro con APOLO Voice)',
+                  icon: const Icon(Icons.mic, color: SpaceTheme.cyan),
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        backgroundColor: SpaceTheme.dangerRed,
-                        content: Text('Iniciando guía clínica para ${astronaut.name}'),
+                      const SnackBar(
+                        content: Text(
+                          'Módulo de Voz APOLO preparado. Selecciona un preset o escribe para triaje asistido.',
+                        ),
+                        duration: Duration(seconds: 2),
                       ),
                     );
                   },
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-        ],
-
-        Card(
-          color: SpaceTheme.card,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.health_and_safety, color: Colors.greenAccent),
-                    SizedBox(width: 8),
-                    Text(
-                      'Autodiagnóstico Guiado por Síntomas',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                Expanded(
+                  child: TextField(
+                    controller: _inputController,
+                    style: const TextStyle(fontSize: 13, color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Describe síntomas o responde a APOLO...',
+                      hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      filled: true,
+                      fillColor: SpaceTheme.surface,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Evalúa a ${astronaut.name} respondiendo preguntas clínicas escalonadas para recibir clasificación determinista (Verde, Amarillo, Rojo).',
-                  style: const TextStyle(color: Colors.white70, fontSize: 13),
-                ),
-                const SizedBox(height: 12),
-                ElevatedButton.icon(
-                  onPressed: () {},
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: SpaceTheme.cyan,
-                    foregroundColor: Colors.black,
+                    onSubmitted: _handleSend,
                   ),
-                  icon: const Icon(Icons.play_arrow),
-                  label: const Text('Comenzar Evaluación Clínica'),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.send, color: SpaceTheme.cyan),
+                  onPressed: () => _handleSend(_inputController.text),
                 ),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 16),
-        const Text(
-          'Protocolos de Emergencia Disponibles en Local',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        const SizedBox(height: 8),
-        _buildProtocolTile('Manejo de Síndrome Agudo por Radiación (ARS)', Icons.warning_amber, Colors.orangeAccent),
-        _buildProtocolTile('Soporte Cardiopulmonar en Microgravedad', Icons.favorite, Colors.redAccent),
-        _buildProtocolTile('Hipoxia y Descompresión en Cabina', Icons.air, Colors.cyanAccent),
-        _buildProtocolTile('Tratamiento de Cefalea y Congestión SANS', Icons.remove_red_eye, Colors.blueAccent),
-        _buildProtocolTile('Quemaduras y Lesiones por Traumatismo', Icons.local_hospital, Colors.greenAccent),
       ],
     );
   }
 
-  Widget _buildProtocolTile(String title, IconData icon, Color color) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      color: SpaceTheme.card,
-      child: ListTile(
-        leading: Icon(icon, color: color),
-        title: Text(title, style: const TextStyle(fontSize: 14)),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.white38),
-        onTap: () {},
+  Widget _buildQuickActionChip({
+    required IconData icon,
+    required String label,
+    required String query,
+  }) {
+    return ActionChip(
+      avatar: Icon(icon, size: 14, color: SpaceTheme.cyan),
+      label: Text(label, style: const TextStyle(fontSize: 11, color: Colors.white)),
+      backgroundColor: SpaceTheme.card,
+      side: const BorderSide(color: Colors.white12),
+      visualDensity: VisualDensity.compact,
+      onPressed: () => _handleSend(query),
+    );
+  }
+
+  Widget _buildMessageBubble(ApolloChatMessage msg) {
+    final isApollo = msg.isApollo;
+    final timeStr = DateFormat('HH:mm').format(msg.timestamp);
+
+    Color priorityColor = Colors.transparent;
+    if (msg.triageLevel == TriagePriority.red) {
+      priorityColor = SpaceTheme.dangerRed;
+    } else if (msg.triageLevel == TriagePriority.yellow) {
+      priorityColor = SpaceTheme.warningYellow;
+    } else if (msg.triageLevel == TriagePriority.green) {
+      priorityColor = SpaceTheme.green;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        mainAxisAlignment:
+            isApollo ? MainAxisAlignment.start : MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (isApollo) ...[
+            CircleAvatar(
+              radius: 14,
+              backgroundColor: SpaceTheme.cyan.withValues(alpha: 0.15),
+              child: const Icon(Icons.auto_awesome, color: SpaceTheme.cyan, size: 14),
+            ),
+            const SizedBox(width: 8),
+          ],
+          Flexible(
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 580),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isApollo ? SpaceTheme.surface : SpaceTheme.cyan.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isApollo
+                      ? (msg.triageLevel == TriagePriority.red
+                          ? SpaceTheme.dangerRed
+                          : Colors.white12)
+                      : SpaceTheme.cyan.withValues(alpha: 0.5),
+                  width: msg.triageLevel == TriagePriority.red ? 1.5 : 1.0,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        isApollo ? 'APOLO' : 'Tripulante',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: isApollo ? SpaceTheme.cyan : Colors.white,
+                        ),
+                      ),
+                      if (msg.triageLevel != null && isApollo) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: priorityColor.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: priorityColor),
+                          ),
+                          child: Text(
+                            msg.triageLevel!.name.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: priorityColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(width: 8),
+                      Text(timeStr, style: const TextStyle(fontSize: 10, color: Colors.white38)),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    msg.text,
+                    style: const TextStyle(fontSize: 12, color: Colors.white, height: 1.35),
+                  ),
+                  if (msg.recommendedHardware != null) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: SpaceTheme.card,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.white10),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.biotech, color: SpaceTheme.cyan, size: 16),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Hardware: ${msg.recommendedHardware!}',
+                              style: const TextStyle(fontSize: 11, color: Colors.white70),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  if (msg.actionChecklist != null && msg.actionChecklist!.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Pautas de Acción Inmediata:',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: SpaceTheme.cyan,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    ...msg.actionChecklist!.map(
+                      (action) => Padding(
+                        padding: const EdgeInsets.only(bottom: 3),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('• ', style: TextStyle(color: SpaceTheme.cyan)),
+                            Expanded(
+                              child: Text(
+                                action,
+                                style: const TextStyle(fontSize: 11, color: Colors.white70),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (msg.followUpOptions != null && msg.followUpOptions!.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: msg.followUpOptions!.map((opt) {
+                        return InkWell(
+                          onTap: () => _handleSend(opt),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: SpaceTheme.card,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: SpaceTheme.cyan.withValues(alpha: 0.4)),
+                            ),
+                            child: Text(
+                              '➜ $opt',
+                              style: const TextStyle(fontSize: 10, color: SpaceTheme.cyan),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

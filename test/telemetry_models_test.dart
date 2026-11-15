@@ -327,4 +327,58 @@ void main() {
       isTrue,
     );
   });
+
+  test('Todos los astronautas inician con las 7 máquinas activas y sin taquicardia desbocada en DEV-CEVIS', () {
+    final crew = MockCrewData.getInitialCrew();
+    final machines = SpaceMachinesCatalog.getInitialMachines(crew);
+    expect(machines.length, 7);
+
+    for (final astronaut in crew) {
+      expect(astronaut.linkedMachineIds.length, 7,
+          reason: '${astronaut.id} debe tener las 7 máquinas vinculadas');
+      for (final machine in machines) {
+        expect(
+          machine.statusFor(astronaut.id),
+          MachineConnectionStatus.streaming,
+          reason: '${machine.id} debe iniciar streaming para ${astronaut.id}',
+        );
+      }
+    }
+
+    final ast1 = crew.firstWhere((a) => a.id == 'AST-01');
+    final cevis = machines.firstWhere((m) => m.id == 'DEV-CEVIS');
+    for (int tick = 0; tick < 10; tick++) {
+      final cevisPacket = SpaceMachinesCatalog.generateTelemetryPacket(
+        cevis,
+        ast1,
+        tick: tick,
+      );
+      expect(cevisPacket.metrics.containsKey('heartRate'), isFalse);
+    }
+
+    // Taquicardia en reposo sin movimiento real debe disparar alerta crítica aunque activityState diga exercise
+    final crewNotifier = CrewNotifier();
+    final packetFakeExercise = TelemetryPacket(
+      timestamp: DateTime.now(),
+      machineId: 'DEV-ASTROSKIN',
+      astronautId: 'AST-01',
+      source: 'telemetry',
+      device: 'Bio-Monitor Astroskin',
+      protocol: 'ANT+ / BLE SpaceBus v3.2',
+      measurementMethod: 'ECG textil + IMU triaxial',
+      activityState: 'exercise',
+      signalQuality: 'optimal (98%)',
+      recordType: 'instrumental',
+      algorithm: 'NASA-HRP BioSignalKalman v3.2',
+      criterionReference: 'NASA-STD-3001 Vol.2',
+      metrics: const {
+        'heartRate': 138.0,
+        'accelerometryRmsG': 0.024,
+      },
+    );
+    crewNotifier.applyTelemetryPacket('AST-01', packetFakeExercise);
+    final evaluated = crewNotifier.state.firstWhere((a) => a.id == 'AST-01');
+    expect(evaluated.riskLevel, CrewRiskLevel.critical);
+    expect(evaluated.activeAlerts.any((a) => a.contains('Taquicardia')), isTrue);
+  });
 }

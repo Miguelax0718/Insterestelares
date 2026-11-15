@@ -12,7 +12,10 @@
     "DEV-ASTROSKIN",
     "DEV-HERA",
     "DEV-EPM",
-    "DEV-ARED"
+    "DEV-ARED",
+    "DEV-CEVIS",
+    "DEV-ISTAT",
+    "DEV-ACTIWATCH"
   ],
   "vitals": {
     "timestamp": "2026-11-14T20:45:00Z",

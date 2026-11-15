@@ -12,27 +12,37 @@ class CrewDatabaseService {
   final Map<String, AstronautProfile> _memoryCache = {};
 
   /// Carga la lista de perfiles leyendo `DB/Users/crew_index.json`
-  /// y los archivos individuales de cada tripulante.
+  /// y los archivos individuales de cada tripulante en paralelo.
+  /// Si `!forceReload` y la caché en memoria ya está poblada, la retorna de inmediato.
   /// Si ocurre cualquier error de lectura o los assets aún no están empaquetados,
   /// retorna con seguridad la lista predeterminada de `MockCrewData.getInitialCrew()`.
-  Future<List<AstronautProfile>> loadCrewFromDbUsers() async {
+  Future<List<AstronautProfile>> loadCrewFromDbUsers({
+    bool forceReload = false,
+  }) async {
+    if (!forceReload && _memoryCache.isNotEmpty) {
+      return _memoryCache.values.toList();
+    }
+
     try {
       final indexRaw = await rootBundle.loadString('DB/Users/crew_index.json');
       final indexDecoded = jsonDecode(indexRaw);
 
       if (indexDecoded is List && indexDecoded.isNotEmpty) {
-        final loadedList = <AstronautProfile>[];
-
-        for (final item in indexDecoded) {
+        final paths = indexDecoded.map((item) {
           final fileName = item.toString();
-          final path = fileName.startsWith('DB/Users/')
+          return fileName.startsWith('DB/Users/')
               ? fileName
               : 'DB/Users/$fileName';
+        }).toList();
 
-          final profileRaw = await rootBundle.loadString(path);
-          final profileMap = jsonDecode(profileRaw) as Map<String, dynamic>;
-          loadedList.add(AstronautProfile.fromJson(profileMap));
-        }
+        final rawProfiles = await Future.wait(
+          paths.map((path) => rootBundle.loadString(path)),
+        );
+
+        final loadedList = rawProfiles
+            .map((raw) =>
+                AstronautProfile.fromJson(jsonDecode(raw) as Map<String, dynamic>))
+            .toList();
 
         if (loadedList.isNotEmpty) {
           _memoryCache.clear();

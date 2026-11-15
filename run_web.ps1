@@ -13,5 +13,11 @@ foreach ($line in $connections) {
     }
 }
 
+$pubArgs = @()
+if (Test-Path ".dart_tool\package_config.json") {
+    $pubArgs += "--no-pub"
+}
+
 Write-Host "[2/2] Iniciando AstraMed en http://localhost:8080 ..." -ForegroundColor Green
-flutter run -d chrome --web-port=8080
+Write-Host "[TIP] Manten esta sesion abierta y usa 'r' (Hot Reload) o 'R' (Hot Restart) sin reiniciar." -ForegroundColor Gray
+flutter run -d chrome --web-port=8080 @pubArgs

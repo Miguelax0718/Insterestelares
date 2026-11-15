@@ -21,6 +21,14 @@ class VitalsRecord {
   final double bloodGlucose; // mg/dL
   final double respiratoryRate; // rpm (frecuencia respiratoria)
   final double capillaryRefillSeconds; // segundos de llenado capilar
+  final int missionDay; // Día de misión para calibrar adaptación en 0g
+  final double accelerometryRmsG; // Micro-movimiento RMS en g (nunca 0 absoluto por balistocardiografía)
+  final double hrvRmssdMs; // Variabilidad cardíaca RMSSD (ms)
+  final double hydrationBioimpedanceIndex; // Índice crudo de hidratación por bioimpedancia (0-100)
+  final double localCo2MmHg; // Presión parcial local de CO2 en cabina (mmHg)
+  final double localO2Percent; // Porcentaje de O2 en cabina (%)
+  final double localCh4Ppm; // Trazas de metano/propelente (ppm)
+  final double cabinPressureKPa; // Presión barométrica de cabina (kPa)
 
   const VitalsRecord({
     required this.timestamp,
@@ -44,7 +52,25 @@ class VitalsRecord {
     required this.bloodGlucose,
     this.respiratoryRate = 16.0,
     this.capillaryRefillSeconds = 1.5,
+    this.missionDay = 18,
+    this.accelerometryRmsG = 0.024,
+    this.hrvRmssdMs = 56.0,
+    this.hydrationBioimpedanceIndex = 78.0,
+    this.localCo2MmHg = 2.2,
+    this.localO2Percent = 20.9,
+    this.localCh4Ppm = 0.0,
+    this.cabinPressureKPa = 101.3,
   });
+
+  /// Índice de hidratación ajustado ante el desplazamiento cefálico de fluidos
+  /// y diuresis compensatoria durante los primeros días en microgravedad.
+  double get calibratedHydrationIndex {
+    final int mDay = (missionDay as int?) ?? 18;
+    final double hIndex = (hydrationBioimpedanceIndex as double?) ?? 78.0;
+    final double fluidShiftOffset =
+        mDay <= 3 ? -6.5 : (mDay <= 7 ? -3.0 : 0.0);
+    return (hIndex + fluidShiftOffset).clamp(0.0, 100.0);
+  }
 
   VitalsRecord copyWith({
     DateTime? timestamp,
@@ -67,6 +93,14 @@ class VitalsRecord {
     double? bloodGlucose,
     double? respiratoryRate,
     double? capillaryRefillSeconds,
+    int? missionDay,
+    double? accelerometryRmsG,
+    double? hrvRmssdMs,
+    double? hydrationBioimpedanceIndex,
+    double? localCo2MmHg,
+    double? localO2Percent,
+    double? localCh4Ppm,
+    double? cabinPressureKPa,
   }) {
     return VitalsRecord(
       timestamp: timestamp ?? this.timestamp,
@@ -89,6 +123,17 @@ class VitalsRecord {
       bloodGlucose: bloodGlucose ?? this.bloodGlucose,
       respiratoryRate: respiratoryRate ?? this.respiratoryRate,
       capillaryRefillSeconds: capillaryRefillSeconds ?? this.capillaryRefillSeconds,
+      missionDay: missionDay ?? (this.missionDay as int? ?? 18),
+      accelerometryRmsG:
+          accelerometryRmsG ?? (this.accelerometryRmsG as double? ?? 0.024),
+      hrvRmssdMs: hrvRmssdMs ?? (this.hrvRmssdMs as double? ?? 56.0),
+      hydrationBioimpedanceIndex: hydrationBioimpedanceIndex ??
+          (this.hydrationBioimpedanceIndex as double? ?? 78.0),
+      localCo2MmHg: localCo2MmHg ?? (this.localCo2MmHg as double? ?? 2.2),
+      localO2Percent: localO2Percent ?? (this.localO2Percent as double? ?? 20.9),
+      localCh4Ppm: localCh4Ppm ?? (this.localCh4Ppm as double? ?? 0.0),
+      cabinPressureKPa:
+          cabinPressureKPa ?? (this.cabinPressureKPa as double? ?? 101.3),
     );
   }
 
@@ -114,6 +159,14 @@ class VitalsRecord {
       'bloodGlucose': bloodGlucose,
       'respiratoryRate': respiratoryRate,
       'capillaryRefillSeconds': capillaryRefillSeconds,
+      'missionDay': missionDay,
+      'accelerometryRmsG': accelerometryRmsG,
+      'hrvRmssdMs': hrvRmssdMs,
+      'hydrationBioimpedanceIndex': hydrationBioimpedanceIndex,
+      'localCo2MmHg': localCo2MmHg,
+      'localO2Percent': localO2Percent,
+      'localCh4Ppm': localCh4Ppm,
+      'cabinPressureKPa': cabinPressureKPa,
     };
   }
 
@@ -141,6 +194,15 @@ class VitalsRecord {
       bloodGlucose: (json['bloodGlucose'] as num?)?.toDouble() ?? 90.0,
       respiratoryRate: (json['respiratoryRate'] as num?)?.toDouble() ?? 16.0,
       capillaryRefillSeconds: (json['capillaryRefillSeconds'] as num?)?.toDouble() ?? 1.5,
+      missionDay: (json['missionDay'] as num?)?.toInt() ?? 18,
+      accelerometryRmsG: (json['accelerometryRmsG'] as num?)?.toDouble() ?? 0.024,
+      hrvRmssdMs: (json['hrvRmssdMs'] as num?)?.toDouble() ?? 56.0,
+      hydrationBioimpedanceIndex:
+          (json['hydrationBioimpedanceIndex'] as num?)?.toDouble() ?? 78.0,
+      localCo2MmHg: (json['localCo2MmHg'] as num?)?.toDouble() ?? 2.2,
+      localO2Percent: (json['localO2Percent'] as num?)?.toDouble() ?? 20.9,
+      localCh4Ppm: (json['localCh4Ppm'] as num?)?.toDouble() ?? 0.0,
+      cabinPressureKPa: (json['cabinPressureKPa'] as num?)?.toDouble() ?? 101.3,
     );
   }
 }

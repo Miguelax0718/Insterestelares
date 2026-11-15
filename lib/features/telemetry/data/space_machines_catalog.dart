@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/telemetry/models/telemetry_machine.dart';
 
@@ -197,7 +195,9 @@ class SpaceMachinesCatalog {
       final packetMap = <String, TelemetryPacket>{};
 
       for (final astronaut in crew) {
-        final isLinked = astronaut.linkedMachineIds.contains(def.id);
+        final machineIds =
+            (astronaut.linkedMachineIds as List<String>?) ?? const <String>[];
+        final isLinked = machineIds.contains(def.id);
         if (isLinked) {
           statusMap[astronaut.id] = MachineConnectionStatus.streaming;
           packetMap[astronaut.id] = generateTelemetryPacket(def, astronaut, tick: 0);
@@ -228,90 +228,74 @@ class SpaceMachinesCatalog {
 
     switch (machine.id) {
       case 'DEV-ASTROSKIN':
-        final hrDelta = (math.sin(tick * 0.5) * 1.5).roundToDouble();
-        final finalHr = (astronaut.vitals.heartRate + hrDelta).clamp(40.0, 180.0);
+        final double stableAcc = astronaut.vitals.activityState == 'exercise'
+            ? (astronaut.vitals.accelerometryRmsG >= 0.250
+                ? astronaut.vitals.accelerometryRmsG
+                : 0.68)
+            : astronaut.vitals.accelerometryRmsG.clamp(0.005, 0.120);
 
-        final sysDelta = (math.sin(tick * 0.3) * 1.2).roundToDouble();
-        final diaDelta = (math.cos(tick * 0.3) * 0.8).roundToDouble();
-        final finalSys = (astronaut.vitals.systolicBP + sysDelta).clamp(70.0, 200.0);
-        final finalDia = (astronaut.vitals.diastolicBP + diaDelta).clamp(40.0, 130.0);
-
-        double finalSpO2;
-        if (astronaut.vitals.spO2 < 92.0) {
-          finalSpO2 =
-              (astronaut.vitals.spO2 + (math.sin(tick * 0.4) * 0.6)).clamp(85.0, 91.0);
-        } else {
-          finalSpO2 =
-              (astronaut.vitals.spO2 + (math.sin(tick * 0.2) * 0.3)).clamp(94.0, 100.0);
-        }
-
-        final tempDelta = math.sin(tick * 0.1) * 0.04;
-        final finalTemp =
-            double.parse((astronaut.vitals.bodyTemp + tempDelta).toStringAsFixed(1));
-
-        final respDelta = (math.sin(tick * 0.4) * 0.8).roundToDouble();
-        final finalResp =
-            (astronaut.vitals.respiratoryRate + respDelta).clamp(8.0, 40.0);
-
-        metrics['heartRate'] = finalHr;
-        metrics['systolicBP'] = finalSys;
-        metrics['diastolicBP'] = finalDia;
-        metrics['spO2'] = double.parse(finalSpO2.toStringAsFixed(1));
-        metrics['bodyTemp'] = finalTemp;
-        metrics['respiratoryRate'] = finalResp;
-        metrics['capillaryRefillSeconds'] = astronaut.vitals.capillaryRefillSeconds;
+        metrics['heartRate'] = astronaut.vitals.heartRate.clamp(40.0, 180.0);
+        metrics['systolicBP'] = astronaut.vitals.systolicBP.clamp(70.0, 200.0);
+        metrics['diastolicBP'] = astronaut.vitals.diastolicBP.clamp(40.0, 130.0);
+        metrics['spO2'] =
+            double.parse(astronaut.vitals.spO2.clamp(85.0, 100.0).toStringAsFixed(1));
+        metrics['bodyTemp'] =
+            double.parse(astronaut.vitals.bodyTemp.toStringAsFixed(1));
+        metrics['respiratoryRate'] =
+            astronaut.vitals.respiratoryRate.clamp(8.0, 40.0);
+        metrics['capillaryRefillSeconds'] =
+            astronaut.vitals.capillaryRefillSeconds;
+        metrics['missionDay'] = astronaut.vitals.missionDay;
+        metrics['accelerometryRmsG'] =
+            double.parse(stableAcc.toStringAsFixed(3));
+        metrics['hrvRmssdMs'] = double.parse(
+            astronaut.vitals.hrvRmssdMs.clamp(15.0, 120.0).toStringAsFixed(1));
+        metrics['hydrationBioimpedanceIndex'] = double.parse(astronaut
+            .vitals.hydrationBioimpedanceIndex
+            .clamp(30.0, 100.0)
+            .toStringAsFixed(1));
+        metrics['localCo2MmHg'] = astronaut.vitals.localCo2MmHg;
+        metrics['localO2Percent'] = astronaut.vitals.localO2Percent;
+        metrics['localCh4Ppm'] = astronaut.vitals.localCh4Ppm;
+        metrics['cabinPressureKPa'] = astronaut.vitals.cabinPressureKPa;
         break;
 
       case 'DEV-HERA':
-        final rateDelta = math.sin(tick * 0.7) * 2.2;
-        final finalRate =
-            (astronaut.radiation.doseRateMicroSvPerHour + rateDelta).clamp(10.0, 800.0);
-        final finalCumulative =
-            astronaut.radiation.cumulativeDoseMilliSv + (tick * 0.0002);
-
-        metrics['doseRateMicroSvPerHour'] =
-            double.parse(finalRate.toStringAsFixed(1));
-        metrics['cumulativeDoseMilliSv'] =
-            double.parse(finalCumulative.toStringAsFixed(3));
+        metrics['doseRateMicroSvPerHour'] = double.parse(astronaut
+            .radiation.doseRateMicroSvPerHour
+            .clamp(10.0, 800.0)
+            .toStringAsFixed(1));
+        metrics['cumulativeDoseMilliSv'] = double.parse(
+            astronaut.radiation.cumulativeDoseMilliSv.toStringAsFixed(3));
         metrics['severity'] = astronaut.radiation.severity.name;
         break;
 
       case 'DEV-EPM':
-        final sysDelta = (math.sin(tick * 0.4) * 1.5).roundToDouble();
-        final diaDelta = (math.cos(tick * 0.4) * 1.0).roundToDouble();
-        final hrDelta = (math.sin(tick * 0.5) * 1.0).roundToDouble();
-
-        metrics['systolicBP'] =
-            (astronaut.vitals.systolicBP + sysDelta).clamp(70.0, 200.0);
-        metrics['diastolicBP'] =
-            (astronaut.vitals.diastolicBP + diaDelta).clamp(40.0, 130.0);
-        metrics['heartRate'] =
-            (astronaut.vitals.heartRate + hrDelta).clamp(40.0, 180.0);
-        metrics['capillaryRefillSeconds'] = astronaut.vitals.capillaryRefillSeconds;
+        metrics['systolicBP'] = astronaut.vitals.systolicBP.clamp(70.0, 200.0);
+        metrics['diastolicBP'] = astronaut.vitals.diastolicBP.clamp(40.0, 130.0);
+        metrics['heartRate'] = astronaut.vitals.heartRate.clamp(40.0, 180.0);
+        metrics['capillaryRefillSeconds'] =
+            astronaut.vitals.capillaryRefillSeconds;
         break;
 
       case 'DEV-ARED':
-        final calBonus = ((tick % 6) * 1.5).roundToDouble();
         metrics['deviceName'] = 'ARED (Resistencia)';
         metrics['durationMinutes'] = astronaut.exercise.durationMinutes;
-        metrics['caloriesBurned'] = astronaut.exercise.caloriesBurned + calBonus;
+        metrics['caloriesBurned'] = astronaut.exercise.caloriesBurned;
         metrics['targetReached'] = astronaut.exercise.targetReached;
         break;
 
       case 'DEV-CEVIS':
-        final calBonus = ((tick % 5) * 2.0).roundToDouble();
         metrics['deviceName'] = 'CEVIS (Bicicleta)';
         metrics['durationMinutes'] = astronaut.exercise.durationMinutes;
-        metrics['caloriesBurned'] = astronaut.exercise.caloriesBurned + calBonus;
+        metrics['caloriesBurned'] = astronaut.exercise.caloriesBurned;
         metrics['targetReached'] = astronaut.exercise.targetReached;
-        metrics['heartRate'] = astronaut.vitals.heartRate + 2.0;
+        // Sin incremento acumulativo artificial de FC; Bio-Monitor mide FC real.
         break;
 
       case 'DEV-ISTAT':
-        final gluDelta = math.sin(tick * 0.3) * 1.2;
-        final finalGlu =
-            (astronaut.vitals.bloodGlucose + gluDelta).clamp(50.0, 300.0);
-        metrics['bloodGlucose'] = double.parse(finalGlu.toStringAsFixed(1));
+        metrics['bloodGlucose'] = double.parse(
+            astronaut.vitals.bloodGlucose.clamp(50.0, 300.0).toStringAsFixed(1));
         metrics['spO2'] = astronaut.vitals.spO2;
         break;
 

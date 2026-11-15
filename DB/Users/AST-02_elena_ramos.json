@@ -11,7 +11,10 @@
   "linkedMachineIds": [
     "DEV-ASTROSKIN",
     "DEV-HERA",
+    "DEV-EPM",
+    "DEV-ARED",
     "DEV-CEVIS",
+    "DEV-ISTAT",
     "DEV-ACTIWATCH"
   ],
   "vitals": {
