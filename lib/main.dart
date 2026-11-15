@@ -1,7 +1,5 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import 'package:astramed/core/theme/space_theme.dart';
@@ -15,6 +13,8 @@ import 'package:astramed/features/agent/data/persistence/agent_hive_boxes.dart';
 import 'package:astramed/features/agent/presentation/agent_canvas_view.dart';
 import 'package:astramed/features/agent/presentation/agent_test_screen.dart';
 import 'package:astramed/features/agent/providers/agent_providers.dart';
+import 'package:astramed/features/apolo/presentation/apolo_home_screen.dart';
+import 'package:astramed/features/apolo/providers/apolo_providers.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 import 'package:astramed/features/crew/presentation/widgets/crew_sidebar_drawer.dart';
@@ -25,22 +25,37 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
   await AgentHiveBoxes.open();
-  runApp(const AstraMedApp());
+  runApp(const ApoloApp());
 }
 
-class AstraMedApp extends StatelessWidget {
-  const AstraMedApp({super.key});
+class ApoloApp extends StatelessWidget {
+  const ApoloApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return ProviderScope(
-      overrides: radiationIntegrationOverrides,
+      overrides: [...radiationIntegrationOverrides, ...apoloProviderOverrides],
       child: MaterialApp(
-        title: 'AstraMed | Space Health Engine',
+        title: 'APOLO',
         debugShowCheckedModeBanner: false,
         themeMode: ThemeMode.dark,
         darkTheme: SpaceTheme.darkTheme,
-        home: const AstraMedDashboard(),
+        home: const ApoloHomeShell(),
+      ),
+    );
+  }
+}
+
+/// Hosts the APOLO home screen as the app entry point and keeps the legacy
+/// clinical modules dashboard reachable from the top bar.
+class ApoloHomeShell extends StatelessWidget {
+  const ApoloHomeShell({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ApoloHomeScreen(
+      onOpenClinicalDashboard: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const AstraMedDashboard()),
       ),
     );
   }
@@ -259,17 +274,13 @@ class _AstraMedDashboardState extends ConsumerState<AstraMedDashboard> {
             },
           ),
 
-          // Acceso a APOLO (asistente de salud con mascota, análisis de orina).
-          // Es una página web empaquetada en web/apolo/, así que solo está
-          // disponible en la versión web.
-          if (kIsWeb)
+          // Volver a APOLO (pantalla principal) cuando el dashboard se abrió
+          // como una ruta secundaria desde la barra superior.
+          if (Navigator.of(context).canPop())
             IconButton(
-              tooltip: 'Abrir APOLO (asistente de salud)',
+              tooltip: 'Volver a APOLO',
               icon: const Icon(Icons.pets, color: SpaceTheme.cyan, size: 20),
-              onPressed: () => launchUrl(
-                Uri.base.resolve('apolo/index.html'),
-                webOnlyWindowName: '_self',
-              ),
+              onPressed: () => Navigator.of(context).maybePop(),
             ),
 
           // Indicador de modo 100% Offline

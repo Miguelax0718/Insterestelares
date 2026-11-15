@@ -19,6 +19,7 @@ import '../../03_microgravity/agent/sans_engine.dart';
 import '../../04_mental_health/agent/mental_health_skills.dart';
 import '../../05_clinical_triage/agent/proactive_monitor.dart';
 import '../../05_clinical_triage/agent/triage_agent_skills.dart';
+import '../../apolo/providers/apolo_providers.dart';
 import '../../crew/presentation/providers/crew_provider.dart';
 import '../../pharmacy/data/asset_pharmacy_inventory_repository.dart';
 import '../../pharmacy/domain/deterministic_medication_safety.dart';
@@ -265,6 +266,7 @@ final skillRegistryProvider = Provider<SkillRegistry>((ref) {
   final weather = ref.watch(donkiSpaceWeatherServiceProvider);
   final pharmacyRepo = ref.watch(pharmacyInventoryRepositoryProvider);
   final extraSkills = ref.watch(extraAgentSkillsProvider);
+  final apoloSkill = ref.watch(apoloUrineSkillProvider);
 
   return SkillRegistry([
     coreSkill(),
@@ -277,6 +279,7 @@ final skillRegistryProvider = Provider<SkillRegistry>((ref) {
     ...microgravitySkills(),
     ...mentalHealthSkills(),
     ...triageAgentSkills(),
+    apoloSkill,
     ...extraSkills,
   ]);
 });

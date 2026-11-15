@@ -24,10 +24,15 @@ Delivery: ask-on-risk; user authorized pushing in several commits. Runner: `~/de
 | ID | Specs | Route | Status | Commit |
 |----|-------|-------|--------|--------|
 | T1 | S3, S5 (domain + data + agent skill/tools) | delegated writer A (`lib/features/apolo/domain/**`, `data/**`, `agent/**`, `providers/**`, `test/features/apolo/domain_and_skill_test.dart`) | done (RED observed; 10/10 passed; analyze clean) | see git log `feat(apolo): add urine biomarker engine...` |
-| T2 | S2, S4, S5 (Flutter UI + dog painter + home wiring) | delegated writer B (`lib/features/apolo/presentation/**`, `test/features/apolo/presentation/**`) — wired to T1 + `main.dart` at seam | pending | — |
+| T2 | S2, S4, S5 (Flutter UI + dog painter + home wiring) | delegated writer B (`lib/features/apolo/presentation/**`, `test/features/apolo/presentation/**`) — wired to T1 + `main.dart` at seam | done (RED observed; 7/7 widget tests; analyze clean) | see git log `feat(apolo): add Flutter home screen with mascot, orbs, and detail sheet` |
+| T3 | S2 (seam: home + rebrand + skill registration), S5 | parent inline | done (274/274 tests; analyze 0 errors) | see git log `feat(apolo): make APOLO the app home screen` |
 
 Route evidence: Writer trigger (a) — two independent units with disjoint edit surfaces (domain/data/skill vs presentation/custom painters), launched together in one turn; parent wires `agent_providers.dart` + `main.dart` + platform titles at the seam.
 
 ## Log
 
 - **L1 (2026-11-15, user verbatim):** "Mi companera implemento el front en una seccion como Apolo, ahora toda la app se llamara Apolo y la pagina principal sera esa q se agrego, revisala conectala para que funcione con el sistema actual del agente. Despliega subagentes" -> chose Option 1 ("1").
+
+- **L2 (2026-11-15, seam):** T1 and T2 both returned green. Parent wired the seam: `ApoloApp` replaces `AstraMedApp` (`MaterialApp.title: 'APOLO'`, home `ApoloHomeShell` -> `ApoloHomeScreen`), `apoloProviderOverrides` merged into the `ProviderScope`, `ApoloUrineSkill` registered in `skillRegistryProvider`, the web-only `apolo/index.html` launcher replaced by a "Volver a APOLO" action on the pushed clinical dashboard, and display titles updated for web/Android/iOS/macOS (`pubspec` package name stays `astramed`).
+- **L3 (2026-11-15, evidence):** `flutter test` -> 274 passed, 3 skipped; `flutter analyze` -> 0 errors, 0 warnings (35 pre-existing info items); `test/widget_test.dart` updated to assert APOLO home + mascot + ask input, then open the clinical dashboard through `apolo_modules_button` and keep the original telemetry-config assertions.
+- **L4 (2026-11-15, pending follow-up):** T1 reported that `AgentConversationOrchestrator._runOfflineFallback` calls `DeterministicFlow.start(ctx)` without forwarding the first query, so the very first offline turn shows the skill greeting instead of acting on "I drank 500 ml". Tracked for a follow-up task; online flow is unaffected.
