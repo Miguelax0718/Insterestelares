@@ -1,15 +1,25 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math' as math;
+import 'dart:typed_data';
+
 import 'package:astramed/core/theme/space_theme.dart';
 import 'package:astramed/features/agent/application/component_registry.dart';
+import 'package:astramed/features/agent/data/remote_speech_to_text_service.dart';
+import 'package:astramed/features/agent/domain/agent_config.dart';
 import 'package:astramed/features/agent/domain/agent_contracts.dart';
 import 'package:astramed/features/agent/domain/agent_models.dart';
 import 'package:astramed/features/agent/domain/agent_ports.dart';
 import 'package:astramed/features/agent/presentation/agent_canvas_view.dart';
 import 'package:astramed/features/agent/presentation/component_widget_registry.dart';
+import 'package:astramed/features/agent/presentation/hands_free_widgets.dart';
 import 'package:astramed/features/agent/providers/agent_providers.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 class _FakeChatService implements AgentChatService {
   _FakeChatService(this._handler);
@@ -19,7 +29,8 @@ class _FakeChatService implements AgentChatService {
     Map<String, dynamic>? context,
     List<ToolSpec>? tools,
     List<String>? skillInstructions,
-  ) _handler;
+  )
+  _handler;
 
   @override
   Future<AgentReply> send(
@@ -27,8 +38,7 @@ class _FakeChatService implements AgentChatService {
     Map<String, dynamic>? context,
     List<ToolSpec>? tools,
     List<String>? skillInstructions,
-  }) =>
-      _handler(messages, context, tools, skillInstructions);
+  }) => _handler(messages, context, tools, skillInstructions);
 
   @override
   Stream<AgentStreamEvent> stream(
@@ -36,8 +46,7 @@ class _FakeChatService implements AgentChatService {
     Map<String, dynamic>? context,
     List<ToolSpec>? tools,
     List<String>? skillInstructions,
-  }) =>
-      const Stream.empty();
+  }) => const Stream.empty();
 }
 
 class _FakeSpeechToTextService implements SpeechToTextService {
@@ -54,8 +63,7 @@ class _FakeSpeechToTextService implements SpeechToTextService {
   Future<String> listen({
     String language = 'es',
     Duration maxDuration = const Duration(seconds: 15),
-  }) async =>
-      'Status check';
+  }) async => 'Status check';
 
   @override
   Future<void> startListening({String language = 'es'}) async {}
@@ -132,9 +140,7 @@ class _FakeFlagsStore implements AgentFlagsStore {
   Future<Map<String, Map<String, dynamic>>> allForAstronaut(
     String astronautId,
   ) async =>
-      Map<String, Map<String, dynamic>>.from(
-        _flags[astronautId] ?? const {},
-      );
+      Map<String, Map<String, dynamic>>.from(_flags[astronautId] ?? const {});
 
   @override
   Future<Map<String, dynamic>?> getFlag(String astronautId, String key) async =>
@@ -213,23 +219,26 @@ Widget _buildTestApp({
 
 void main() {
   group('AgentComponentWidgetRegistry', () {
-    test('registers all 22 ComponentIds and supports designer overrides (S7)', () {
-      final registry = AgentComponentWidgetRegistry();
-      for (final id in ComponentIds.all) {
-        expect(
-          registry.has(id),
-          isTrue,
-          reason: 'Missing placeholder widget builder for $id',
-        );
-      }
+    test(
+      'registers all 22 ComponentIds and supports designer overrides (S7)',
+      () {
+        final registry = AgentComponentWidgetRegistry();
+        for (final id in ComponentIds.all) {
+          expect(
+            registry.has(id),
+            isTrue,
+            reason: 'Missing placeholder widget builder for $id',
+          );
+        }
 
-      final customRegistry = registry.copyWithOverrides({
-        ComponentIds.vitalsCard: (context, vm, onSubmit, onDismiss) =>
-            Text('CUSTOM_DESIGNER_VITALS:${vm.title}'),
-      });
-      expect(customRegistry.has(ComponentIds.vitalsCard), isTrue);
-      expect(registry.has(ComponentIds.vitalsCard), isTrue);
-    });
+        final customRegistry = registry.copyWithOverrides({
+          ComponentIds.vitalsCard: (context, vm, onSubmit, onDismiss) =>
+              Text('CUSTOM_DESIGNER_VITALS:${vm.title}'),
+        });
+        expect(customRegistry.has(ComponentIds.vitalsCard), isTrue);
+        expect(registry.has(ComponentIds.vitalsCard), isTrue);
+      },
+    );
 
     testWidgets(
       'renders all 22 placeholder components, interactive callbacks, and dismiss',
@@ -247,7 +256,12 @@ void main() {
               'description': 'Test confirmation',
               'prompts': ['How did you sleep?'],
               'crew': [
-                {'name': 'Alex', 'risk_level': 'nominal', 'heart_rate': 70, 'spo2': 98},
+                {
+                  'name': 'Alex',
+                  'risk_level': 'nominal',
+                  'heart_rate': 70,
+                  'spo2': 98,
+                },
               ],
             },
           );
@@ -286,7 +300,8 @@ void main() {
                     title: 'SANS Grid',
                     props: const {'instruction': 'Check grid'},
                   ),
-                  onSubmit: (res) => submitted.add((ComponentIds.sansGrid, res)),
+                  onSubmit: (res) =>
+                      submitted.add((ComponentIds.sansGrid, res)),
                   onDismiss: () {},
                 ),
               ),
@@ -382,17 +397,16 @@ void main() {
           return const AgentReply(reply: 'Done.', model: 'm1');
         });
 
-        await tester.pumpWidget(_buildTestApp(overrides: baseOverrides(chat: chat)));
+        await tester.pumpWidget(
+          _buildTestApp(overrides: baseOverrides(chat: chat)),
+        );
         await tester.pumpAndSettle();
 
         // Visual silence when activeComponents is empty.
         final injectionZone = find.byKey(AgentCanvasView.injectionZoneKey);
         expect(injectionZone, findsOneWidget);
         expect(
-          find.descendant(
-            of: injectionZone,
-            matching: find.byType(Card),
-          ),
+          find.descendant(of: injectionZone, matching: find.byType(Card)),
           findsNothing,
         );
 
@@ -646,19 +660,15 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(container.read(selectedAstronautIdProvider), 'AST-01');
-        expect(
-          container.read(agentOrchestratorProvider).astronautId,
-          'AST-01',
-        );
+        expect(container.read(agentOrchestratorProvider).astronautId, 'AST-01');
 
-        await tester.tap(find.byKey(const ValueKey('crew_sidebar_item_AST-02')));
+        await tester.tap(
+          find.byKey(const ValueKey('crew_sidebar_item_AST-02')),
+        );
         await tester.pumpAndSettle();
 
         expect(container.read(selectedAstronautIdProvider), 'AST-02');
-        expect(
-          container.read(agentOrchestratorProvider).astronautId,
-          'AST-02',
-        );
+        expect(container.read(agentOrchestratorProvider).astronautId, 'AST-02');
       },
     );
 
@@ -725,15 +735,262 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.byKey(AgentCanvasView.crewSidebarKey), findsOneWidget);
-        await tester.tap(find.byKey(const ValueKey('crew_sidebar_item_AST-03')));
+        await tester.tap(
+          find.byKey(const ValueKey('crew_sidebar_item_AST-03')),
+        );
         await tester.pumpAndSettle();
 
         expect(container.read(selectedAstronautIdProvider), 'AST-03');
-        expect(
-          container.read(agentOrchestratorProvider).astronautId,
-          'AST-03',
+        expect(container.read(agentOrchestratorProvider).astronautId, 'AST-03');
+      },
+    );
+
+    testWidgets(
+      'hands-free toggle and listening indicator render via widget registry, default ON when permitted, and toggling OFF stops capture (S3, S4)',
+      (tester) async {
+        tester.view.physicalSize = const Size(1280, 800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() => tester.view.resetPhysicalSize());
+
+        final capture = _FakeCanvasAudioCapture(permitted: true);
+        final chat = _FakeChatService((_, _, _, _) async {
+          return const AgentReply(reply: 'Vitals nominal.', model: 'm1');
+        });
+        final mockHttp = MockClient((request) async {
+          if (request.url.path == '/v1/stt') {
+            return http.Response(
+              jsonEncode({
+                'text': 'Check crew status',
+                'language': 'en',
+                'duration_s': 0.8,
+              }),
+              200,
+            );
+          }
+          return http.Response('Not found', 404);
+        });
+
+        await tester.pumpWidget(
+          _buildTestApp(
+            overrides: [
+              agentConfigProvider.overrideWithValue(
+                const AgentConfig(
+                  baseUrl: 'https://gateway.test',
+                  apiKey: 'k1',
+                ),
+              ),
+              httpClientProvider.overrideWithValue(mockHttp),
+              audioCapturePortProvider.overrideWithValue(capture),
+              agentChatServiceProvider.overrideWithValue(chat),
+              textToSpeechServiceProvider.overrideWithValue(tts),
+              agentMemoryStoreProvider.overrideWithValue(memory),
+              agentAuditLogProvider.overrideWithValue(audit),
+              agentFlagsStoreProvider.overrideWithValue(flags),
+              agentConfirmationGateProvider.overrideWithValue(confirmGate),
+              medicationSafetyProvider.overrideWithValue(
+                _FakeMedicationSafety(),
+              ),
+            ],
+          ),
         );
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(AgentCanvasView.handsFreeToggleKey), findsOneWidget);
+        expect(
+          find.byKey(AgentCanvasView.listeningIndicatorKey),
+          findsOneWidget,
+        );
+        expect(capture.pcmStreamStarted, isTrue);
+        expect(find.textContaining('Listening'), findsOneWidget);
+
+        // Toggle hands-free OFF -> stops capture stream.
+        await tester.tap(find.byKey(AgentCanvasView.handsFreeToggleKey));
+        await tester.pumpAndSettle();
+
+        expect(capture.pcmStreamStopped, isTrue);
+        expect(find.text('Hands-Free Off'), findsOneWidget);
+        expect(find.text('Off (manual mode)'), findsOneWidget);
+
+        // Manual push-to-talk still works when hands-free is on:
+        // Re-enable hands-free first, tap mic to start PTT -> pauses hands-free,
+        // tap mic to stop PTT -> resumes hands-free.
+        await tester.tap(find.byKey(AgentCanvasView.handsFreeToggleKey));
+        await tester.pumpAndSettle();
+        capture.pcmStreamStopped = false;
+
+        await tester.tap(find.byKey(AgentCanvasView.micButtonKey));
+        await tester.pumpAndSettle();
+        expect(capture.pcmStreamStopped, isTrue);
+        expect(capture.manualStarted, isTrue);
+
+        capture.pcmStreamStarted = false;
+        await tester.tap(find.byKey(AgentCanvasView.micButtonKey));
+        await tester.pumpAndSettle();
+        expect(capture.pcmStreamStarted, isTrue);
+      },
+    );
+
+    testWidgets(
+      'hands-free toggle and listening indicator support custom designer overrides via componentWidgetOverridesProvider (S4)',
+      (tester) async {
+        tester.view.physicalSize = const Size(1280, 800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() => tester.view.resetPhysicalSize());
+
+        final capture = _FakeCanvasAudioCapture(permitted: true);
+        final chat = _FakeChatService((_, _, _, _) async {
+          return const AgentReply(reply: 'Nominal.', model: 'm1');
+        });
+
+        await tester.pumpWidget(
+          _buildTestApp(
+            overrides: [
+              agentConfigProvider.overrideWithValue(
+                const AgentConfig(
+                  baseUrl: 'https://gateway.test',
+                  apiKey: 'k1',
+                ),
+              ),
+              audioCapturePortProvider.overrideWithValue(capture),
+              agentChatServiceProvider.overrideWithValue(chat),
+              textToSpeechServiceProvider.overrideWithValue(tts),
+              agentMemoryStoreProvider.overrideWithValue(memory),
+              agentAuditLogProvider.overrideWithValue(audit),
+              agentFlagsStoreProvider.overrideWithValue(flags),
+              agentConfirmationGateProvider.overrideWithValue(confirmGate),
+              medicationSafetyProvider.overrideWithValue(
+                _FakeMedicationSafety(),
+              ),
+              componentWidgetOverridesProvider.overrideWithValue({
+                HandsFreeWidgetIds.toggle: (context, vm, onSubmit, _) {
+                  final toggleVm = vm as HandsFreeToggleViewModel;
+                  return TextButton(
+                    key: const ValueKey('custom_hands_free_toggle'),
+                    onPressed: () => onSubmit({'enabled': !toggleVm.enabled}),
+                    child: Text('CUSTOM_HF:${toggleVm.enabled}'),
+                  );
+                },
+                HandsFreeWidgetIds.listeningIndicator: (context, vm, _, _) {
+                  final indVm = vm as ListeningIndicatorViewModel;
+                  return Text(
+                    'CUSTOM_IND:${indVm.status.name}',
+                    key: const ValueKey('custom_listening_indicator'),
+                  );
+                },
+              }),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('CUSTOM_HF:true'), findsOneWidget);
+        expect(find.text('CUSTOM_IND:listening'), findsOneWidget);
+
+        await tester.tap(
+          find.byKey(const ValueKey('custom_hands_free_toggle')),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('CUSTOM_HF:false'), findsOneWidget);
+        expect(find.text('CUSTOM_IND:off'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'hands-free permission denied falls back to manual mode visibly in AgentCanvasView',
+      (tester) async {
+        tester.view.physicalSize = const Size(480, 800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() => tester.view.resetPhysicalSize());
+
+        final capture = _FakeCanvasAudioCapture(permitted: false);
+        final chat = _FakeChatService((_, _, _, _) async {
+          return const AgentReply(reply: 'Nominal.', model: 'm1');
+        });
+
+        await tester.pumpWidget(
+          _buildTestApp(
+            surfaceSize: const Size(480, 800),
+            overrides: [
+              agentConfigProvider.overrideWithValue(
+                const AgentConfig(
+                  baseUrl: 'https://gateway.test',
+                  apiKey: 'k1',
+                ),
+              ),
+              audioCapturePortProvider.overrideWithValue(capture),
+              agentChatServiceProvider.overrideWithValue(chat),
+              textToSpeechServiceProvider.overrideWithValue(tts),
+              agentMemoryStoreProvider.overrideWithValue(memory),
+              agentAuditLogProvider.overrideWithValue(audit),
+              agentFlagsStoreProvider.overrideWithValue(flags),
+              agentConfirmationGateProvider.overrideWithValue(confirmGate),
+              medicationSafetyProvider.overrideWithValue(
+                _FakeMedicationSafety(),
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(capture.pcmStreamStarted, isFalse);
+        expect(find.text('Hands-Free Off'), findsOneWidget);
+        expect(find.text('Mic permission denied'), findsOneWidget);
       },
     );
   });
+}
+
+class _FakeCanvasAudioCapture implements AudioCapturePort {
+  _FakeCanvasAudioCapture({required this.permitted});
+
+  bool permitted;
+  bool pcmStreamStarted = false;
+  bool pcmStreamStopped = false;
+  bool manualStarted = false;
+  StreamController<Uint8List>? _controller;
+
+  @override
+  Future<bool> hasPermission() async => permitted;
+
+  @override
+  Future<void> start() async {
+    manualStarted = true;
+  }
+
+  @override
+  Future<Uint8List> stop() async {
+    final pcm = Uint8List(3200);
+    final bd = ByteData.sublistView(pcm);
+    for (var i = 0; i < 1600; i++) {
+      bd.setInt16(
+        i * 2,
+        (4000 * math.sin(2 * math.pi * 440 * i / 16000)).round(),
+        Endian.little,
+      );
+    }
+    return Uint8List(44 + pcm.length)..setRange(44, 44 + pcm.length, pcm);
+  }
+
+  @override
+  Future<void> cancel() async {}
+
+  @override
+  Future<void> dispose() async {
+    await _controller?.close();
+  }
+
+  @override
+  Future<Stream<Uint8List>> startPcmStream() async {
+    pcmStreamStarted = true;
+    pcmStreamStopped = false;
+    _controller = StreamController<Uint8List>.broadcast();
+    return _controller!.stream;
+  }
+
+  @override
+  Future<void> stopPcmStream() async {
+    pcmStreamStopped = true;
+    await _controller?.close();
+    _controller = null;
+  }
 }

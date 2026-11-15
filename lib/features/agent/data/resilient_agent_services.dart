@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../domain/agent_exception.dart';
 import '../domain/agent_models.dart';
 import '../domain/agent_ports.dart';
@@ -213,5 +215,76 @@ class ResilientTextToSpeechService implements TextToSpeechService {
   Future<void> dispose() async {
     await _remote.dispose();
     await _local.dispose();
+  }
+}
+
+/// Non-breaking [TextToSpeechService] wrapper that exposes [TtsSpeakingSignal]
+/// so hands-free capture can pause/ignore audio while TTS output is active.
+class SpeakingTrackedTextToSpeechService
+    implements TextToSpeechService, TtsSpeakingSignal {
+  SpeakingTrackedTextToSpeechService({
+    required this._inner,
+    this.disposeInner = false,
+  });
+
+  final TextToSpeechService _inner;
+  final bool disposeInner;
+
+  final StreamController<bool> _speakingController =
+      StreamController<bool>.broadcast();
+  int _activeSpeaks = 0;
+  bool _isSpeaking = false;
+
+  @override
+  bool get isSpeaking => _isSpeaking;
+
+  @override
+  Stream<bool> get isSpeakingStream => _speakingController.stream;
+
+  void _setSpeaking(bool value) {
+    if (_isSpeaking == value) {
+      return;
+    }
+    _isSpeaking = value;
+    if (!_speakingController.isClosed) {
+      _speakingController.add(value);
+    }
+  }
+
+  @override
+  Future<void> speak(
+    String text, {
+    String? voice,
+    String language = 'en-US',
+  }) async {
+    _activeSpeaks++;
+    _setSpeaking(true);
+    try {
+      await _inner.speak(text, voice: voice, language: language);
+    } finally {
+      if (_activeSpeaks > 0) {
+        _activeSpeaks--;
+      }
+      if (_activeSpeaks == 0) {
+        _setSpeaking(false);
+      }
+    }
+  }
+
+  @override
+  Future<void> stop() async {
+    _activeSpeaks = 0;
+    _setSpeaking(false);
+    await _inner.stop();
+  }
+
+  @override
+  Future<void> dispose() async {
+    _activeSpeaks = 0;
+    _setSpeaking(false);
+    await _speakingController.close();
+    if (disposeInner) {
+      await _inner.dispose();
+    }
   }
 }

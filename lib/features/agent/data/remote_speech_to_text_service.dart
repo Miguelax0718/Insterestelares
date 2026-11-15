@@ -14,6 +14,12 @@ abstract interface class AudioCapturePort {
   Future<Uint8List> stop();
   Future<void> cancel();
   Future<void> dispose();
+
+  /// Starts a raw PCM16 mono 16 kHz audio stream for continuous VAD processing.
+  Future<Stream<Uint8List>> startPcmStream();
+
+  /// Stops an active continuous PCM stream.
+  Future<void> stopPcmStream();
 }
 
 class RecordAudioCapture implements AudioCapturePort {
@@ -25,6 +31,14 @@ class RecordAudioCapture implements AudioCapturePort {
 
   static const int _sampleRate = 16000;
   static const int _channels = 1;
+
+  static const RecordConfig _pcmRecordConfig = RecordConfig(
+    encoder: AudioEncoder.pcm16bits,
+    sampleRate: _sampleRate,
+    numChannels: _channels,
+    echoCancel: true,
+    noiseSuppress: true,
+  );
 
   AudioRecorder get _instance => _recorder ??= AudioRecorder();
 
@@ -44,14 +58,33 @@ class RecordAudioCapture implements AudioCapturePort {
     await _subscription?.cancel();
     _pcmBuffer.clear();
 
-    final stream = await recorder.startStream(
-      const RecordConfig(
-        encoder: AudioEncoder.pcm16bits,
-        sampleRate: _sampleRate,
-        numChannels: _channels,
-      ),
-    );
+    final stream = await recorder.startStream(_pcmRecordConfig);
     _subscription = stream.listen(_pcmBuffer.addAll);
+  }
+
+  @override
+  Future<Stream<Uint8List>> startPcmStream() async {
+    final recorder = _instance;
+    final permitted = await recorder.hasPermission();
+    if (!permitted) {
+      throw const AgentApiException(
+        code: AgentErrorCode.unknown,
+        message: 'Microphone permission denied.',
+      );
+    }
+    await _subscription?.cancel();
+    _subscription = null;
+    _pcmBuffer.clear();
+
+    return recorder.startStream(_pcmRecordConfig);
+  }
+
+  @override
+  Future<void> stopPcmStream() async {
+    final recorder = _recorder;
+    if (recorder != null) {
+      await recorder.stop();
+    }
   }
 
   @override
@@ -104,12 +137,30 @@ class RemoteSpeechToTextService implements SpeechToTextService {
   String _activeLanguage = 'en';
   Completer<void>? _listenCompleter;
 
+  AudioCapturePort get capture => _capture;
+
   @override
   Future<bool> isAvailable() async {
     if (!_client.config.isConfigured) {
       return false;
     }
     return _capture.hasPermission();
+  }
+
+  Future<String> transcribeWav(
+    Uint8List wavBytes, {
+    String language = 'en',
+  }) async {
+    if (wavBytes.lengthInBytes <= 44) {
+      return '';
+    }
+    final result = await _client.transcribe(
+      wavBytes,
+      filename: 'recording.wav',
+      mimeType: 'audio/wav',
+      language: language,
+    );
+    return result.text;
   }
 
   @override
@@ -124,16 +175,7 @@ class RemoteSpeechToTextService implements SpeechToTextService {
       _listenCompleter!.complete();
     }
     final wavBytes = await _capture.stop();
-    if (wavBytes.lengthInBytes <= 44) {
-      return '';
-    }
-    final result = await _client.transcribe(
-      wavBytes,
-      filename: 'recording.wav',
-      mimeType: 'audio/wav',
-      language: _activeLanguage,
-    );
-    return result.text;
+    return transcribeWav(wavBytes, language: _activeLanguage);
   }
 
   @override

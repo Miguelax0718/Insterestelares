@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:math' as math;
+import 'dart:typed_data';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
@@ -22,6 +25,7 @@ import '../../pharmacy/domain/pharmacy_inventory_repository.dart';
 import '../application/agent_conversation_controller.dart';
 import '../application/component_registry.dart';
 import '../application/core_tools.dart';
+import '../application/hands_free_controller.dart';
 import '../application/skill_registry.dart';
 import '../data/agent_api_client.dart';
 import '../data/local_speech_to_text_service.dart';
@@ -74,9 +78,14 @@ final agentApiClientProvider = Provider<AgentApiClient>((ref) {
   return AgentApiClient(config: config, client: client);
 });
 
+final audioCapturePortProvider = Provider<AudioCapturePort>(
+  (ref) => RecordAudioCapture(),
+);
+
 final remoteSpeechToTextProvider = Provider<SpeechToTextService>((ref) {
   final service = RemoteSpeechToTextService(
     client: ref.watch(agentApiClientProvider),
+    capture: ref.watch(audioCapturePortProvider),
   );
   ref.onDispose(service.dispose);
   return service;
@@ -100,6 +109,7 @@ final speechToTextServiceProvider = Provider<SpeechToTextService>((ref) {
 final remoteTextToSpeechProvider = Provider<TextToSpeechService>((ref) {
   final service = RemoteTextToSpeechService(
     client: ref.watch(agentApiClientProvider),
+    playback: _CompletionAwareAudioPlayback(),
   );
   ref.onDispose(service.dispose);
   return service;
@@ -119,6 +129,63 @@ final textToSpeechServiceProvider = Provider<TextToSpeechService>((ref) {
     isRemoteConfigured: config.isConfigured,
   );
 });
+
+final trackedTextToSpeechProvider =
+    Provider<SpeakingTrackedTextToSpeechService>((ref) {
+      final inner = ref.watch(textToSpeechServiceProvider);
+      final tracked = SpeakingTrackedTextToSpeechService(inner: inner);
+      ref.onDispose(() {
+        unawaited(tracked.dispose());
+      });
+      return tracked;
+    });
+
+final agentVoiceRepliesEnabledProvider = StateProvider<bool>((ref) => true);
+
+final handsFreeControllerProvider =
+    StateNotifierProvider<HandsFreeController, HandsFreeState>((ref) {
+      final config = ref.watch(agentConfigProvider);
+      final sttService = ref.watch(speechToTextServiceProvider);
+      final trackedTts = ref.watch(trackedTextToSpeechProvider);
+
+      AudioCapturePort? capture;
+      Future<String> Function(Uint8List wavBytes, {String language})?
+      transcribeRemoteWav;
+      ContinuousSpeechToTextService? localContinuousStt;
+
+      if (sttService is ResilientSpeechToTextService) {
+        capture = ref.watch(audioCapturePortProvider);
+        final remote = ref.watch(remoteSpeechToTextProvider);
+        if (remote is RemoteSpeechToTextService) {
+          transcribeRemoteWav = remote.transcribeWav;
+        }
+        final local = ref.watch(localSpeechToTextProvider);
+        if (local is ContinuousSpeechToTextService) {
+          localContinuousStt = local as ContinuousSpeechToTextService;
+        }
+      } else {
+        if (sttService is AudioCapturePort) {
+          capture = sttService as AudioCapturePort;
+        }
+        if (sttService is ContinuousSpeechToTextService) {
+          localContinuousStt = sttService as ContinuousSpeechToTextService;
+        }
+      }
+
+      return HandsFreeController(
+        capture: capture,
+        transcribeRemoteWav: transcribeRemoteWav,
+        localContinuousStt: localContinuousStt,
+        isRemoteConfigured: config.isConfigured,
+        speakingSignal: trackedTts,
+        onTranscript: (transcript) async {
+          final speakReply = ref.read(agentVoiceRepliesEnabledProvider);
+          await ref
+              .read(agentOrchestratorProvider.notifier)
+              .sendUserMessage(transcript, speakReply: speakReply);
+        },
+      );
+    });
 
 final agentChatServiceProvider = Provider<AgentChatService>((ref) {
   final config = ref.watch(agentConfigProvider);
@@ -370,12 +437,16 @@ final agentConfirmationGateProvider = Provider<ConfirmationGate>((ref) {
   return ConfirmationGateImpl(auditLog: auditLog, uiSink: uiSink);
 });
 
+final proactiveAlertStoreProvider = Provider<ProactiveAlertStore>(
+  (ref) => ProactiveAlertStore(),
+);
+
 final agentOrchestratorProvider =
     StateNotifierProvider<AgentConversationController, AgentSessionState>((
       ref,
     ) {
       final chat = ref.watch(agentChatServiceProvider);
-      final tts = ref.watch(textToSpeechServiceProvider);
+      final tts = ref.watch(trackedTextToSpeechProvider);
       final skillRegistry = ref.watch(skillRegistryProvider);
       final componentRegistry = ref.watch(componentRegistryProvider);
       final memory = ref.watch(agentMemoryStoreProvider);
@@ -385,6 +456,7 @@ final agentOrchestratorProvider =
       final baseGate = ref.watch(agentConfirmationGateProvider);
       final delegatingSink = ref.watch(_delegatingUiSinkProvider);
       final initialAstronautId = ref.read(selectedAstronautIdProvider);
+      final alertStore = ref.watch(proactiveAlertStoreProvider);
 
       late final AgentConversationController controller;
       final syncedGate = _ControllerSyncConfirmationGate(
@@ -399,6 +471,7 @@ final agentOrchestratorProvider =
         skillRegistry: skillRegistry,
         componentRegistry: componentRegistry,
         initialAstronautId: initialAstronautId,
+        alertStore: alertStore,
         contextFactory: (astronautId, ui) {
           delegatingSink.delegate = ui;
           return ToolContext(
@@ -431,9 +504,11 @@ final proactiveMonitorProvider = Provider<ProactiveMonitor>((ref) {
   final flags = ref.watch(agentFlagsStoreProvider);
   final memory = ref.watch(agentMemoryStoreProvider);
   final weather = ref.watch(donkiSpaceWeatherServiceProvider);
+  final alertStore = ref.watch(proactiveAlertStoreProvider);
 
   final monitor = ProactiveMonitor(
     notifier: notifier,
+    alertStore: alertStore,
     orchestrator: controller.orchestrator,
     crewReader: () => ref.read(crewMembersProvider),
     spaceWeatherReader: weather.fetchLatest,
@@ -697,5 +772,90 @@ class _InMemoryAgentFlagsStore implements AgentFlagsStore {
       for (final entry in map.entries)
         entry.key: Map<String, dynamic>.from(entry.value),
     };
+  }
+}
+
+class _CompletionAwareAudioPlayback implements AudioPlaybackPort {
+  _CompletionAwareAudioPlayback();
+
+  AudioPlayer? _player;
+  Completer<void>? _activeCompleter;
+
+  AudioPlayer get _instance => _player ??= AudioPlayer();
+
+  Duration _estimateTimeout(Uint8List wavBytes) {
+    if (wavBytes.lengthInBytes > 44) {
+      final header = ByteData.sublistView(wavBytes, 0, 44);
+      final byteRate = header.getUint32(28, Endian.little);
+      if (byteRate > 0) {
+        final seconds = ((wavBytes.lengthInBytes - 44) / byteRate).ceil() + 5;
+        return Duration(seconds: math.max(10, math.min(seconds, 120)));
+      }
+    }
+    return const Duration(seconds: 45);
+  }
+
+  void _completeActive() {
+    final c = _activeCompleter;
+    if (c != null && !c.isCompleted) {
+      c.complete();
+    }
+    _activeCompleter = null;
+  }
+
+  @override
+  Future<void> playWav(Uint8List wavBytes) async {
+    final player = _instance;
+    _completeActive();
+    final completer = Completer<void>();
+    _activeCompleter = completer;
+
+    late final StreamSubscription<void> completeSub;
+    late final StreamSubscription<PlayerState> stateSub;
+
+    completeSub = player.onPlayerComplete.listen((_) {
+      if (!completer.isCompleted) completer.complete();
+    });
+    stateSub = player.onPlayerStateChanged.listen((state) {
+      if ((state == PlayerState.completed ||
+              state == PlayerState.stopped ||
+              state == PlayerState.disposed) &&
+          !completer.isCompleted) {
+        completer.complete();
+      }
+    });
+
+    try {
+      await player.play(BytesSource(wavBytes, mimeType: 'audio/wav'));
+      await completer.future.timeout(
+        _estimateTimeout(wavBytes),
+        onTimeout: () {},
+      );
+    } finally {
+      await completeSub.cancel();
+      await stateSub.cancel();
+      if (identical(_activeCompleter, completer)) {
+        _activeCompleter = null;
+      }
+    }
+  }
+
+  @override
+  Future<void> stop() async {
+    _completeActive();
+    final player = _player;
+    if (player != null) {
+      await player.stop();
+    }
+  }
+
+  @override
+  Future<void> dispose() async {
+    _completeActive();
+    final player = _player;
+    _player = null;
+    if (player != null) {
+      await player.dispose();
+    }
   }
 }

@@ -413,4 +413,60 @@ void main() {
       },
     );
   });
+
+  group('SpeakingTrackedTextToSpeechService', () {
+    test(
+      'tracks isSpeaking and emits stream transitions across speak and stop',
+      () async {
+        final gate = Completer<void>();
+        final inner = _BlockingFakeTts(gate);
+        final tracked = SpeakingTrackedTextToSpeechService(inner: inner);
+        addTearDown(tracked.dispose);
+
+        final events = <bool>[];
+        final sub = tracked.isSpeakingStream.listen(events.add);
+        addTearDown(sub.cancel);
+
+        expect(tracked.isSpeaking, isFalse);
+        final speakFuture = tracked.speak('Oxygen nominal');
+        await Future<void>.delayed(Duration.zero);
+        expect(tracked.isSpeaking, isTrue);
+
+        gate.complete();
+        await speakFuture;
+        await Future<void>.delayed(Duration.zero);
+
+        expect(tracked.isSpeaking, isFalse);
+        expect(events, [true, false]);
+
+        // stop() resets speaking state immediately.
+        final gate2 = Completer<void>();
+        final inner2 = _BlockingFakeTts(gate2);
+        final tracked2 = SpeakingTrackedTextToSpeechService(inner: inner2);
+        addTearDown(tracked2.dispose);
+        unawaited(tracked2.speak('Long alert'));
+        await Future<void>.delayed(Duration.zero);
+        expect(tracked2.isSpeaking, isTrue);
+        await tracked2.stop();
+        expect(tracked2.isSpeaking, isFalse);
+        gate2.complete();
+      },
+    );
+  });
+}
+
+class _BlockingFakeTts implements TextToSpeechService {
+  _BlockingFakeTts(this.gate);
+
+  final Completer<void> gate;
+
+  @override
+  Future<void> dispose() async {}
+
+  @override
+  Future<void> speak(String text, {String? voice, String language = 'en-US'}) =>
+      gate.future;
+
+  @override
+  Future<void> stop() async {}
 }

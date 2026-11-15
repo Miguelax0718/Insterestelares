@@ -40,3 +40,24 @@ abstract interface class TextToSpeechService {
 
   Future<void> dispose();
 }
+
+/// Optional speaking-state signal exposed by TTS wrappers/services so
+/// hands-free capture can avoid self-transcription while the agent speaks.
+abstract interface class TtsSpeakingSignal {
+  bool get isSpeaking;
+
+  Stream<bool> get isSpeakingStream;
+}
+
+/// Optional continuous listening capability for on-device STT fallback.
+abstract interface class ContinuousSpeechToTextService {
+  Future<bool> isAvailable();
+
+  Future<void> startContinuous({
+    String language = 'en',
+    required void Function(String transcript) onTranscript,
+    void Function(Object error)? onError,
+  });
+
+  Future<void> stopContinuous();
+}

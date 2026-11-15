@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import 'package:astramed/core/theme/space_theme.dart';
 
+import '../application/hands_free_controller.dart';
 import '../domain/agent_contracts.dart';
+import 'hands_free_widgets.dart';
 
 /// Builder signature for any visual widget bound to an agent component id.
 ///
@@ -92,6 +94,53 @@ class AgentComponentWidgetRegistry {
     register(ComponentIds.diaryRecorder, _buildDiaryRecorder);
     register(ComponentIds.recommendations, _buildRecommendations);
     register(ComponentIds.confirmAction, _buildConfirmAction);
+    register(HandsFreeWidgetIds.toggle, _buildHandsFreeToggle);
+    register(HandsFreeWidgetIds.listeningIndicator, _buildListeningIndicator);
+  }
+
+  static Widget _buildHandsFreeToggle(
+    BuildContext context,
+    AgentViewModel vm,
+    void Function(Map<String, dynamic>) onSubmit,
+    VoidCallback onDismiss,
+  ) {
+    final toggleVm = vm is HandsFreeToggleViewModel
+        ? vm
+        : HandsFreeToggleViewModel(
+            enabled: vm.toProps()['enabled'] == true,
+            status: HandsFreeStatus.values.firstWhere(
+              (s) => s.name == vm.toProps()['status'],
+              orElse: () => HandsFreeStatus.off,
+            ),
+            permissionDenied: vm.toProps()['permission_denied'] == true,
+            supported: vm.toProps()['supported'] != false,
+            errorMessage: vm.toProps()['error_message']?.toString(),
+          );
+    return HandsFreeTogglePlaceholder(
+      viewModel: toggleVm,
+      onToggle: (nextEnabled) => onSubmit({'enabled': nextEnabled}),
+    );
+  }
+
+  static Widget _buildListeningIndicator(
+    BuildContext context,
+    AgentViewModel vm,
+    void Function(Map<String, dynamic>) onSubmit,
+    VoidCallback onDismiss,
+  ) {
+    final indVm = vm is ListeningIndicatorViewModel
+        ? vm
+        : ListeningIndicatorViewModel(
+            status: HandsFreeStatus.values.firstWhere(
+              (s) => s.name == vm.toProps()['status'],
+              orElse: () => HandsFreeStatus.off,
+            ),
+            handsFreeEnabled: vm.toProps()['hands_free_enabled'] == true,
+            manualListening: vm.toProps()['manual_listening'] == true,
+            usingLocalFallback: vm.toProps()['using_local_fallback'] == true,
+            errorMessage: vm.toProps()['error_message']?.toString(),
+          );
+    return ListeningIndicatorPlaceholder(viewModel: indVm);
   }
 
   static Widget _buildVitalsCard(

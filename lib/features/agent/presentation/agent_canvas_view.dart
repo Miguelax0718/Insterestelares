@@ -9,6 +9,7 @@ import '../application/agent_conversation_controller.dart';
 import '../domain/agent_contracts.dart';
 import '../domain/agent_models.dart';
 import '../providers/agent_providers.dart';
+import 'hands_free_widgets.dart';
 
 /// Primary autonomous clinical agent canvas (`Plan de Arquitectura Agente.md` §2).
 ///
@@ -24,6 +25,12 @@ class AgentCanvasView extends ConsumerStatefulWidget {
   static const ValueKey<String> sendButtonKey = ValueKey('agent_send_button');
   static const ValueKey<String> micButtonKey = ValueKey('agent_mic_button');
   static const ValueKey<String> ttsToggleKey = ValueKey('agent_tts_toggle');
+  static const ValueKey<String> handsFreeToggleKey = ValueKey(
+    HandsFreeWidgetIds.toggle,
+  );
+  static const ValueKey<String> listeningIndicatorKey = ValueKey(
+    HandsFreeWidgetIds.listeningIndicator,
+  );
   static const ValueKey<String> statusIndicatorKey = ValueKey(
     'agent_status_indicator',
   );
@@ -47,11 +54,20 @@ class _AgentCanvasViewState extends ConsumerState<AgentCanvasView> {
       Set<AgentViewModel>.identity();
 
   bool _listening = false;
-  bool _speakReplies = true;
   bool _transcriptExpanded = false;
   String? _voiceError;
 
   AgentConversationController? _controllerRef;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(handsFreeControllerProvider.notifier).initialize();
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -76,18 +92,21 @@ class _AgentCanvasViewState extends ConsumerState<AgentCanvasView> {
     }
     _inputController.clear();
     setState(() => _voiceError = null);
+    final speakReplies = ref.read(agentVoiceRepliesEnabledProvider);
     await ref
         .read(agentOrchestratorProvider.notifier)
-        .sendUserMessage(text, speakReply: _speakReplies);
+        .sendUserMessage(text, speakReply: speakReplies);
   }
 
   Future<void> _toggleListening() async {
     final stt = ref.read(speechToTextServiceProvider);
-    final tts = ref.read(textToSpeechServiceProvider);
+    final tts = ref.read(trackedTextToSpeechProvider);
+    final handsFree = ref.read(handsFreeControllerProvider.notifier);
     setState(() => _voiceError = null);
 
     try {
       if (!_listening) {
+        await handsFree.pauseForManualInput();
         await tts.stop();
         await stt.startListening(language: 'en');
         if (mounted) {
@@ -99,17 +118,27 @@ class _AgentCanvasViewState extends ConsumerState<AgentCanvasView> {
       if (mounted) {
         setState(() => _listening = false);
       }
-      final transcript = await stt.stopListening();
-      if (transcript.trim().isEmpty) {
-        if (mounted) {
-          setState(() => _voiceError = 'No speech detected.');
+      try {
+        final transcript = await stt.stopListening();
+        await handsFree.resumeAfterManualInput();
+        if (transcript.trim().isEmpty) {
+          if (mounted) {
+            setState(() => _voiceError = 'No speech detected.');
+          }
+          return;
         }
-        return;
+        final speakReplies = ref.read(agentVoiceRepliesEnabledProvider);
+        await ref
+            .read(agentOrchestratorProvider.notifier)
+            .sendUserMessage(transcript, speakReply: speakReplies);
+      } catch (e) {
+        await handsFree.resumeAfterManualInput();
+        rethrow;
       }
-      await ref
-          .read(agentOrchestratorProvider.notifier)
-          .sendUserMessage(transcript, speakReply: _speakReplies);
     } catch (e) {
+      if (!_listening) {
+        await handsFree.resumeAfterManualInput();
+      }
       if (mounted) {
         setState(() {
           _listening = false;
@@ -120,11 +149,11 @@ class _AgentCanvasViewState extends ConsumerState<AgentCanvasView> {
   }
 
   Future<void> _toggleTtsMute() async {
-    final next = !_speakReplies;
-    setState(() => _speakReplies = next);
+    final next = !ref.read(agentVoiceRepliesEnabledProvider);
+    ref.read(agentVoiceRepliesEnabledProvider.notifier).state = next;
     if (!next) {
       try {
-        await ref.read(textToSpeechServiceProvider).stop();
+        await ref.read(trackedTextToSpeechProvider).stop();
       } catch (_) {
         // Ignore stop errors when muting.
       }
@@ -175,10 +204,27 @@ class _AgentCanvasViewState extends ConsumerState<AgentCanvasView> {
     ref.watch(proactiveMonitorProvider);
     ref.watch(agentNotifierProvider);
     final session = ref.watch(agentOrchestratorProvider);
+    final handsFreeState = ref.watch(handsFreeControllerProvider);
+    final speakReplies = ref.watch(agentVoiceRepliesEnabledProvider);
     final crew = ref.watch(crewMembersProvider);
     final activeAstronaut = ref.watch(selectedAstronautProvider);
     final mission = ref.watch(missionContextProvider);
     final widgetRegistry = ref.watch(componentWidgetRegistryProvider);
+
+    final handsFreeToggleVm = HandsFreeToggleViewModel(
+      enabled: handsFreeState.enabled,
+      status: handsFreeState.status,
+      permissionDenied: handsFreeState.permissionDenied,
+      supported: handsFreeState.supported,
+      errorMessage: handsFreeState.errorMessage,
+    );
+    final listeningIndicatorVm = ListeningIndicatorViewModel(
+      status: handsFreeState.status,
+      handsFreeEnabled: handsFreeState.enabled,
+      manualListening: _listening,
+      usingLocalFallback: handsFreeState.usingLocalFallback,
+      errorMessage: handsFreeState.errorMessage,
+    );
 
     _pruneDismissed(session.activeComponents);
     final visibleComponents = session.activeComponents
@@ -312,25 +358,60 @@ class _AgentCanvasViewState extends ConsumerState<AgentCanvasView> {
                           ),
                         ),
                       ),
-                      if (_voiceError != null || session.lastError != null)
+                      if (_voiceError != null ||
+                          session.lastError != null ||
+                          handsFreeState.errorMessage != null)
                         Padding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 20,
                             vertical: 4,
                           ),
                           child: Text(
-                            _voiceError ?? session.lastError!,
+                            _voiceError ??
+                                session.lastError ??
+                                handsFreeState.errorMessage!,
                             style: const TextStyle(
                               fontSize: 12,
                               color: SpaceTheme.dangerRed,
                             ),
                           ),
                         ),
+                      Container(
+                        width: double.infinity,
+                        color: SpaceTheme.surface,
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            widgetRegistry.build(
+                              context,
+                              handsFreeToggleVm,
+                              onSubmit: (result) {
+                                final next =
+                                    result['enabled'] as bool? ??
+                                    !handsFreeState.enabled;
+                                ref
+                                    .read(handsFreeControllerProvider.notifier)
+                                    .setEnabled(next);
+                              },
+                              onDismiss: () {},
+                            ),
+                            widgetRegistry.build(
+                              context,
+                              listeningIndicatorVm,
+                              onSubmit: (_) {},
+                              onDismiss: () {},
+                            ),
+                          ],
+                        ),
+                      ),
                       _VoiceAndTextBar(
                         controller: _inputController,
                         busy: session.busy,
                         listening: _listening,
-                        speakReplies: _speakReplies,
+                        speakReplies: speakReplies,
                         onToggleMic: _toggleListening,
                         onToggleTts: _toggleTtsMute,
                         onSend: _sendText,

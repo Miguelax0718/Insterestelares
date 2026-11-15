@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -13,14 +14,18 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 class FakeAudioCapture implements AudioCapturePort {
-  FakeAudioCapture(this.wavBytes);
+  FakeAudioCapture(this.wavBytes, {this.permitted = true});
 
   final Uint8List wavBytes;
+  bool permitted;
   bool started = false;
   bool stopped = false;
+  bool pcmStreamStarted = false;
+  bool pcmStreamStopped = false;
+  StreamController<Uint8List>? _pcmController;
 
   @override
-  Future<bool> hasPermission() async => true;
+  Future<bool> hasPermission() async => permitted;
 
   @override
   Future<void> start() async {
@@ -37,7 +42,26 @@ class FakeAudioCapture implements AudioCapturePort {
   Future<void> cancel() async {}
 
   @override
-  Future<void> dispose() async {}
+  Future<void> dispose() async {
+    await _pcmController?.close();
+  }
+
+  @override
+  Future<Stream<Uint8List>> startPcmStream() async {
+    pcmStreamStarted = true;
+    pcmStreamStopped = false;
+    _pcmController = StreamController<Uint8List>.broadcast();
+    return _pcmController!.stream;
+  }
+
+  @override
+  Future<void> stopPcmStream() async {
+    pcmStreamStopped = true;
+    await _pcmController?.close();
+    _pcmController = null;
+  }
+
+  void emitPcm(Uint8List bytes) => _pcmController?.add(bytes);
 }
 
 class FakeAudioPlayback implements AudioPlaybackPort {
@@ -60,6 +84,10 @@ class FakeAudioPlayback implements AudioPlaybackPort {
 
 class FakeSpeechDriver implements SpeechToTextDriver {
   String? lastLocale;
+  int listenCalls = 0;
+  int stopCalls = 0;
+  void Function(String status)? _onStatus;
+  void Function(String error)? _onError;
   late void Function(String words, bool isFinal) _onResult;
 
   @override
@@ -67,6 +95,8 @@ class FakeSpeechDriver implements SpeechToTextDriver {
     void Function(String status)? onStatus,
     void Function(String error)? onError,
   }) async {
+    _onStatus = onStatus;
+    _onError = onError;
     return true;
   }
 
@@ -76,6 +106,7 @@ class FakeSpeechDriver implements SpeechToTextDriver {
     required Duration listenFor,
     required void Function(String words, bool isFinal) onResult,
   }) async {
+    listenCalls++;
     lastLocale = localeId;
     _onResult = onResult;
   }
@@ -84,8 +115,18 @@ class FakeSpeechDriver implements SpeechToTextDriver {
     _onResult(words, isFinal);
   }
 
+  void emitStatus(String status) {
+    _onStatus?.call(status);
+  }
+
+  void emitError(String error) {
+    _onError?.call(error);
+  }
+
   @override
-  Future<void> stop() async {}
+  Future<void> stop() async {
+    stopCalls++;
+  }
 
   @override
   Future<void> cancel() async {}
@@ -216,4 +257,62 @@ void main() {
       expect(driver.spoken, ['Check pulse']);
     },
   );
+
+  test('RemoteSpeechToTextService transcribeWav uploads WAV and skips empty headers', () async {
+    final capture = FakeAudioCapture(Uint8List(0));
+    var requests = 0;
+    final client = AgentApiClient(
+      config: const AgentConfig(baseUrl: 'https://gw.test', apiKey: 'k'),
+      client: MockClient((request) async {
+        requests++;
+        return http.Response(
+          jsonEncode({
+            'text': 'Vitals checked',
+            'language': 'en',
+            'duration_s': 0.9,
+          }),
+          200,
+        );
+      }),
+    );
+
+    final service = RemoteSpeechToTextService(client: client, capture: capture);
+
+    expect(await service.transcribeWav(buildWavBytes(Uint8List(0))), '');
+    expect(requests, 0);
+
+    final wav = buildWavBytes(Uint8List.fromList([1, 2, 3, 4]));
+    expect(await service.transcribeWav(wav, language: 'en'), 'Vitals checked');
+    expect(requests, 1);
+  });
+
+  test('LocalSpeechToTextService continuous listening emits results and restarts across cycles', () async {
+    final driver = FakeSpeechDriver();
+    final service = LocalSpeechToTextService(
+      driver: driver,
+      continuousRestartDelay: Duration.zero,
+    );
+
+    final transcripts = <String>[];
+    await service.startContinuous(
+      language: 'en',
+      onTranscript: transcripts.add,
+    );
+    expect(driver.listenCalls, 1);
+
+    driver.emitResult('First phrase', isFinal: true);
+    driver.emitStatus('done');
+    await Future<void>.delayed(Duration.zero);
+
+    expect(driver.listenCalls, 2);
+    expect(transcripts, ['First phrase']);
+
+    // Benign timeout should restart listening without failing.
+    driver.emitError('error_no_match');
+    await Future<void>.delayed(Duration.zero);
+    expect(driver.listenCalls, 3);
+
+    await service.stopContinuous();
+    expect(driver.stopCalls, 1);
+  });
 }
