@@ -119,3 +119,6 @@ DB/samples/biomarkers/
 
 # Local AI agent tooling metadata (regenerated per machine)
 .atl/
+
+# Vercel CLI link metadata
+.vercel/
