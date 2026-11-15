@@ -8,6 +8,7 @@ import 'package:astramed/features/01_general_health/presentation/providers/telem
 import 'package:astramed/features/05_clinical_triage/domain/apollo_triage_engine.dart';
 import 'package:astramed/features/05_clinical_triage/domain/hybrid_llm_triage_service.dart';
 import 'package:astramed/features/05_clinical_triage/models/triage_decision.dart';
+import 'package:astramed/features/agent/presentation/agent_canvas_view.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 
@@ -250,6 +251,50 @@ class _TriageViewState extends ConsumerState<TriageView> {
                 tooltip: 'Reiniciar conversación',
                 icon: const Icon(Icons.refresh, color: Colors.white54, size: 20),
                 onPressed: () => ref.read(apolloChatProvider.notifier).resetChat(),
+              ),
+            ],
+          ),
+        ),
+
+        // ── ACCESO AL AGENTE CLÍNICO POR VOZ & CANVAS MULTIMODAL ──
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: SpaceTheme.card,
+            border: const Border(
+              bottom: BorderSide(color: Colors.white12),
+            ),
+          ),
+          child: Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const Text(
+                'Agente Clínico Interactivo & Voz (Telemetría + Criterios Científicos)',
+                style: TextStyle(fontSize: 11, color: Colors.white70),
+              ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const AgentCanvasView(),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: SpaceTheme.cyan,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  minimumSize: const Size(0, 34),
+                ),
+                icon: const Icon(Icons.play_arrow, size: 16),
+                label: const Text(
+                  'Comenzar Evaluación Clínica',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
               ),
             ],
           ),

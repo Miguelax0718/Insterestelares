@@ -1,0 +1,30 @@
+{
+  "version": "1.0",
+  "astronauts": {
+    "AST-01": {
+      "medications": [],
+      "classes": [],
+      "notes": "No known drug allergies"
+    },
+    "AST-02": {
+      "medications": ["promethazine"],
+      "classes": ["phenothiazine"],
+      "notes": "Severe extrapyramidal / dystonic reaction to promethazine"
+    },
+    "AST-03": {
+      "medications": ["ibuprofen"],
+      "classes": ["nsaid"],
+      "notes": "NSAID-exacerbated respiratory hypersensitivity"
+    },
+    "AST-04": {
+      "medications": ["penicillin"],
+      "classes": ["beta_lactam"],
+      "notes": "Mild urticarial reaction to penicillin"
+    },
+    "AST-05": {
+      "medications": ["aspirin"],
+      "classes": ["salicylate"],
+      "notes": "Salicylate sensitivity"
+    }
+  }
+}
