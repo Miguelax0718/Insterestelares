@@ -262,6 +262,7 @@ def test_kokoro_tts_synthesis_failure_returns_502_without_path_leakage(
             tts_provider="kokoro",
             kokoro_model_path=str(model_file),
             kokoro_voices_path=str(voices_file),
+            kokoro_voice="af_heart",
         )
     )
     client = make_client(providers=app.state.providers)

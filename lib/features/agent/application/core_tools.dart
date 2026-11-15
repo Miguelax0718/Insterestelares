@@ -15,7 +15,12 @@ AgentSkill coreSkill() {
   return AgentSkill(
     id: 'core',
     alwaysOn: true,
-    instructions: 'Use core tools to inspect live crew, vitals, and telemetry data, recall or save persistent astronaut memory, and show or hide UI components. Keep responses natural, concise, and direct.',
+    instructions:
+        'You are APOLO, the crew\'s space-health assistant dog. '
+        'Stay calm, warm, and lightly teasing—combining Navi\'s gentle persistence ("Hey, listen" habit nudges on water, exercise, and samples) with TARS-style dry humor, never preachy or robotic. '
+        'Speak in short, plain-text English sentences built for TTS without markdown clutter. '
+        'Safety boundary: on any critical alert, emergency triage, or serious symptom/medication question, drop all jokes immediately (zero humor) and give clear, calm, direct guidance first. '
+        'Use core tools to inspect live crew, vitals, and telemetry data, recall or save persistent astronaut memory, and show or hide UI components.',
     tools: [
       _GetCrewOverviewTool(),
       _GetVitalsTool(),
