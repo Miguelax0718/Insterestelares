@@ -33,7 +33,7 @@ Delivery: ask-on-risk. Runners: `uv run pytest` (server/), `flutter test` + `flu
 
 | ID | Specs | Route | Status | Commit |
 |----|-------|-------|--------|--------|
-| T1 | S2–S7, S9 (server) | delegated writer — parallel unit A (`server/`) | pending | — |
+| T1 | S2–S7, S9 (server) | delegated writer — parallel unit A (`server/`) | done (RED observed; GREEN 28/28; ruff clean; Dockerfile + voice extra unverified — no Docker) | see git log `feat(server): add stateless agent gateway with STT and TTS` |
 | T2 | S2, S6, S7, S8, S9 (client) | delegated writer — parallel unit B (`lib/features/agent/`, pubspec, platform perms) | done (RED observed; GREEN 38/38 agent, 82 full suite; analyze clean; web build ok) | see git log `feat(agent): add voice and agent API client layer` |
 | T3 | S1–S9 | delegated independent verifier (Risk items 2 auth/keys, 5 deps/deploy) | pending | — |
 
@@ -45,3 +45,4 @@ Route evidence: Writer trigger (a) — two independent units, disjoint edit surf
 - **L2:** Evidence: AgentRouter is OpenAI-compatible at `https://agentrouter.org/v1`; audio endpoint support is unconfirmed → STT/TTS kept independent of AgentRouter. Local env: Python 3.14 + `uv` available; Flutter/Dart and Docker NOT installed (client checks need a scratch SDK; Docker build unverifiable locally).
 - **L3:** Toolchain installed (Flutter 3.50.0/Dart 3.14.0 in ~/development/flutter, Android SDK, Chromium, udev). First T1/T2 workers stalled on environment setup (scratch SDK bootstrap, heavy voice deps); user asked to switch to `google/antigravity-gemini-4-hydrogen-medium`; first attempt HTTP 403, retry succeeded.
 - **L4:** T2 done. Parent spot check `flutter test test/features/agent` → 38 passed. Generated plugin registrants (linux/macos/windows) changed by `pub get`, accepted. Open: flutter_tts web has Wasm interop warnings (JS build fine); native mic/speaker untested on hardware.
+- **L5:** T1 done (Gemini). Parent spot check `uv run pytest -q` → 28 passed. Parent wrote `server/.env.example` (worker's harness blocks `.env*`). Contract check: server accepts explicit `null` for `context`/`voice` as the client sends. Unverified: Docker build, real faster-whisper/piper APIs (voice extra not installed). Default model `gpt-4o-mini` must exist in AgentRouter catalog — confirm with real key.
