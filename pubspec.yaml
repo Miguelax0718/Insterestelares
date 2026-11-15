@@ -81,6 +81,7 @@ flutter:
   assets:
     - assets/guides/
     - assets/animations/
+    - DB/samples/radiation/
     - DB/Users/
     - DB/Information/
 
@@ -114,3 +115,4 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+

@@ -1,3 +1,5 @@
+import 'radiation_test_data.dart';
+import 'package:astramed/features/02_radiation/providers/radiation_data_provider.dart';
 import 'package:astramed/features/02_radiation/presentation/radiation_view.dart';
 import 'package:astramed/features/02_radiation/providers/biomarker_providers.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
@@ -12,10 +14,12 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
-      const ProviderScope(
+      ProviderScope(
+        overrides: [radiationMissionDataProvider.overrideWith((ref) async => loadRadiationTestMission())],
         child: MaterialApp(home: Scaffold(body: RadiationView())),
       ),
     );
+    await tester.pumpAndSettle();
     return ProviderScope.containerOf(tester.element(find.byType(BiomarkerPanel)));
   }
 

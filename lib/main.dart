@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:astramed/core/theme/space_theme.dart';
 import 'package:astramed/features/01_general_health/presentation/general_health_view.dart';
 import 'package:astramed/features/02_radiation/presentation/radiation_view.dart';
+import 'features/02_radiation/providers/radiation_integration_provider.dart';
 import 'package:astramed/features/03_microgravity/presentation/microgravity_view.dart';
 import 'package:astramed/features/04_mental_health/presentation/mental_health_view.dart';
 import 'package:astramed/features/05_clinical_triage/presentation/triage_view.dart';
@@ -24,6 +25,7 @@ class AstraMedApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ProviderScope(
+      overrides: radiationIntegrationOverrides,
       child: MaterialApp(
         title: 'AstraMed | Space Health Engine',
         debugShowCheckedModeBanner: false,

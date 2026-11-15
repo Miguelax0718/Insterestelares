@@ -38,7 +38,14 @@ enum BioLevel {
 /// Panel de biomarcadores (parte de Juan): astronauta, día de misión,
 /// puntaje B con semáforo, cambios por marcador y gráfica de la misión.
 class BiomarkerPanel extends ConsumerWidget {
-  const BiomarkerPanel({super.key});
+  const BiomarkerPanel({
+    super.key,
+    this.realisticDoseDescription,
+    this.showMissionDaySelector = true,
+  });
+
+  final String? realisticDoseDescription;
+  final bool showMissionDaySelector;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -76,7 +83,7 @@ class BiomarkerPanel extends ConsumerWidget {
               title: const Text('Escenario extremo (hipotético)'),
               subtitle: Text(
                 scenario == SimulationScenario.realistic
-                    ? 'Tormenta solar de ejemplo: 50 mSv fuera del refugio, 10 mSv dentro'
+                    ? realisticDoseDescription ?? 'Tormenta solar de ejemplo: 50 mSv fuera del refugio, 10 mSv dentro'
                     : 'Tormenta HIPOTÉTICA de 1 Gy (0,25 Gy en el refugio)',
                 style: const TextStyle(color: Colors.white54, fontSize: 12),
               ),
@@ -86,15 +93,16 @@ class BiomarkerPanel extends ConsumerWidget {
             ),
             Text('Día de misión: $day de ${repo.missionDays}'
                 '${day > repo.missionDays ? ' (regreso)' : ''}'),
-            Slider(
-              min: 1,
-              max: (repo.missionDays + 1).toDouble(),
-              divisions: repo.missionDays,
-              value: day.toDouble().clamp(1, repo.missionDays + 1),
-              label: '$day',
-              onChanged: (v) =>
-                  ref.read(selectedMissionDayProvider.notifier).state = v.round(),
-            ),
+            if (showMissionDaySelector)
+              Slider(
+                min: 1,
+                max: (repo.missionDays + 1).toDouble(),
+                divisions: repo.missionDays,
+                value: day.toDouble().clamp(1, repo.missionDays + 1),
+                label: '$day',
+                onChanged: (v) =>
+                    ref.read(selectedMissionDayProvider.notifier).state = v.round(),
+              ),
             _ScoreTile(summary: summary, level: level),
             const SizedBox(height: 12),
             _MarkerTable(summary: summary),
