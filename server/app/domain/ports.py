@@ -2,7 +2,7 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
-from app.domain.models import ChatResult, ChatTurn, LLMStreamChunk, TranscriptionResult
+from app.domain.models import ChatResult, ChatTurn, LLMStreamChunk, ToolSpec, TranscriptionResult
 
 
 @runtime_checkable
@@ -10,9 +10,17 @@ class LLMProvider(Protocol):
     @property
     def name(self) -> str: ...
 
-    async def complete(self, messages: list[ChatTurn]) -> ChatResult: ...
+    async def complete(
+        self,
+        messages: list[ChatTurn],
+        tools: list[ToolSpec] | None = None,
+    ) -> ChatResult: ...
 
-    def stream(self, messages: list[ChatTurn]) -> AsyncIterator[LLMStreamChunk]: ...
+    def stream(
+        self,
+        messages: list[ChatTurn],
+        tools: list[ToolSpec] | None = None,
+    ) -> AsyncIterator[LLMStreamChunk]: ...
 
 
 @runtime_checkable

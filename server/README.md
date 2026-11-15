@@ -101,6 +101,19 @@ Any container platform (Render, Fly.io, Railway, Google Cloud Run) works out of 
 - Minimum memory recommendation: >= 1–2 GB RAM when running `faster-whisper` (`base`, `int8`) and `piper-tts` together.
 - Secrets: set `AGENTROUTER_API_KEY` and `APP_API_KEYS` in the host's secret manager (never commit `.env`).
 
+## Chat API Contract (`POST /v1/chat`)
+
+`POST /v1/chat` is a stateless relay supporting client-executed tool calling:
+
+- **`messages`**: up to 40 turns (`role`: `"user"`, `"assistant"`, or `"tool"`; `"system"` is rejected).
+  - `"assistant"` turns may include `tool_calls: [{"id": str, "name": str, "arguments": object}]`, and `content` may be `null` only when `tool_calls` is non-empty.
+  - `"tool"` turns carry `tool_call_id` (must match an earlier assistant `tool_calls[].id`, else `422 invalid_request`) and `content` (<= 4000 chars).
+- **`tools`** *(optional)*: up to 32 tool definitions (`name` matching `^[a-zA-Z0-9_]{1,64}$`, `description` <= 1024 chars, `parameters` JSON Schema object; serialized total <= 24 KB). When present, the server appends concise tool-use rules to the single system message.
+- **`skill_instructions`** *(optional)*: up to 8 strings (each <= 2000 chars) appended to the single system message.
+- **`context`** *(optional)*: JSON object (<= 16 KB) appended to the single system message.
+- **Non-stream response** (`stream: false`): `{"reply": str, "model": str, "tool_calls": [{"id": str, "name": str, "arguments": object}]}`. `tool_calls` defaults to `[]`, and `reply` is `""` when the model only calls tools. If upstream tool arguments are not a JSON object, `arguments` is `{}` and `"invalid_arguments": true` is included on that call.
+- **Stream events** (`stream: true`, `text/event-stream`): zero or more `data: {"delta": str}`, followed by zero or more `data: {"tool_call": {"id": str, "name": str, "arguments": object[, "invalid_arguments": true]}}`, ending with `data: {"done": true, "model": str}` (or `data: {"error": {"code": str, "message": str}}` on failure).
+
 ## Endpoint Examples (`curl`)
 
 ### Health (`GET /health`)

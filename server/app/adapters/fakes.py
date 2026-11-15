@@ -3,7 +3,14 @@ import wave
 from collections.abc import AsyncIterator
 
 from app.core.errors import UpstreamUnavailableError
-from app.domain.models import ChatResult, ChatTurn, LLMStreamChunk, TranscriptionResult
+from app.domain.models import (
+    ChatResult,
+    ChatTurn,
+    LLMStreamChunk,
+    ToolCall,
+    ToolSpec,
+    TranscriptionResult,
+)
 
 
 def _build_silent_wav(duration_s: float = 0.1, sample_rate: int = 16000) -> bytes:
@@ -24,34 +31,53 @@ class FakeLLMProvider:
         reply: str = "Signos vitales estables. Mantenga hidratación y monitoreo.",
         model: str = "fake-clinical-model",
         deltas: list[str] | None = None,
+        tool_calls: list[ToolCall] | None = None,
         fail_complete: bool = False,
         fail_mid_stream: bool = False,
     ) -> None:
         self._reply = reply
         self._model = model
-        self._deltas = deltas or ["Signos ", "vitales ", "estables."]
+        self._deltas = deltas if deltas is not None else ["Signos ", "vitales ", "estables."]
+        self._tool_calls = list(tool_calls) if tool_calls is not None else []
         self._fail_complete = fail_complete
         self._fail_mid_stream = fail_mid_stream
         self.recorded_messages: list[list[ChatTurn]] = []
+        self.recorded_tools: list[list[ToolSpec] | None] = []
 
     @property
     def name(self) -> str:
         return "fake"
 
-    async def complete(self, messages: list[ChatTurn]) -> ChatResult:
+    async def complete(
+        self,
+        messages: list[ChatTurn],
+        tools: list[ToolSpec] | None = None,
+    ) -> ChatResult:
         self.recorded_messages.append(messages)
+        self.recorded_tools.append(tools)
         if self._fail_complete:
             raise UpstreamUnavailableError("Fake upstream LLM failure.")
-        return ChatResult(reply=self._reply, model=self._model)
+        return ChatResult(
+            reply=self._reply,
+            model=self._model,
+            tool_calls=list(self._tool_calls),
+        )
 
-    async def stream(self, messages: list[ChatTurn]) -> AsyncIterator[LLMStreamChunk]:
+    async def stream(
+        self,
+        messages: list[ChatTurn],
+        tools: list[ToolSpec] | None = None,
+    ) -> AsyncIterator[LLMStreamChunk]:
         self.recorded_messages.append(messages)
+        self.recorded_tools.append(tools)
         if self._fail_complete:
             raise UpstreamUnavailableError("Fake upstream LLM failure.")
         for idx, part in enumerate(self._deltas):
             if self._fail_mid_stream and idx >= 1:
                 raise UpstreamUnavailableError("Fake upstream stream interrupted.")
             yield LLMStreamChunk(delta=part, done=False, model=self._model)
+        for tc in self._tool_calls:
+            yield LLMStreamChunk(tool_call=tc, done=False, model=self._model)
         yield LLMStreamChunk(delta=None, done=True, model=self._model)
 
 

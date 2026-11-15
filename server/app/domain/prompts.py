@@ -1,4 +1,5 @@
 import json
+from collections.abc import Sequence
 from typing import Any
 
 CLINICAL_SYSTEM_PROMPT = (
@@ -25,7 +26,35 @@ CLINICAL_SYSTEM_PROMPT = (
     "officer and flight surgeons now."
 )
 
+TOOL_USE_RULES = (
+    "Tool rules:\n"
+    "- Use the available tools to read live telemetry, memory, or clinical status "
+    "instead of guessing.\n"
+    "- Never invent measurements, inventory items, or tool results.\n"
+    "- Let tool verdicts decide clinical outcomes; state them plainly.\n"
+    "- Confirmation of consequential actions is handled by the app."
+)
+
 
 def format_context_system_message(context: dict[str, Any]) -> str:
     serialized = json.dumps(context, ensure_ascii=False, separators=(",", ":"))
     return f"Patient and mission context snapshot (JSON): {serialized}"
+
+
+def build_system_prompt(
+    *,
+    has_tools: bool = False,
+    skill_instructions: Sequence[str] | None = None,
+    context: dict[str, Any] | None = None,
+) -> str:
+    parts: list[str] = [CLINICAL_SYSTEM_PROMPT]
+    if has_tools:
+        parts.append(TOOL_USE_RULES)
+    if skill_instructions:
+        for instruction in skill_instructions:
+            cleaned = instruction.strip()
+            if cleaned:
+                parts.append(cleaned)
+    if context is not None:
+        parts.append(format_context_system_message(context))
+    return "\n\n".join(parts)

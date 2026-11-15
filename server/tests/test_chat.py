@@ -33,7 +33,11 @@ def test_chat_non_stream_happy_path_and_system_prompt_injection() -> None:
         },
     )
     assert resp.status_code == 200
-    assert resp.json() == {"reply": "Hidratación recomendada.", "model": "fake-v1"}
+    assert resp.json() == {
+        "reply": "Hidratación recomendada.",
+        "model": "fake-v1",
+        "tool_calls": [],
+    }
 
     sent = fake_llm.recorded_messages[0]
     assert sent[0].role == "system"
@@ -197,7 +201,11 @@ def test_agentrouter_adapter_non_stream_and_secret_redaction() -> None:
         json={"messages": [{"role": "user", "content": "Reporte"}]},
     )
     assert ok.status_code == 200
-    assert ok.json() == {"reply": "Todo nominal.", "model": "deepseek-chat"}
+    assert ok.json() == {
+        "reply": "Todo nominal.",
+        "model": "deepseek-chat",
+        "tool_calls": [],
+    }
 
     state["mode"] = "fail"
     fail = client.post(
