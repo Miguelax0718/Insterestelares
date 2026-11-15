@@ -234,14 +234,15 @@ class _AstraMedDashboardState extends ConsumerState<AstraMedDashboard> {
             },
           ),
 
-          // Acceso a URANO (análisis de orina). Es una página web empaquetada en
-          // web/urano/, así que solo está disponible en la versión web.
+          // Acceso a APOLO (asistente de salud con mascota, análisis de orina).
+          // Es una página web empaquetada en web/apolo/, así que solo está
+          // disponible en la versión web.
           if (kIsWeb)
             IconButton(
-              tooltip: 'Abrir URANO (análisis de orina)',
-              icon: const Icon(Icons.science_outlined, color: SpaceTheme.cyan, size: 20),
+              tooltip: 'Abrir APOLO (asistente de salud)',
+              icon: const Icon(Icons.pets, color: SpaceTheme.cyan, size: 20),
               onPressed: () => launchUrl(
-                Uri.base.resolve('urano/index.html'),
+                Uri.base.resolve('apolo/index.html'),
                 webOnlyWindowName: '_self',
               ),
             ),

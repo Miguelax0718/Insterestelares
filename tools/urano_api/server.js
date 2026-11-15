@@ -1,6 +1,6 @@
 // URANO · API REST de referencia (Node + PostgreSQL)
 // Uso:  cd tools/urano_api && npm install && DATABASE_URL=postgres://usuario:clave@host:5432/urano npm start
-// Sirve web/ en http://localhost:8000 (URANO en /urano/) y la API en http://localhost:8000/api
+// Sirve web/ en http://localhost:8000 (APOLO en /apolo/) y la API en http://localhost:8000/api
 const http = require('http'), fs = require('fs'), path = require('path');
 const { Pool } = require('pg');
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });

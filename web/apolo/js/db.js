@@ -1,5 +1,5 @@
 // =====================================================================
-//  CAPA DE DATOS DE URANO
+//  CAPA DE DATOS DE APOLO
 //  Toda la app lee de aquí. Para conectar una base de datos real cambia
 //  DB_CONFIG.mode a 'rest' o 'supabase' y llena la URL. Si la conexión
 //  falla, la app usa los datos de demostración y lo avisa.
@@ -9,7 +9,7 @@ const DB_CONFIG = Object.assign({
   restUrl: 'http://localhost:8000/api',           // tu API (ver DATA.md)
   supabaseUrl: 'https://TU-PROYECTO.supabase.co',
   supabaseKey: 'TU_ANON_KEY',
-}, window.URANO_DB || {});
+}, window.APOLO_DB || window.URANO_DB || {});
 
 // ---------- Catálogo de biomarcadores (rango por defecto = línea base) ----------
 const BM = {
@@ -75,8 +75,8 @@ const MOCK = (()=>{
       out.push({id:`${c.id}-${day}`,crewId:c.id,day,takenAt:dateOf(day),method:['sensor','sensor','tira','sensor','manual'][i%5],values:v})}
     return out}
   // Tripulantes agregados desde la app (se guardan en este navegador en modo demo)
-  let custom=[];try{custom=JSON.parse(localStorage.getItem('urano-custom')||'[]')}catch(e){}
-  const save=()=>{try{localStorage.setItem('urano-custom',JSON.stringify(custom))}catch(e){}};
+  let custom=[];try{custom=JSON.parse(localStorage.getItem('apolo-custom')||'[]')}catch(e){}
+  const save=()=>{try{localStorage.setItem('apolo-custom',JSON.stringify(custom))}catch(e){}};
   function makeSample(c,day,d={}){const r=seed(c.id+Date.now()),v={};
     for(const [k,b] of Object.entries(BM)){if(b.derived)continue;if(b.bool){v[k]=0;continue}v[k]=+(b.lo+(b.hi-b.lo)*(.35+.3*r())).toFixed(b.d)}
     if(d.volume_ml&&d.fluids_ml!==undefined) v.vol=+Math.max(1,Math.min(3,1.2+d.fluids_ml/1000)).toFixed(2);
@@ -180,7 +180,7 @@ const DB = {
   async init(){
     const pick={rest:REST,supabase:SUPA}[DB_CONFIG.mode];
     if(pick){ try{ CREW=await pick.crew(); MISSION=await pick.mission(); DB.api=pick; DB.source='db'; return; }
-      catch(e){ DB.error=e.message; console.warn('URANO: no se pudo conectar, uso datos demo.',e); } }
+      catch(e){ DB.error=e.message; console.warn('APOLO: no se pudo conectar, uso datos demo.',e); } }
     DB.api=MOCK; DB.source='demo'; CREW=await MOCK.crew(); MISSION=await MOCK.mission();
   },
   // (MISSION.sampleTimes = horas programadas de muestra; por defecto 07:30 y 15:30)
@@ -189,7 +189,7 @@ const DB = {
     d.samples.sort((a,b)=>a.takenAt<b.takenAt?-1:1);
     DB.cache[id]={exMin:0,exGoal:90,...d.crew, samples:d.samples, recs:d.recs, alerts:d.alerts, ranges:d.ranges||{}}; return DB.cache[id]; },
   async loadAll(){ await Promise.all(CREW.map(c=>DB.loadUser(c.id))); },
-  use(id){ U=DB.cache[id]||DB.cache[CREW[0].id]; try{localStorage.setItem('urano-user',U.id)}catch(e){} return U; },
+  use(id){ U=DB.cache[id]||DB.cache[CREW[0].id]; try{localStorage.setItem('apolo-user',U.id)}catch(e){} return U; },
   async addCrew(c){ await DB.api.addCrew(c); CREW.push(c); await DB.loadUser(c.id); return c; },
   async saveSample(d){ U.lastSubmit=Date.now(); const out=await DB.api.saveSample(U.id,d);
     if(DB.source==='db'||MOCK.isCustom(U.id)){ const old=U,id=U.id; await DB.loadUser(id); DB.use(id);

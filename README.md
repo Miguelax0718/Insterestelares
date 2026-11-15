@@ -2,8 +2,8 @@
 Nasa Space App Challenge - Interestelares - Create Health Monitoring Software for Astronauts on Space Missions
 
 
-## 🧪 URANO · análisis de orina
+## 🐾 APOLO · asistente de salud con mascota virtual
 
-**U**nidad de **R**astreo y **A**nálisis **N**efrológico **O**rbital.
+Chatbot con forma de perrito astronauta que analiza las muestras de orina de cada tripulante. Muestra en círculos flotantes el estado de 8 sistemas del cuerpo (agua, riñones, huesos, radiación, defensas, corazón, sueño y energía), con lo urgente primero, y conversa para dar recomendaciones personalizadas.
 
-Página web incluida en `web/urano/` que calcula el estado de 8 sistemas del cuerpo (hidratación, riesgo renal, hueso, radiación, inmunidad, cardiovascular, estrés y sueño, metabolismo) a partir de muestras de orina. Se abre desde el botón de matraz en la versión web de AstraMed (`flutter run -d chrome`). Guía completa en [`web/urano/README.md`](web/urano/README.md).
+Es una página web incluida en `web/apolo/` (antes URANO). Se abre desde el botón 🐾 de la versión web de AstraMed (`flutter run -d chrome`). Guía completa en [`web/apolo/README.md`](web/apolo/README.md).

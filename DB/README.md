@@ -86,11 +86,11 @@ Get-ChildItem DB -Recurse -Filter *.json | ForEach-Object {
 
 ---
 
-## 🧪 URANO (análisis de orina)
+## 🐾 APOLO / URANO (análisis de orina)
 
-Datos que consume la página `web/urano/` cuando se conecta a una base de datos (por defecto usa datos demo internos y no necesita nada de esto):
+Datos que consume la página `web/apolo/` (APOLO, antes URANO) cuando se conecta a una base de datos (por defecto usa datos demo internos y no necesita nada de esto):
 
 - `schemas/urano_schema.sql`: tablas PostgreSQL/Supabase (`crew`, `mission`, `solar_events`, `biomarkers`, `personal_ranges`, `samples`, `sample_values`, `recommendations`, `alerts`, `water_log`, `sample_requests`).
 - `samples/urano_seed.sql`: 5 tripulantes demo con 40 muestras cada uno (26 biomarcadores por muestra). Cada tripulante tiene un problema distinto: hidratación/riesgo renal, hueso, estrés y sueño, radiación e infección urinaria.
 
-Los valores son simulados y los rangos por defecto deben validarse con el equipo biomédico (Grupo 1). Más detalle en `web/urano/README.md`.
+Los valores son simulados y los rangos por defecto deben validarse con el equipo biomédico (Grupo 1). Más detalle en `web/apolo/README.md`.
