@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:astramed/core/constants/medical_thresholds.dart';
 import 'package:astramed/core/theme/space_theme.dart';
 import 'package:astramed/features/01_general_health/models/vitals_record.dart';
+import 'package:astramed/features/01_general_health/presentation/vitals_trend_card.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 import 'package:astramed/features/telemetry/models/telemetry_machine.dart';
@@ -176,6 +177,11 @@ class GeneralHealthView extends ConsumerWidget {
           metadataTag: vitalsSourceTag,
           isHealthy: vitals.bloodGlucose >= 70 && vitals.bloodGlucose <= 140,
         ),
+
+        const SizedBox(height: 16),
+
+        // ── TENDENCIA DE LA MISIÓN (DB/samples/vitals) ──
+        VitalsTrendCard(astronautId: astronaut.id),
 
         const SizedBox(height: 16),
 
