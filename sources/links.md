@@ -34,5 +34,22 @@ Fuentes usadas para estimar los valores de referencia de los biomarcadores. El d
 > - PCR (proteína C reactiva)
 > - Efecto de la dosis sobre los linfocitos (≈ −50 % por Gy)
 
+### Signos vitales (módulo `01_general_health`, `DB/samples/vitals/`)
+- Norsk P. et al., 2015. *Fluid shifts, vasodilatation and ambulatory blood pressure reduction during long duration spaceflight*. J Physiol 593(3):573–584. [PMC4324706](https://pmc.ncbi.nlm.nih.gov/articles/4324706/). Presión de 24 h −8/−9 mmHg en vuelo; la FC no cambia.
+- Stahn A.C. et al., 2017. *Increased core body temperature in astronauts during long-duration space missions*. Sci Rep 7:16180. [PMC5701078](https://pmc.ncbi.nlm.nih.gov/articles/PMC5701078). Temperatura central +~1 °C en reposo, en ~2,5 meses.
+- Meck J.V. et al., 2001. *Marked exacerbation of orthostatic intolerance after long- vs. short-duration spaceflight in veteran astronauts*. Psychosom Med 63(6):865–873. 5 de 6 astronautas con presíncope en la prueba de inclinación tras vuelos largos.
+- Glucosa: NASA OSDR [OSD-575](https://osdr.nasa.gov/bio/repo/data/studies/OSD-575) (Inspiration4, panel metabólico).
+
+### Microgravedad (módulo `03_microgravity`, `DB/samples/microgravity/`)
+- LeBlanc A. et al., 2000. Pérdida ósea en cosmonautas de Mir: ~1 %/mes en columna y 1–1,5 %/mes en cadera. Cifra citada en resúmenes de la NASA; falta confirmar los valores por zona en el artículo original.
+- Gopalakrishnan R., Genc K.O. et al., 2010. *Muscle volume, strength, endurance, and exercise loads during 6-month missions in space*. Aviat Space Environ Med 81(2):91–102. Pantorrilla −10 a −16 %, muslo −4 a −7 %.
+- Tiempo de ejercicio en la ISS: ~600 min/semana (450–720) en 46 astronautas. npj Microgravity 2023, [doi:10.1038/s41526-023-00256-5](https://www.nature.com/articles/s41526-023-00256-5).
+
+### Sueño (módulo `04_mental_health`, `DB/samples/sleep/`)
+- Barger L.K. et al., 2014. *Prevalence of sleep deficiency and use of hypnotic drugs in astronauts before, during, and after spaceflight*. Lancet Neurol 13(9):904–912. [PMC4188436](https://pmc.ncbi.nlm.nih.gov/articles/PMC4188436). ISS: 6,09 ± 0,67 h en vuelo; medicación en el 11 % de las noches.
+
+> [!WARNING]
+> **Estimaciones del equipo (sin fuente pública de astronautas):** FC, presión y temperatura de partida de cada astronauta; SpO₂, frecuencia respiratoria y llenado capilar; despertares y ánimo matutino; DMO de partida en g/cm²; forma de la curva de atrofia; calorías por sesión.
+
 ## 💻 Herramientas y APIs
 - *(Añade aquí enlaces a APIs de telemetría o librerías)*
