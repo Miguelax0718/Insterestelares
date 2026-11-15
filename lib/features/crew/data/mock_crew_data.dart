@@ -23,6 +23,18 @@ class MockCrewData {
         currentZone: 'Módulo de Comando (Destiny)',
         vitals: VitalsRecord(
           timestamp: now,
+          astronautId: 'AST-01',
+          source: 'telemetry',
+          deviceId: 'DEV-ASTROSKIN',
+          device: 'Bio-Monitor Astroskin',
+          protocol: 'ANT+ / BLE SpaceBus v3.2',
+          measurementMethod:
+              'ECG textil de 3 derivaciones, fotopletismografía óptica y pletismografía inductiva torácica',
+          activityState: 'active_duty',
+          signalQuality: 'optimal (98%)',
+          recordType: 'instrumental',
+          algorithm: 'NASA-HRP BioSignalKalman v3.2',
+          criterionReference: 'NASA-STD-3001 Vol. 1 & Vol. 2 / MedicalThresholds',
           heartRate: 68.0,
           systolicBP: 118.0,
           diastolicBP: 76.0,
@@ -34,18 +46,57 @@ class MockCrewData {
         ),
         radiation: RadiationDose(
           timestamp: now,
+          astronautId: 'AST-01',
+          source: 'telemetry',
+          deviceId: 'DEV-HERA',
+          device: 'HERA Radiation Assay',
+          protocol: 'MIL-STD-1553B / Timepix bus',
+          measurementMethod:
+              'Espectrometría activa en silicio híbrido Timepix3 (LET)',
+          activityState: 'active_duty',
+          signalQuality: 'optimal (95%)',
+          recordType: 'instrumental',
+          algorithm: 'SRAG-LET-Dosimetry v2.4',
+          criterionReference:
+              'NASA-STD-3001 Permissible Exposure Limits (PEL)',
           doseRateMicroSvPerHour: 58.2,
           cumulativeDoseMilliSv: 18.4,
           severity: RadiationSeverity.normal,
         ),
         sleep: SleepRecord(
           date: now,
+          astronautId: 'AST-01',
+          source: 'telemetry',
+          deviceId: 'DEV-ACTIWATCH',
+          device: 'Actiwatch Plus Circadian Sensor',
+          protocol: 'NFC / Optical Sync',
+          measurementMethod:
+              'Actigrafía triaxial de muñeca, fotometría ambiental y escala subjetiva matutina',
+          activityState: 'sleep',
+          signalQuality: 'optimal (97%)',
+          recordType: 'instrumental',
+          algorithm: 'BHP-CircadianColeKripke v2.1',
+          criterionReference:
+              'NASA-STD-3001 Behavioral Health & Circadian Standard',
           sleepHours: 7.5,
           wakeEpisodes: 0,
           morningMood: MoodLevel.great,
         ),
         exercise: ExerciseSession(
           date: now,
+          astronautId: 'AST-01',
+          source: 'telemetry',
+          deviceId: 'DEV-ARED',
+          device: 'ARED Advanced Resistive Device',
+          protocol: 'CAN-Bus / Space Wireless',
+          measurementMethod:
+              'Dinamometría en cilindros de vacío y telemetría cinemática triaxial',
+          activityState: 'exercise',
+          signalQuality: 'optimal (94%)',
+          recordType: 'estimación',
+          algorithm: 'NASA-CountermeasureMetabolicKinematics v1.8',
+          criterionReference:
+              'NASA-STD-3001 Musculoskeletal Countermeasure Protocol',
           deviceName: 'ARED (Resistencia muscular)',
           durationMinutes: 45,
           caloriesBurned: 420.0,
@@ -53,8 +104,16 @@ class MockCrewData {
         ),
         riskLevel: CrewRiskLevel.nominal,
         riskTitle: 'Estado Nominal',
-        riskDescription: 'Biomarcadores estables y adaptación adecuada al vuelo espacial.',
+        riskDescription:
+            'Biomarcadores estables y adaptación adecuada al vuelo espacial.',
         activeAlerts: const [],
+        linkedMachineIds: const [
+          'DEV-ASTROSKIN',
+          'DEV-HERA',
+          'DEV-ARED',
+          'DEV-ACTIWATCH',
+        ],
+        lastTelemetrySync: now,
       ),
 
       // 2. OFICIAL MÉDICO (PRECAUCIÓN / FATIGA)
@@ -70,6 +129,18 @@ class MockCrewData {
         currentZone: 'Bahía Médica / Módulo Harmony',
         vitals: VitalsRecord(
           timestamp: now,
+          astronautId: 'AST-02',
+          source: 'telemetry',
+          deviceId: 'DEV-ASTROSKIN',
+          device: 'Bio-Monitor Astroskin',
+          protocol: 'ANT+ / BLE SpaceBus v3.2',
+          measurementMethod:
+              'ECG textil de 3 derivaciones, fotopletismografía óptica y pletismografía inductiva torácica',
+          activityState: 'active_duty',
+          signalQuality: 'optimal (98%)',
+          recordType: 'instrumental',
+          algorithm: 'NASA-HRP BioSignalKalman v3.2',
+          criterionReference: 'NASA-STD-3001 Vol. 1 & Vol. 2 / MedicalThresholds',
           heartRate: 88.0,
           systolicBP: 130.0,
           diastolicBP: 84.0,
@@ -81,18 +152,56 @@ class MockCrewData {
         ),
         radiation: RadiationDose(
           timestamp: now,
+          astronautId: 'AST-02',
+          source: 'telemetry',
+          deviceId: 'DEV-HERA',
+          device: 'HERA Radiation Assay',
+          protocol: 'MIL-STD-1553B / Timepix bus',
+          measurementMethod:
+              'Espectrometría activa en silicio híbrido Timepix3 (LET)',
+          activityState: 'active_duty',
+          signalQuality: 'optimal (95%)',
+          recordType: 'instrumental',
+          algorithm: 'SRAG-LET-Dosimetry v2.4',
+          criterionReference:
+              'NASA-STD-3001 Permissible Exposure Limits (PEL)',
           doseRateMicroSvPerHour: 74.0,
           cumulativeDoseMilliSv: 29.5,
           severity: RadiationSeverity.normal,
         ),
         sleep: SleepRecord(
           date: now,
+          astronautId: 'AST-02',
+          source: 'telemetry',
+          deviceId: 'DEV-ACTIWATCH',
+          device: 'Actiwatch Plus Circadian Sensor',
+          protocol: 'NFC / Optical Sync',
+          measurementMethod:
+              'Actigrafía triaxial de muñeca, fotometría ambiental y escala subjetiva matutina',
+          activityState: 'sleep',
+          signalQuality: 'optimal (97%)',
+          recordType: 'instrumental',
+          algorithm: 'BHP-CircadianColeKripke v2.1',
+          criterionReference:
+              'NASA-STD-3001 Behavioral Health & Circadian Standard',
           sleepHours: 5.1,
           wakeEpisodes: 2,
           morningMood: MoodLevel.fatigued,
         ),
         exercise: ExerciseSession(
           date: now,
+          astronautId: 'AST-02',
+          source: 'telemetry',
+          deviceId: 'DEV-CEVIS',
+          device: 'CEVIS Cycle Ergometer',
+          protocol: 'RS-422 / BLE 5.0',
+          measurementMethod:
+              'Ergometría electromagnética de cadencia/potencia y estimación de VO2',
+          activityState: 'exercise',
+          signalQuality: 'optimal (93%)',
+          recordType: 'estimación',
+          algorithm: 'NASA-CEVIS AerobicVO2Estimator v1.5',
+          criterionReference: 'NASA-STD-3001 Aerobic Countermeasure Protocol',
           deviceName: 'CEVIS (Bicicleta ergométrica)',
           durationMinutes: 30,
           caloriesBurned: 280.0,
@@ -100,12 +209,20 @@ class MockCrewData {
         ),
         riskLevel: CrewRiskLevel.warning,
         riskTitle: 'Precaución: Fatiga y Febrícula',
-        riskDescription: 'Déficit de sueño acumulado (<6h) y leve incremento térmico (37.4°C).',
+        riskDescription:
+            'Déficit de sueño acumulado (<6h) y leve incremento térmico (37.4°C).',
         activeAlerts: const [
           'Déficit de descanso (5.1 hrs)',
           'Temperatura limítrofe (37.4 °C)',
           'Meta física incompleta',
         ],
+        linkedMachineIds: const [
+          'DEV-ASTROSKIN',
+          'DEV-HERA',
+          'DEV-CEVIS',
+          'DEV-ACTIWATCH',
+        ],
+        lastTelemetrySync: now,
       ),
 
       // 3. ESPECIALISTA EVA (EMERGENCIA CRÍTICA / HIPOXIA & TAQUICARDIA)
@@ -121,10 +238,22 @@ class MockCrewData {
         currentZone: 'Esclusa Quest (Post-EVA)',
         vitals: VitalsRecord(
           timestamp: now,
+          astronautId: 'AST-03',
+          source: 'telemetry',
+          deviceId: 'DEV-ASTROSKIN',
+          device: 'Bio-Monitor Astroskin',
+          protocol: 'ANT+ / BLE SpaceBus v3.2',
+          measurementMethod:
+              'ECG textil de 3 derivaciones, fotopletismografía óptica y pletismografía inductiva torácica',
+          activityState: 'post_eva',
+          signalQuality: 'optimal (98%)',
+          recordType: 'instrumental',
+          algorithm: 'NASA-HRP BioSignalKalman v3.2',
+          criterionReference: 'NASA-STD-3001 Vol. 1 & Vol. 2 / MedicalThresholds',
           heartRate: 118.0, // Taquicardia
-          systolicBP: 92.0,  // Hipotensión
+          systolicBP: 92.0, // Hipotensión
           diastolicBP: 58.0,
-          spO2: 89.0,        // Hipoxia aguda
+          spO2: 89.0, // Hipoxia aguda
           bodyTemp: 36.1,
           bloodGlucose: 82.0,
           respiratoryRate: 26.0, // Polipnea
@@ -132,18 +261,57 @@ class MockCrewData {
         ),
         radiation: RadiationDose(
           timestamp: now,
+          astronautId: 'AST-03',
+          source: 'telemetry',
+          deviceId: 'DEV-HERA',
+          device: 'HERA Radiation Assay',
+          protocol: 'MIL-STD-1553B / Timepix bus',
+          measurementMethod:
+              'Espectrometría activa en silicio híbrido Timepix3 (LET)',
+          activityState: 'post_eva',
+          signalQuality: 'optimal (95%)',
+          recordType: 'instrumental',
+          algorithm: 'SRAG-LET-Dosimetry v2.4',
+          criterionReference:
+              'NASA-STD-3001 Permissible Exposure Limits (PEL)',
           doseRateMicroSvPerHour: 185.0,
           cumulativeDoseMilliSv: 64.2,
           severity: RadiationSeverity.warning,
         ),
         sleep: SleepRecord(
           date: now,
+          astronautId: 'AST-03',
+          source: 'manual',
+          deviceId: 'MANUAL-EVA-LOG',
+          device: 'Reporte Clínico Post-EVA',
+          protocol: 'Registro Manual Tripulación',
+          measurementMethod:
+              'Cuestionario subjetivo de descanso y fatiga post-EVA',
+          activityState: 'post_eva',
+          signalQuality: 'manual_verified',
+          recordType: 'subjetiva',
+          algorithm: 'BHP-SubjectiveFatigueChecklist v1.0',
+          criterionReference:
+              'NASA-STD-3001 Behavioral Health & Circadian Standard',
           sleepHours: 4.5,
           wakeEpisodes: 3,
           morningMood: MoodLevel.stressed,
         ),
         exercise: ExerciseSession(
           date: now,
+          astronautId: 'AST-03',
+          source: 'telemetry',
+          deviceId: 'DEV-EPM',
+          device: 'EPM Cardiocavity Module',
+          protocol: 'SpaceWire / ISS-LAN',
+          measurementMethod:
+              'Estimación de gasto metabólico EVA por frecuencia cardíaca y consumo O2 de traje EMU',
+          activityState: 'post_eva',
+          signalQuality: 'optimal (99%)',
+          recordType: 'estimación',
+          algorithm: 'NASA-EMU MetabolicExpenditure v2.2',
+          criterionReference:
+              'NASA-STD-3001 EVA Metabolic Workload Standard',
           deviceName: 'Caminata Espacial EVA 6.5h',
           durationMinutes: 390,
           caloriesBurned: 1850.0,
@@ -151,13 +319,21 @@ class MockCrewData {
         ),
         riskLevel: CrewRiskLevel.critical,
         riskTitle: 'ALERTA CRÍTICA: Hipoxia Post-EVA',
-        riskDescription: 'Desaturación severa (SpO2 89%), taquicardia refleja y llenado capilar retardado. Protocolo O2 inmediato.',
+        riskDescription:
+            'Desaturación severa (SpO2 89%), taquicardia refleja y llenado capilar retardado. Protocolo O2 inmediato.',
         activeAlerts: const [
           'SpO2 Crítico: 89% (Hipoxia aguda)',
           'FC Elevada: 118 bpm (Taquicardia)',
           'Frec. Resp: 26 rpm (Polipnea)',
           'Llenado Capilar: 2.8s (Mala perfusión)',
         ],
+        linkedMachineIds: const [
+          'DEV-ASTROSKIN',
+          'DEV-HERA',
+          'DEV-EPM',
+          'DEV-ISTAT',
+        ],
+        lastTelemetrySync: now,
       ),
 
       // 4. ESPECIALISTA EN CIENCIAS (ESTABLE / NOMINAL)
@@ -173,6 +349,18 @@ class MockCrewData {
         currentZone: 'Laboratorio Columbus',
         vitals: VitalsRecord(
           timestamp: now,
+          astronautId: 'AST-04',
+          source: 'telemetry',
+          deviceId: 'DEV-ASTROSKIN',
+          device: 'Bio-Monitor Astroskin',
+          protocol: 'ANT+ / BLE SpaceBus v3.2',
+          measurementMethod:
+              'ECG textil de 3 derivaciones, fotopletismografía óptica y pletismografía inductiva torácica',
+          activityState: 'active_duty',
+          signalQuality: 'optimal (98%)',
+          recordType: 'instrumental',
+          algorithm: 'NASA-HRP BioSignalKalman v3.2',
+          criterionReference: 'NASA-STD-3001 Vol. 1 & Vol. 2 / MedicalThresholds',
           heartRate: 72.0,
           systolicBP: 115.0,
           diastolicBP: 75.0,
@@ -184,18 +372,56 @@ class MockCrewData {
         ),
         radiation: RadiationDose(
           timestamp: now,
+          astronautId: 'AST-04',
+          source: 'telemetry',
+          deviceId: 'DEV-HERA',
+          device: 'HERA Radiation Assay',
+          protocol: 'MIL-STD-1553B / Timepix bus',
+          measurementMethod:
+              'Espectrometría activa en silicio híbrido Timepix3 (LET)',
+          activityState: 'active_duty',
+          signalQuality: 'optimal (95%)',
+          recordType: 'instrumental',
+          algorithm: 'SRAG-LET-Dosimetry v2.4',
+          criterionReference:
+              'NASA-STD-3001 Permissible Exposure Limits (PEL)',
           doseRateMicroSvPerHour: 61.5,
           cumulativeDoseMilliSv: 19.8,
           severity: RadiationSeverity.normal,
         ),
         sleep: SleepRecord(
           date: now,
+          astronautId: 'AST-04',
+          source: 'manual',
+          deviceId: 'MANUAL-SLEEP-LOG',
+          device: 'Registro Diario de Sueño',
+          protocol: 'Registro Manual Tripulación',
+          measurementMethod:
+              'Bitácora de autopercepción de descanso y estado de ánimo matutino',
+          activityState: 'sleep',
+          signalQuality: 'manual_verified',
+          recordType: 'subjetiva',
+          algorithm: 'BHP-SubjectiveSleepDiary v1.2',
+          criterionReference:
+              'NASA-STD-3001 Behavioral Health & Circadian Standard',
           sleepHours: 7.2,
           wakeEpisodes: 1,
           morningMood: MoodLevel.good,
         ),
         exercise: ExerciseSession(
           date: now,
+          astronautId: 'AST-04',
+          source: 'telemetry',
+          deviceId: 'DEV-CEVIS',
+          device: 'CEVIS Cycle Ergometer',
+          protocol: 'RS-422 / BLE 5.0',
+          measurementMethod:
+              'Ergometría electromagnética de cadencia/potencia y estimación de VO2',
+          activityState: 'exercise',
+          signalQuality: 'optimal (93%)',
+          recordType: 'estimación',
+          algorithm: 'NASA-CEVIS AerobicVO2Estimator v1.5',
+          criterionReference: 'NASA-STD-3001 Aerobic Countermeasure Protocol',
           deviceName: 'T2 (Cinta de correr con arnés)',
           durationMinutes: 40,
           caloriesBurned: 350.0,
@@ -203,8 +429,16 @@ class MockCrewData {
         ),
         riskLevel: CrewRiskLevel.nominal,
         riskTitle: 'Estado Nominal',
-        riskDescription: 'Condición física óptima y parámetros biomédicos en balance.',
+        riskDescription:
+            'Condición física óptima y parámetros biomédicos en balance.',
         activeAlerts: const [],
+        linkedMachineIds: const [
+          'DEV-ASTROSKIN',
+          'DEV-HERA',
+          'DEV-CEVIS',
+          'DEV-ISTAT',
+        ],
+        lastTelemetrySync: now,
       ),
 
       // 5. TÉCNICO EN ROBÓTICA (PRECAUCIÓN / PREHIPERTENSIÓN & RADIACIÓN)
@@ -220,6 +454,18 @@ class MockCrewData {
         currentZone: 'Módulo Kibo / Cúpula de Observación',
         vitals: VitalsRecord(
           timestamp: now,
+          astronautId: 'AST-05',
+          source: 'telemetry',
+          deviceId: 'DEV-EPM',
+          device: 'EPM Cardiocavity Module',
+          protocol: 'SpaceWire / ISS-LAN',
+          measurementMethod:
+              'Fotopletismografía arterial de dedo y tonometría cardiovascular no invasiva',
+          activityState: 'resting',
+          signalQuality: 'optimal (99%)',
+          recordType: 'instrumental',
+          algorithm: 'ESA-EPM HemodynamicPulseWave v2.0',
+          criterionReference: 'NASA-STD-3001 Cardiovascular Health Monitoring',
           heartRate: 94.0,
           systolicBP: 138.0, // Prehipertensión
           diastolicBP: 90.0,
@@ -231,18 +477,57 @@ class MockCrewData {
         ),
         radiation: RadiationDose(
           timestamp: now,
+          astronautId: 'AST-05',
+          source: 'telemetry',
+          deviceId: 'DEV-HERA',
+          device: 'HERA Radiation Assay',
+          protocol: 'MIL-STD-1553B / Timepix bus',
+          measurementMethod:
+              'Espectrometría activa en silicio híbrido Timepix3 (LET)',
+          activityState: 'active_duty',
+          signalQuality: 'optimal (95%)',
+          recordType: 'instrumental',
+          algorithm: 'SRAG-LET-Dosimetry v2.4',
+          criterionReference:
+              'NASA-STD-3001 Permissible Exposure Limits (PEL)',
           doseRateMicroSvPerHour: 112.0,
           cumulativeDoseMilliSv: 44.5,
           severity: RadiationSeverity.warning,
         ),
         sleep: SleepRecord(
           date: now,
+          astronautId: 'AST-05',
+          source: 'manual',
+          deviceId: 'MANUAL-SLEEP-LOG',
+          device: 'Registro Diario de Sueño',
+          protocol: 'Registro Manual Tripulación',
+          measurementMethod:
+              'Bitácora de autopercepción de descanso y estado de ánimo matutino',
+          activityState: 'sleep',
+          signalQuality: 'manual_verified',
+          recordType: 'subjetiva',
+          algorithm: 'BHP-SubjectiveSleepDiary v1.2',
+          criterionReference:
+              'NASA-STD-3001 Behavioral Health & Circadian Standard',
           sleepHours: 6.0,
           wakeEpisodes: 2,
           morningMood: MoodLevel.neutral,
         ),
         exercise: ExerciseSession(
           date: now,
+          astronautId: 'AST-05',
+          source: 'telemetry',
+          deviceId: 'DEV-ARED',
+          device: 'ARED Advanced Resistive Device',
+          protocol: 'CAN-Bus / Space Wireless',
+          measurementMethod:
+              'Dinamometría en cilindros de vacío y telemetría cinemática triaxial',
+          activityState: 'exercise',
+          signalQuality: 'optimal (94%)',
+          recordType: 'estimación',
+          algorithm: 'NASA-CountermeasureMetabolicKinematics v1.8',
+          criterionReference:
+              'NASA-STD-3001 Musculoskeletal Countermeasure Protocol',
           deviceName: 'ARED (Resistencia)',
           durationMinutes: 35,
           caloriesBurned: 310.0,
@@ -250,11 +535,19 @@ class MockCrewData {
         ),
         riskLevel: CrewRiskLevel.warning,
         riskTitle: 'Precaución: Presión y Dosis Alta',
-        riskDescription: 'Presión arterial limítrofe (138/90) y proximidad a áreas de mayor radiación.',
+        riskDescription:
+            'Presión arterial limítrofe (138/90) y proximidad a áreas de mayor radiación.',
         activeAlerts: const [
           'Presión Arterial: 138/90 mmHg',
           'Tasa de Dosis: 112 uSv/h',
         ],
+        linkedMachineIds: const [
+          'DEV-ASTROSKIN',
+          'DEV-HERA',
+          'DEV-EPM',
+          'DEV-ARED',
+        ],
+        lastTelemetrySync: now,
       ),
     ];
   }

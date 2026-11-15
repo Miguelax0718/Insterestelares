@@ -1,0 +1,34 @@
+[
+    {
+        "id":  "AST-01",
+        "name":  "Alex Vance",
+        "ageYears":  46,
+        "sex":  "unspecified",
+        "priorCareerEffectiveDoseMsv":  40,
+        "dataType":  "synthetic_demo"
+    },
+    {
+        "id":  "AST-02",
+        "name":  "Dra. Elena Ramos",
+        "ageYears":  38,
+        "sex":  "unspecified",
+        "priorCareerEffectiveDoseMsv":  120,
+        "dataType":  "synthetic_demo"
+    },
+    {
+        "id":  "AST-03",
+        "name":  "Ing. Mateo Torres",
+        "ageYears":  34,
+        "sex":  "unspecified",
+        "priorCareerEffectiveDoseMsv":  80,
+        "dataType":  "synthetic_demo"
+    },
+    {
+        "id":  "AST-04",
+        "name":  "Dra. Sarah Chen",
+        "ageYears":  31,
+        "sex":  "unspecified",
+        "priorCareerEffectiveDoseMsv":  300,
+        "dataType":  "synthetic_demo"
+    }
+]
