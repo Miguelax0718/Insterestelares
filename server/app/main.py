@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.adapters.agentrouter_llm import AgentRouterLLMProvider
 from app.adapters.fakes import FakeLLMProvider, FakeSTTProvider, FakeTTSProvider
 from app.adapters.faster_whisper_stt import FasterWhisperSTTProvider
+from app.adapters.kokoro_tts import KokoroTTSProvider
 from app.adapters.piper_tts import PiperTTSProvider
 from app.api import chat, health, stt, tts
 from app.core.config import Settings
@@ -50,6 +51,14 @@ def build_providers(settings: Settings) -> ProviderRegistry:
         tts_provider = PiperTTSProvider(
             default_voice=settings.piper_voice,
             voices_dir=settings.piper_voices_dir,
+        )
+    elif tts_name == "kokoro":
+        tts_provider = KokoroTTSProvider(
+            model_path=settings.kokoro_model_path,
+            voices_path=settings.kokoro_voices_path,
+            default_voice=settings.kokoro_voice,
+            speed=settings.kokoro_speed,
+            default_lang=settings.kokoro_lang,
         )
     else:
         raise ValueError(f"Unsupported TTS_PROVIDER: {settings.tts_provider!r}")

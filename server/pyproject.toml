@@ -17,6 +17,7 @@ voice = [
     "faster-whisper==1.2.1",
     "av>=11,<16",
     "piper-tts==1.8.0",
+    "kokoro-onnx==0.6.1",
 ]
 
 [dependency-groups]

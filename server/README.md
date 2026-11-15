@@ -1,6 +1,6 @@
 # AstraMed Clinical Voice Gateway
 
-Stateless Python 3.12 FastAPI gateway providing clinical LLM chat (via AgentRouter), speech-to-text (`faster-whisper`), and text-to-speech (`piper-tts`) for the AstraMed Flutter client.
+Stateless Python 3.12 FastAPI gateway providing clinical LLM chat (via AgentRouter), speech-to-text (`faster-whisper`), and text-to-speech (`kokoro-onnx` or `piper-tts`) for the AstraMed Flutter client.
 
 ## Architecture
 
@@ -10,7 +10,8 @@ Hexagonal (ports & adapters) layout under `server/app/`:
 - `adapters/` — Concrete provider implementations:
   - `agentrouter_llm.py` — OpenAI-compatible client targeting `AGENTROUTER_BASE_URL` (supports non-streaming and SSE streaming).
   - `faster_whisper_stt.py` — Lazy-loaded `faster-whisper` (`base`, `int8`, CPU).
-  - `piper_tts.py` — Lazy-loaded `piper-tts` producing `audio/wav` bytes.
+  - `kokoro_tts.py` — Lazy-loaded `kokoro-onnx` (Kokoro-82M, 24 kHz) producing `audio/wav` bytes.
+  - `piper_tts.py` — Lazy-loaded `piper-tts` (22.05 kHz) producing `audio/wav` bytes.
   - `fakes.py` — Deterministic in-memory fakes for tests and local development without keys or models.
 - `api/` — HTTP routers and Pydantic contracts (`/health`, `/v1/chat`, `/v1/stt`, `/v1/tts`).
 - `core/` — `pydantic-settings` configuration, constant-time `X-AstraMed-Key` auth, in-memory rate limiter, and uniform JSON error envelope handlers.
@@ -31,7 +32,7 @@ Copy `.env.example` to `.env` for local runs:
 | `RATE_LIMIT_PER_MIN` | `30` | In-memory requests/minute limit per API key or IP |
 | `LLM_PROVIDER` | `agentrouter` | `agentrouter` or `fake` |
 | `STT_PROVIDER` | `faster-whisper` | `faster-whisper` or `fake` |
-| `TTS_PROVIDER` | `piper` | `piper` or `fake` |
+| `TTS_PROVIDER` | `piper` | `kokoro`, `piper`, or `fake` |
 | `AGENTROUTER_BASE_URL` | `https://agentrouter.org/v1` | OpenAI-compatible upstream base URL |
 | `AGENTROUTER_API_KEY` | `""` | Upstream AgentRouter API key (server-side only) |
 | `AGENTROUTER_MODEL` | `gpt-4o-mini` | Model identifier sent to AgentRouter |
@@ -42,6 +43,57 @@ Copy `.env.example` to `.env` for local runs:
 | `WHISPER_DOWNLOAD_ROOT` | `None` | Optional directory for Whisper model cache |
 | `PIPER_VOICE` | `en_US-lessac-medium` | Default Piper voice name |
 | `PIPER_VOICES_DIR` | `/app/voices` | Directory containing `<voice>.onnx` and `.onnx.json` |
+| `KOKORO_MODEL_PATH` | `/app/models/kokoro/kokoro-v1.0.onnx` | Path to Kokoro ONNX model file |
+| `KOKORO_VOICES_PATH` | `/app/models/kokoro/voices-v1.0.bin` | Path to Kokoro packed voice embeddings (`.bin`) |
+| `KOKORO_VOICE` | `af_heart` | Default Kokoro voice (`af_heart`, `af_bella`, `am_michael`, `bf_emma`, etc.) |
+| `KOKORO_SPEED` | `1.0` | Kokoro speaking rate (`0.5`–`2.0`) |
+| `KOKORO_LANG` | `en-us` | Fallback phonemizer language (`en-us` or `en-gb`; auto-selected for `af_`/`am_` vs `bf_`/`bm_` prefixes) |
+
+## TTS Engine Evaluation & Switching
+
+### Local CPU Evaluation
+
+Benchmarked on CPU (AMD Ryzen 7 5700, 16 threads) using the 16-word clinical sentence:
+`"Your heart rate is seventy-two and you slept seven hours, so you're good for the EVA."`
+(average of 3 runs after a warm-up run):
+
+| Engine / Voice | License | Download Size | CPU Latency (avg) | Offline | Naturalness & Notes | Status |
+|---|---|---|---|---|---|---|
+| **Kokoro-82M (`kokoro-onnx`, `kokoro-v1.0.onnx` fp32, `af_heart`)** | Apache-2.0 (weights) / MIT (`kokoro-onnx`) | 338 MiB (311 MiB + 27 MiB voices) | **1.012 s** (24 kHz) | Yes | Best — warm, expressive, human prosody; under 1.5 s budget (`af_bella`: 1.287 s, `am_michael`: 1.160 s) | **Adopted** |
+| Kokoro-82M (`kokoro-v1.0.int8.onnx`, `af_heart`) | Apache-2.0 / MIT | 136 MiB (109 MiB + 27 MiB voices) | 1.809 s (24 kHz) | Yes | Very good, but slower than fp32 on x86 CPU (>1.5 s) and lower spectral fidelity | Not adopted |
+| Piper (`en_US-ryan-high`) | GPL-3.0-or-later (`piper-tts`) | 116 MiB | 0.485 s (22.05 kHz) | Yes | Best Piper English voice, clear cadence, still slightly synthetic vs Kokoro | Fallback option |
+| Piper (`en_US-amy-medium`) | GPL-3.0-or-later (`piper-tts`) | 61 MiB | 0.143 s (22.05 kHz) | Yes | Slightly warmer than `lessac`, noticeable VITS prosody flatness | Not adopted |
+| Piper (`en_US-libritts_r-medium`) | GPL-3.0-or-later (`piper-tts`) | 75 MiB | 0.088 s (22.05 kHz) | Yes | Fast multi-speaker baseline, somewhat monotone | Not adopted |
+| Piper (`en_US-lessac-medium`) | GPL-3.0-or-later (`piper-tts`) | 61 MiB | 0.138 s (22.05 kHz) | Yes | Previous default; robotic prosody | Replaced |
+| Client OS/Browser (`flutter_tts`) | OS / Browser built-in | 0 MiB | < 0.1 s | OS-dependent | Robotic/inconsistent voices across Web and Android; remains client-side offline fallback | Client fallback |
+| Edge TTS / ElevenLabs (free tier) | Proprietary / ToS | 0 MiB | Network-bound | **No** | Requires internet, accounts, or third-party ToS; breaks strict offline-first requirement | **Not adopted** |
+
+### Switching TTS Engines
+
+To use **Kokoro-82M** locally (after running `uv sync --extra voice` and downloading `kokoro-v1.0.onnx` and `voices-v1.0.bin` into `server/models/kokoro/`):
+
+```env
+TTS_PROVIDER=kokoro
+KOKORO_MODEL_PATH=models/kokoro/kokoro-v1.0.onnx
+KOKORO_VOICES_PATH=models/kokoro/voices-v1.0.bin
+KOKORO_VOICE=af_heart
+KOKORO_SPEED=1.0
+```
+
+To switch back to **Piper** (for example `en_US-ryan-high` on low-RAM hosts):
+
+```bash
+cd server
+.venv/bin/python -m piper.download_voices --download-dir voices en_US-ryan-high
+```
+
+```env
+TTS_PROVIDER=piper
+PIPER_VOICE=en_US-ryan-high
+PIPER_VOICES_DIR=voices
+```
+
+To use deterministic **Fake** WAV bytes in dev/CI: `TTS_PROVIDER=fake`.
 
 ### Security Caveat: `X-AstraMed-Key` Soft Gate
 
@@ -79,7 +131,7 @@ APP_API_KEYS=dev-key-123 AGENTROUTER_API_KEY=sk-... STT_PROVIDER=fake TTS_PROVID
 
 ## Docker Build & Run
 
-The `Dockerfile` uses `python:3.12-slim`, installs the `voice` optional extra (`faster-whisper` + `piper-tts`), downloads the Piper voice at build time, and runs a single `uvicorn` worker as a non-root user.
+The `Dockerfile` uses `python:3.12-slim`, installs the `voice` optional extra (`faster-whisper` + `kokoro-onnx` + `piper-tts`), downloads the Kokoro-82M (`kokoro-v1.0.onnx` + `voices-v1.0.bin`) and Piper voices at build time, and runs a single `uvicorn` worker as a non-root user with `TTS_PROVIDER=kokoro` by default.
 
 ```bash
 cd server
@@ -162,6 +214,6 @@ curl -s -X POST http://localhost:8000/v1/stt \
 curl -s -X POST http://localhost:8000/v1/tts \
   -H "Content-Type: application/json" \
   -H "X-AstraMed-Key: dev-key-123" \
-  -d '{"text": "Vital signs within nominal range.", "voice": "en_US-lessac-medium"}' \
+  -d '{"text": "Vital signs within nominal range."}' \
   --output reply.wav
 ```

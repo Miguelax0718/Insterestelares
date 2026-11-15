@@ -39,6 +39,13 @@ class Settings(BaseSettings):
     piper_voice: str = "en_US-lessac-medium"
     piper_voices_dir: str = "/app/voices"
 
+    # TTS (kokoro-onnx)
+    kokoro_model_path: str = "/app/models/kokoro/kokoro-v1.0.onnx"
+    kokoro_voices_path: str = "/app/models/kokoro/voices-v1.0.bin"
+    kokoro_voice: str = "af_heart"
+    kokoro_speed: float = Field(default=1.0, ge=0.5, le=2.0)
+    kokoro_lang: str = "en-us"
+
     def parsed_api_keys(self) -> list[str]:
         return [k.strip() for k in self.app_api_keys.split(",") if k.strip()]
 
