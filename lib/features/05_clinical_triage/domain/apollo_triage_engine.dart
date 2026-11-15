@@ -12,6 +12,7 @@ class ApolloChatMessage {
   final String? recommendedHardware;
   final List<String>? actionChecklist;
   final List<String>? followUpOptions;
+  final String inferenceSource;
 
   const ApolloChatMessage({
     required this.id,
@@ -22,9 +23,34 @@ class ApolloChatMessage {
     this.recommendedHardware,
     this.actionChecklist,
     this.followUpOptions,
+    this.inferenceSource = 'Motor Clínico ADA Determinista (100% Offline)',
   });
 
   bool get isApollo => sender == 'apollo';
+
+  ApolloChatMessage copyWith({
+    String? id,
+    String? sender,
+    String? text,
+    DateTime? timestamp,
+    TriagePriority? triageLevel,
+    String? recommendedHardware,
+    List<String>? actionChecklist,
+    List<String>? followUpOptions,
+    String? inferenceSource,
+  }) {
+    return ApolloChatMessage(
+      id: id ?? this.id,
+      sender: sender ?? this.sender,
+      text: text ?? this.text,
+      timestamp: timestamp ?? this.timestamp,
+      triageLevel: triageLevel ?? this.triageLevel,
+      recommendedHardware: recommendedHardware ?? this.recommendedHardware,
+      actionChecklist: actionChecklist ?? this.actionChecklist,
+      followUpOptions: followUpOptions ?? this.followUpOptions,
+      inferenceSource: inferenceSource ?? this.inferenceSource,
+    );
+  }
 }
 
 /// Motor determinista y clínico de APOLO para evaluación de triaje
@@ -74,6 +100,7 @@ class ApolloTriageEngine {
         followUpOptions: const [
           'Activé ventilador auxiliar y mejoró el aire',
           'Siento cefalea intensa y mareo',
+          'La SpO₂ en reposo sigue bajando',
         ],
       );
     }
@@ -103,6 +130,7 @@ class ApolloTriageEngine {
         followUpOptions: const [
           'ToF indica +0.25 D (estable sin escotomas)',
           'El dolor aumenta al inclinarme hacia adelante',
+          'Presento escotomas o pérdida de campo visual',
         ],
       );
     }
@@ -132,6 +160,7 @@ class ApolloTriageEngine {
         followUpOptions: const [
           'FAST ecográfico negativo (sin hemorragia interna)',
           'Hay deformidad visible o dolor incapacitante',
+          'El traje presurizado muestra pérdida de presión',
         ],
       );
     }
@@ -157,6 +186,7 @@ class ApolloTriageEngine {
         followUpOptions: const [
           'Dolor cólico moderado irradiado a fosa ilíaca',
           'i-STAT muestra calcio y creatinina normales',
+          'Tengo hematuria visible o fiebre asociada',
         ],
       );
     }
@@ -176,6 +206,7 @@ class ApolloTriageEngine {
       followUpOptions: const [
         'Siento fatiga general tras ejercicio',
         'Todo en orden, solo chequeo preventivo',
+        'Quiero revisar protocolo de hidratación o descanso',
       ],
     );
   }

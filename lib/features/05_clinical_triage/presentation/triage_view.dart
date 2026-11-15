@@ -6,9 +6,18 @@ import 'package:astramed/core/theme/space_theme.dart';
 import 'package:astramed/features/01_general_health/domain/telemetry_view_contracts.dart';
 import 'package:astramed/features/01_general_health/presentation/providers/telemetry_panel_provider.dart';
 import 'package:astramed/features/05_clinical_triage/domain/apollo_triage_engine.dart';
+import 'package:astramed/features/05_clinical_triage/domain/hybrid_llm_triage_service.dart';
 import 'package:astramed/features/05_clinical_triage/models/triage_decision.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
+
+/// Configuración del motor híbrido (Local Web/Ollama -> Cloud -> ADA Offline)
+final hybridAiConfigProvider = StateProvider<HybridAiConfig>((ref) {
+  return const HybridAiConfig();
+});
+
+/// Indica si APOLO está procesando una consulta con el motor híbrido
+final apolloIsTypingProvider = StateProvider<bool>((ref) => false);
 
 /// Proveedor del historial de chat de APOLO
 final apolloChatProvider =
@@ -17,7 +26,11 @@ final apolloChatProvider =
 });
 
 class ApolloChatNotifier extends StateNotifier<List<ApolloChatMessage>> {
-  ApolloChatNotifier() : super(_initialMessages());
+  final HybridLlmTriageService _hybridService;
+
+  ApolloChatNotifier({HybridLlmTriageService? hybridService})
+      : _hybridService = hybridService ?? HybridLlmTriageService(),
+        super(_initialMessages());
 
   static List<ApolloChatMessage> _initialMessages() {
     return [
@@ -43,12 +56,13 @@ class ApolloChatNotifier extends StateNotifier<List<ApolloChatMessage>> {
     ];
   }
 
-  void sendMessage({
+  Future<void> sendMessage({
     required String query,
     required AstronautProfile astronaut,
     required SpaceOperationalEnvironment environment,
+    required HybridAiConfig config,
     required void Function(ClinicalMissionLogEntry) onLogEntry,
-  }) {
+  }) async {
     final now = DateTime.now();
     final userMsg = ApolloChatMessage(
       id: 'USER-${now.millisecondsSinceEpoch}',
@@ -57,13 +71,16 @@ class ApolloChatNotifier extends StateNotifier<List<ApolloChatMessage>> {
       timestamp: now,
     );
 
-    final apolloReply = ApolloTriageEngine.processQuery(
+    state = [...state, userMsg];
+
+    final apolloReply = await _hybridService.evaluateQuery(
       query: query,
       astronaut: astronaut,
       environment: environment,
+      config: config,
     );
 
-    state = [...state, userMsg, apolloReply];
+    state = [...state, apolloReply];
 
     // Si tiene severidad moderada o crítica, se archiva de inmediato en la bitácora
     if (apolloReply.triageLevel == TriagePriority.yellow ||
@@ -128,24 +145,34 @@ class _TriageViewState extends ConsumerState<TriageView> {
     });
   }
 
-  void _handleSend(String query) {
+  Future<void> _handleSend(String query) async {
     final text = query.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || ref.read(apolloIsTypingProvider)) return;
 
     final astronaut = ref.read(selectedAstronautProvider);
     final environment = ref.read(selectedEnvironmentProvider);
-
-    ref.read(apolloChatProvider.notifier).sendMessage(
-          query: text,
-          astronaut: astronaut,
-          environment: environment,
-          onLogEntry: (entry) {
-            ref.read(clinicalMissionLogsProvider.notifier).addEntry(entry);
-          },
-        );
+    final aiConfig = ref.read(hybridAiConfigProvider);
 
     _inputController.clear();
+    ref.read(apolloIsTypingProvider.notifier).state = true;
     _scrollToBottom();
+
+    try {
+      await ref.read(apolloChatProvider.notifier).sendMessage(
+            query: text,
+            astronaut: astronaut,
+            environment: environment,
+            config: aiConfig,
+            onLogEntry: (entry) {
+              ref.read(clinicalMissionLogsProvider.notifier).addEntry(entry);
+            },
+          );
+    } finally {
+      if (mounted) {
+        ref.read(apolloIsTypingProvider.notifier).state = false;
+        _scrollToBottom();
+      }
+    }
   }
 
   @override
@@ -215,6 +242,11 @@ class _TriageViewState extends ConsumerState<TriageView> {
                 ),
               ),
               IconButton(
+                tooltip: 'Configurar IA Híbrida (Local Web / Cloud / ADA Offline)',
+                icon: const Icon(Icons.memory, color: SpaceTheme.cyan, size: 20),
+                onPressed: () => _showHybridAiConfigDialog(context),
+              ),
+              IconButton(
                 tooltip: 'Reiniciar conversación',
                 icon: const Icon(Icons.refresh, color: Colors.white54, size: 20),
                 onPressed: () => ref.read(apolloChatProvider.notifier).resetChat(),
@@ -258,6 +290,28 @@ class _TriageViewState extends ConsumerState<TriageView> {
             },
           ),
         ),
+
+        if (ref.watch(apolloIsTypingProvider))
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: SpaceTheme.cyan,
+                  ),
+                ),
+                SizedBox(width: 8),
+                Text(
+                  'APOLO evaluando con Guardrail ADA + IA Híbrida...',
+                  style: TextStyle(fontSize: 11, color: SpaceTheme.cyan),
+                ),
+              ],
+            ),
+          ),
 
         // ── BOTONES DE ACCESO RÁPIDO (PRESETS JUSTIFICADOS) ──
         Container(
@@ -455,6 +509,20 @@ class _TriageViewState extends ConsumerState<TriageView> {
                     msg.text,
                     style: const TextStyle(fontSize: 12, color: Colors.white, height: 1.35),
                   ),
+                  if (isApollo) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: SpaceTheme.cyan.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        msg.inferenceSource,
+                        style: const TextStyle(fontSize: 9, color: SpaceTheme.cyan),
+                      ),
+                    ),
+                  ],
                   if (msg.recommendedHardware != null) ...[
                     const SizedBox(height: 8),
                     Container(
@@ -538,6 +606,124 @@ class _TriageViewState extends ConsumerState<TriageView> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showHybridAiConfigDialog(BuildContext context) {
+    final current = ref.read(hybridAiConfigProvider);
+    bool preferLocal = current.preferLocalModel;
+    final localEndpointCtrl = TextEditingController(text: current.localEndpoint);
+    final localModelCtrl = TextEditingController(text: current.localModelName);
+    final cloudEndpointCtrl = TextEditingController(text: current.cloudEndpoint);
+    final cloudKeyCtrl = TextEditingController(text: current.cloudApiKey);
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              backgroundColor: SpaceTheme.surface,
+              title: const Row(
+                children: [
+                  Icon(Icons.memory, color: SpaceTheme.cyan),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Motor Híbrido IA + ADA',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Prioridad: 1) Modelo Local Web/Edge -> 2) Fallback Nube -> 3) Motor ADA Determinista 100% Offline.',
+                      style: TextStyle(fontSize: 11, color: Colors.white70),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text(
+                        'Priorizar Modelo Local',
+                        style: TextStyle(fontSize: 13),
+                      ),
+                      value: preferLocal,
+                      onChanged: (val) => setDialogState(() => preferLocal = val),
+                    ),
+                    TextField(
+                      controller: localEndpointCtrl,
+                      style: const TextStyle(fontSize: 12),
+                      decoration: const InputDecoration(
+                        labelText: 'Endpoint Local (Ollama / WebLLM)',
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: localModelCtrl,
+                      style: const TextStyle(fontSize: 12),
+                      decoration: const InputDecoration(
+                        labelText: 'Modelo Local',
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: cloudEndpointCtrl,
+                      style: const TextStyle(fontSize: 12),
+                      decoration: const InputDecoration(
+                        labelText: 'Endpoint Cloud (Fallback)',
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: cloudKeyCtrl,
+                      obscureText: true,
+                      style: const TextStyle(fontSize: 12),
+                      decoration: const InputDecoration(
+                        labelText: 'API Key Cloud (opcional)',
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Cancelar'),
+                ),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: SpaceTheme.cyan,
+                    foregroundColor: Colors.black,
+                  ),
+                  onPressed: () {
+                    ref.read(hybridAiConfigProvider.notifier).state = current.copyWith(
+                      preferLocalModel: preferLocal,
+                      localEndpoint: localEndpointCtrl.text.trim(),
+                      localModelName: localModelCtrl.text.trim(),
+                      cloudEndpoint: cloudEndpointCtrl.text.trim(),
+                      cloudApiKey: cloudKeyCtrl.text.trim(),
+                    );
+                    Navigator.of(ctx).pop();
+                  },
+                  child: const Text('Guardar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }
