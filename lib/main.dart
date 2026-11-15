@@ -2,21 +2,29 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import 'package:astramed/core/theme/space_theme.dart';
 import 'package:astramed/features/01_general_health/presentation/general_health_view.dart';
 import 'package:astramed/features/02_radiation/presentation/radiation_view.dart';
+import 'features/02_radiation/providers/radiation_integration_provider.dart';
 import 'package:astramed/features/03_microgravity/presentation/microgravity_view.dart';
 import 'package:astramed/features/04_mental_health/presentation/mental_health_view.dart';
 import 'package:astramed/features/05_clinical_triage/presentation/triage_view.dart';
+import 'package:astramed/features/agent/data/persistence/agent_hive_boxes.dart';
+import 'package:astramed/features/agent/presentation/agent_canvas_view.dart';
+import 'package:astramed/features/agent/presentation/agent_test_screen.dart';
+import 'package:astramed/features/agent/providers/agent_providers.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 import 'package:astramed/features/crew/presentation/widgets/crew_sidebar_drawer.dart';
 import 'package:astramed/features/telemetry/presentation/providers/telemetry_provider.dart';
 import 'package:astramed/features/telemetry/presentation/widgets/telemetry_config_modal.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
+  await AgentHiveBoxes.open();
   runApp(const AstraMedApp());
 }
 
@@ -26,6 +34,7 @@ class AstraMedApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ProviderScope(
+      overrides: radiationIntegrationOverrides,
       child: MaterialApp(
         title: 'AstraMed | Space Health Engine',
         debugShowCheckedModeBanner: false,
@@ -75,6 +84,8 @@ class _AstraMedDashboardState extends ConsumerState<AstraMedDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(proactiveMonitorProvider);
+    ref.watch(agentNotifierProvider);
     final activeAstronaut = ref.watch(selectedAstronautProvider);
     final criticalCount = ref.watch(criticalCrewCountProvider);
     final connectedCount = ref.watch(connectedMachinesForSelectedProvider).length;
@@ -171,6 +182,20 @@ class _AstraMedDashboardState extends ConsumerState<AstraMedDashboard> {
           ),
         ),
         actions: [
+          IconButton(
+            tooltip: 'Autonomous Clinical Agent',
+            icon: const Icon(Icons.smart_toy_outlined, color: SpaceTheme.cyan),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AgentCanvasView()),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Agent console',
+            icon: const Icon(Icons.graphic_eq),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AgentTestScreen()),
+            ),
+          ),
           // Badge rápido de estado de riesgo del astronauta activo
           Container(
             margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),

@@ -54,6 +54,12 @@ Gestiona la base de datos de los 5 miembros de la misión espacial de espacio pr
 
 ---
 
+> [!NOTE]
+> Toda nueva información, archivo de soporte o dataset usable para el proyecto se debe documentar en esta sección para mantener la trazabilidad.
+
+## Radiation integration sample
+
+The radiation sample profiles now use the global mock roster names and ages for AST-01 through AST-04. Sex is unspecified because the global roster does not supply it. Dose CSVs and prior career-dose values are unchanged. AST-05 has no personal dosimetry; missing data are never copied from another crewmember. See lib/features/02_radiation/README.md for the day/date convention and biological adapter.
 ## 🛰️ Módulo `DB/Information/`
 
 ### `telemetry_machines_catalog.json`

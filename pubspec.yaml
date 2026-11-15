@@ -54,6 +54,13 @@ dependencies:
   uuid: ^4.5.1
   url_launcher: ^6.3.1
 
+  # Clinical Agent Voice & API
+  http: ^1.6.0
+  record: ^7.2.0
+  audioplayers: ^6.8.1
+  speech_to_text: ^7.5.0
+  flutter_tts: ^4.2.5
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -81,8 +88,10 @@ flutter:
   assets:
     - assets/guides/
     - assets/animations/
+    - DB/samples/radiation/
     - DB/Users/
     - DB/Information/
+    - DB/Pharmacy/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
@@ -114,3 +123,4 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
