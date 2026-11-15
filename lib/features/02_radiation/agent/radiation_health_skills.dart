@@ -266,8 +266,12 @@ class RadiationHealthOfflineFlow implements DeterministicFlow {
     final count = symptoms['count'] as int;
     if (count > 0) {
       parts.add('$count radiation symptom${count == 1 ? '' : 's'} marked.');
-      if (symptoms['worst_level'] == 'urgent') {
-        urgent.add('you marked an urgent symptom');
+      final urgentLabels = [
+        for (final s in symptoms['symptoms'] as List)
+          if ((s as Map)['level'] == 'urgent') s['label'],
+      ];
+      if (urgentLabels.isNotEmpty) {
+        urgent.add('urgent symptom: ${urgentLabels.join(', ')}');
       }
     }
 

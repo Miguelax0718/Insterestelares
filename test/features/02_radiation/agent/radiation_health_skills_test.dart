@@ -177,6 +177,7 @@ void main() {
     expect(banner.id, ComponentIds.alertBanner);
     expect(banner.props['severity'], 'critical');
     expect(urgent.prompt, contains('flight surgeon'));
+    expect(urgent.prompt, contains(RadiationSymptom.fever.label));
   });
 
   test('offline lookup routes biomarker questions to this skill', () {
