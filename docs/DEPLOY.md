@@ -1,5 +1,47 @@
 # Deploying APOLO
 
+## Shortest path: GitHub Pages (frontend) + a backend host
+
+The frontend is a static Flutter web build, so GitHub Pages hosts it for free.
+The backend (FastAPI gateway: LLM relay + STT + TTS) is a Python server and
+**cannot** run on Pages; it needs a container host.
+
+### A. Frontend on GitHub Pages (workflow already in the repo)
+
+`.github/workflows/pages.yml` builds Flutter 3.50.0 and publishes on every push to `main`.
+
+One-time setup by the **repository owner** (admin rights are required):
+
+1. Repo -> *Settings* -> *Pages* -> **Source: GitHub Actions**.
+2. (When the backend exists) *Settings* -> *Secrets and variables* -> *Actions*:
+   - **Variables** tab: `ASTRAMED_API_URL` = the public backend URL (no trailing slash).
+   - **Secrets** tab: `ASTRAMED_API_KEY` = one of the gateway's `APP_API_KEYS`.
+3. *Actions* tab -> run **Deploy web to GitHub Pages** (or push to `main`).
+
+Site URL: `https://<owner>.github.io/<repo>/` (the workflow sets `--base-href` automatically).
+Backend CORS must allow the origin **without the path**: `ALLOWED_ORIGINS=https://<owner>.github.io`.
+
+Without `ASTRAMED_API_URL` the app still loads, but there is **no LLM chat** (there is no
+on-device LLM) and voice uses only the browser's own speech engines.
+
+### B. Backend host options
+
+Docker Spaces on Hugging Face require a paid plan to create, so they are not a free option.
+
+| Option | Cost | Notes |
+|--------|------|-------|
+| Azure for Students | $100 credit, no card (18+) | Container Apps / App Service with `server/Dockerfile`. Needs >= 1 GB RAM. |
+| Heroku (Student Pack) | $13/month credit for 24 months | Container stack; check dyno RAM before choosing a size. |
+| Railway | paid / trial credits | Config ready in `server/railway.json`; not verified against the Student Pack. |
+| Your own PC + tunnel (`cloudflared`) | free | Demo only: works while the machine is on. |
+
+Measured gateway memory (local, Kokoro + faster-whisper `base`): ~63 MB idle, ~523 MB after the
+first TTS, ~728 MB after the first STT, peak ~814 MB. Plan for **>= 1 GB**.
+
+---
+
+## Alternative: Vercel + Railway
+
 Two pieces, deployed separately:
 
 | Piece | What | Where | Config in repo |
