@@ -79,7 +79,7 @@ Delivery: ask-on-risk; user authorized pushing in several commits. Runners: `ser
 | T8 | S3,S5 | delegated writer (wave 2): general-health skills (01) | done | cc9221c |
 | T9 | S4,S5,S9 | wave 3: readiness + proactive monitor (05) | done | 5c4c627 |
 | T10 | S7 | wave 3: agent canvas, component placeholders, crew sidebar, Hive init, main wiring, frontend handoff doc | done | 037b664 |
-| T11 | S8 | independent verifier: confirmation gate + medication safety (Risk item 2) | pending | — |
+| T11 | S8 | independent verifier: confirmation gate + medication safety (Risk item 2) | done | 0e8404f |
 
 Shared files and owners: `pubspec.yaml`, `lib/main.dart`, `lib/features/agent/domain/**` → parent. Writers that need an asset path or contract change report it instead of editing.
 
@@ -99,3 +99,4 @@ Shared files and owners: `pubspec.yaml`, `lib/main.dart`, `lib/features/agent/do
 - **L4:** Prompt rewritten for natural brief replies; found Gemini OpenAI-compat honored only one system message → merged prompt+context into one (RED→GREEN, 31 passed). Parent branch pushed. LLM: Gemini `gemini-3.5-flash-lite` via `https://generativelanguage.googleapis.com/v1beta/openai` (AgentRouter rejected the key as unauthorized client).
 - **L5 (user verbatim):** "usa los de gentle, para opus hazlo tu" — after the runtime denied the `opus-architect` subagent. T0 done inline by the parent; mapping delegated to two `gentle-ai-explore` runs (client + server); writers use `gentle-ai-worker`, verification `gentle-ai-verify`.
 - **L6 (T0 evidence):** server has no tool support (`server/app/adapters/agentrouter_llm.py:54-56` sends only role/content; `schemas.py:27` role literal user|assistant). Client: no Hive init and no typeIds in use; crew writes funnel through `crew_provider.dart:59-69,409-432`; no engines exist for Graybiel/LRM-50/PVT/SANS/DONKI/inventory/triage. Flutter lives at `~/fvm/default/bin/flutter` on this machine.
+- **L7 (verification & closure):** Wave 1 (`0e840e6`, `4e1b247`), Wave 2 (`0698125`, `cc9221c`, `3c18d6c`), Wave 3 (`5c4c627`, `037b664`), and T11 (`0e8404f`) completed. Independent verifier (`gentle-ai-verify`) caught 4 blockers (B1 stale `confirm_action` / mid-turn message preservation, B2 same-ms `AuditEntry.id` collision, B3 `SessionSummaryGenerator` lifecycle call sites, B4 `proactiveMonitorProvider` reactive wiring); all 4 resolved and re-verified (`S1`–`S10` all `met`; server: 60 passed, ruff ok; client: 215 passed, 0 new warnings/errors).
