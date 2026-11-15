@@ -156,6 +156,37 @@ void main() {
     expect(none.data['worst_level'], isNull);
   });
 
+  test('offline flow speaks a summary and escalates urgent symptoms', () async {
+    final c = await container();
+    c.read(selectedMissionDayProvider.notifier).state = 96;
+    final calm = await const RadiationHealthOfflineFlow().start(
+      ctxFor(c, 'AST-01'),
+    );
+    expect(calm.isTerminal, isTrue);
+    expect(calm.prompt, contains('Career dose'));
+    expect(calm.prompt, contains('Biological score'));
+
+    c.read(reportedSymptomsProvider('AST-01').notifier).state = {
+      RadiationSymptom.fever,
+    };
+    final urgent = await const RadiationHealthOfflineFlow().start(
+      ctxFor(c, 'AST-01'),
+    );
+    expect(urgent.verdict!['escalate'], isTrue);
+    final banner = urgent.uiEvents.single as ShowComponentEvent;
+    expect(banner.id, ComponentIds.alertBanner);
+    expect(banner.props['severity'], 'critical');
+    expect(urgent.prompt, contains('flight surgeon'));
+  });
+
+  test('offline lookup routes biomarker questions to this skill', () {
+    final registry = SkillRegistry([radiationHealthSkill()]);
+    expect(
+      registry.findOfflineFlow('¿cómo van mis biomarcadores?')?.skillId,
+      'radiation_health',
+    );
+  });
+
   test('skill is selected for radiation questions in Spanish and English', () {
     final registry = SkillRegistry([radiationHealthSkill()]);
     for (final q in [

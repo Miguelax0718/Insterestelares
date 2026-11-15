@@ -223,8 +223,95 @@ class GetRadiationSymptomsTool extends AgentTool {
   }
 }
 
+/// Offline fallback: reads the three tools and speaks a short deterministic
+/// summary, so the astronaut gets an answer without the LLM server.
+class RadiationHealthOfflineFlow implements DeterministicFlow {
+  const RadiationHealthOfflineFlow();
+
+  @override
+  String get skillId => 'radiation_health';
+
+  @override
+  Future<DeterministicStep> start(ToolContext ctx) async {
+    final dose = (await const GetRadiationDoseTool().call(const {}, ctx)).data;
+    final bio =
+        (await const GetRadiationBiomarkersTool().call(const {}, ctx)).data;
+    final symptoms =
+        (await const GetRadiationSymptomsTool().call(const {}, ctx)).data;
+
+    final parts = <String>[];
+    final urgent = <String>[];
+
+    if (dose['available'] == true) {
+      parts.add(
+        'Career dose ${dose['career_effective_dose_msv']} mSv, '
+        '${dose['remaining_career_dose_msv']} mSv left before the NASA limit.',
+      );
+      if (dose['spe_status'] == 'active') {
+        urgent.add('a solar particle event is active, go to the shelter');
+      }
+    } else {
+      parts.add('No dosimetry record for this day.');
+    }
+
+    if (bio['available'] == true) {
+      final level = bio['level'] as String;
+      parts.add('Biological score is $level.');
+      if (level == 'alert') urgent.add('the biological score is in alert');
+      if (bio['sample_pending'] == true) {
+        parts.add('A biomarker sample is due.');
+      }
+    }
+
+    final count = symptoms['count'] as int;
+    if (count > 0) {
+      parts.add('$count radiation symptom${count == 1 ? '' : 's'} marked.');
+      if (symptoms['worst_level'] == 'urgent') {
+        urgent.add('you marked an urgent symptom');
+      }
+    }
+
+    if (urgent.isNotEmpty) {
+      parts.add('Contact the flight surgeon now: ${urgent.join(', ')}.');
+    }
+
+    final severity = urgent.isNotEmpty
+        ? 'critical'
+        : (bio['level'] == 'watch' || count > 0)
+        ? 'warning'
+        : 'info';
+    final summary = parts.join(' ');
+    return DeterministicStep(
+      prompt: 'Offline radiation check. $summary',
+      uiEvents: [
+        AgentComponentEvent.show(ComponentIds.alertBanner, {
+          'title': 'Radiation status',
+          'message': summary,
+          'severity': severity,
+          if (urgent.isEmpty)
+            'recommended_action':
+                'Open the Radiation tab for charts and per-marker detail.',
+        }),
+      ],
+      isTerminal: true,
+      verdict: {
+        'escalate': urgent.isNotEmpty,
+        'dose': dose,
+        'biomarkers': bio,
+        'symptoms': symptoms,
+      },
+    );
+  }
+
+  @override
+  Future<DeterministicStep> advance(String userInput, ToolContext ctx) =>
+      start(ctx);
+}
+
 /// Skill exposing the Radiation module's dose, biomarkers and symptoms.
 AgentSkill radiationHealthSkill() => const AgentSkill(
+  offlineFlow: RadiationHealthOfflineFlow(),
+  componentIds: [ComponentIds.alertBanner],
   id: 'radiation_health',
   instructions:
       'To explain the astronaut\'s radiation status, read get_radiation_dose, '
