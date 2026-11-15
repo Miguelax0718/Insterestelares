@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 
+import 'package:astramed/core/storage/hive_bootstrap.dart';
 import 'package:astramed/core/theme/space_theme.dart';
 import 'package:astramed/features/01_general_health/presentation/general_health_view.dart';
 import 'package:astramed/features/02_radiation/presentation/radiation_view.dart';
@@ -25,7 +25,7 @@ import 'package:astramed/features/telemetry/presentation/widgets/telemetry_confi
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Hive.initFlutter();
+  await HiveBootstrap.initFlutterStorage();
   await AgentHiveBoxes.open();
   runApp(const ApoloApp());
 }
@@ -53,24 +53,35 @@ class ApoloApp extends StatelessWidget {
 class ApoloHomeShell extends StatelessWidget {
   const ApoloHomeShell({super.key});
 
+  void _openDashboard(BuildContext context, {int initialIndex = 0}) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AstraMedDashboard(initialIndex: initialIndex),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ApoloHomeScreen(
-      onOpenClinicalDashboard: () => Navigator.of(context)
-          .push(MaterialPageRoute(builder: (_) => const AstraMedDashboard())),
+      onOpenClinicalDashboard: () => _openDashboard(context),
+      onOpenClinicalModule: (index) =>
+          _openDashboard(context, initialIndex: index),
     );
   }
 }
 
 class AstraMedDashboard extends ConsumerStatefulWidget {
-  const AstraMedDashboard({super.key});
+  const AstraMedDashboard({super.key, this.initialIndex = 0});
+
+  final int initialIndex;
 
   @override
   ConsumerState<AstraMedDashboard> createState() => _AstraMedDashboardState();
 }
 
 class _AstraMedDashboardState extends ConsumerState<AstraMedDashboard> {
-  int _currentIndex = 0;
+  late int _currentIndex = widget.initialIndex.clamp(0, _views.length - 1);
 
   final List<Widget> _views = const [
     GeneralHealthView(),

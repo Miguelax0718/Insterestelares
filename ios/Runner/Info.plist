@@ -4,6 +4,10 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>AstraMed utiliza la cámara frontal localmente para medir cromaticidad facial (SMS), estabilidad de mirada (1 Hz) y distancia interpupilar (SANS) 100% offline.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>AstraMed utiliza el giroscopio para el entrenamiento de habituación sensoriomotora Zero-G Horizon.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
