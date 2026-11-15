@@ -5,6 +5,7 @@ import 'package:astramed/features/01_general_health/models/vitals_record.dart';
 import 'package:astramed/features/02_radiation/models/radiation_dose.dart';
 import 'package:astramed/features/03_microgravity/models/microgravity_data.dart';
 import 'package:astramed/features/04_mental_health/models/sleep_record.dart';
+import 'package:astramed/features/05_clinical_triage/data/medical_procedures_data.dart';
 import 'package:astramed/features/05_clinical_triage/models/triage_decision.dart';
 import 'package:astramed/features/crew/data/mock_crew_data.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
@@ -324,6 +325,76 @@ void main() {
           .firstWhere((a) => a.id == 'AST-01')
           .linkedMachineIds
           .contains('DEV-ASTROSKIN'),
+      isTrue,
+    );
+  });
+
+  test('MedicalProceduresData suggests cardiac arrest RCP procedure on cardiac emergency or critical vitals', () {
+    final procedures = MedicalProceduresData.getProcedures();
+    final scenarios = MedicalProceduresData.getScenarios();
+
+    expect(procedures.length, 10);
+    expect(scenarios.length, 10);
+
+    final cardiacProc = MedicalProceduresData.findById('PROC-CARDIAC-ARREST');
+    expect(cardiacProc, isNotNull);
+    expect(cardiacProc!.priority, TriagePriority.red);
+    expect(cardiacProc.steps.length, greaterThanOrEqualTo(5));
+    expect(
+      cardiacProc.requiredSupplies.any((s) => s.itemId == 'AED-SPACE'),
+      isTrue,
+    );
+    expect(
+      cardiacProc.requiredSupplies.any((s) => s.itemId == 'CMRS-BOARD'),
+      isTrue,
+    );
+
+    // Round-trip serialization check
+    final roundTripProc = MedicalProcedure.fromJson(cardiacProc.toJson());
+    expect(roundTripProc.id, 'PROC-CARDIAC-ARREST');
+    expect(roundTripProc.steps.length, cardiacProc.steps.length);
+    expect(
+      roundTripProc.requiredSupplies.length,
+      cardiacProc.requiredSupplies.length,
+    );
+
+    final crew = MockCrewData.getInitialCrew();
+    final nominalAstro = crew.firstWhere((a) => a.id == 'AST-01');
+
+    // Simulación explícita de paro cardíaco
+    final simulatedSuggestions =
+        MedicalProceduresData.suggestProceduresForAstronaut(
+      nominalAstro,
+      simulatedSituationId: 'SIT-CARDIAC-ARREST',
+    );
+    expect(simulatedSuggestions, isNotEmpty);
+    expect(simulatedSuggestions.first.procedure.id, 'PROC-CARDIAC-ARREST');
+    expect(simulatedSuggestions.first.isUrgent, isTrue);
+
+    // Detección automática por signos vitales críticos de paro cardíaco
+    final arrestAstronaut = nominalAstro.copyWith(
+      vitals: nominalAstro.vitals.copyWith(
+        heartRate: 0.0,
+        systolicBP: 50.0,
+        spO2: 78.0,
+      ),
+    );
+    final autoArrestSuggestions =
+        MedicalProceduresData.suggestProceduresForAstronaut(arrestAstronaut);
+    expect(autoArrestSuggestions, isNotEmpty);
+    expect(autoArrestSuggestions.first.procedure.id, 'PROC-CARDIAC-ARREST');
+    expect(autoArrestSuggestions.first.isUrgent, isTrue);
+
+    // Detección automática para AST-03 (hipoxia Post-EVA y radiación elevada)
+    final ast3 = crew.firstWhere((a) => a.id == 'AST-03');
+    final ast3Suggestions =
+        MedicalProceduresData.suggestProceduresForAstronaut(ast3);
+    expect(
+      ast3Suggestions.any((s) => s.procedure.id == 'PROC-HYPOXIA-DECOMP'),
+      isTrue,
+    );
+    expect(
+      ast3Suggestions.any((s) => s.procedure.id == 'PROC-RADIATION-ARS'),
       isTrue,
     );
   });

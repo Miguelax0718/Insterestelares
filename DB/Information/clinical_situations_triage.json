@@ -1,0 +1,216 @@
+{
+  "version": "1.0.0",
+  "title": "Árbol de Evaluación Rápida por Situación Clínica - AstraMed",
+  "updatedAt": "2026-11-14T21:55:00Z",
+  "algorithm": "DeterministicClinicalDecisionTree v1.0",
+  "criterionReference": "NASA-STD-3001 Space Medicine Emergency Protocol",
+  "scenarios": [
+    {
+      "id": "SIT-CARDIAC-ARREST",
+      "label": "Paro Cardíaco (RCP)",
+      "symptomSummary": "Tripulante inconsciente, no respira o sin pulso detectable",
+      "priority": "red",
+      "recommendedProcedureId": "PROC-CARDIAC-ARREST",
+      "first60Seconds": [
+        "Confirmar inconsciencia y ausencia de respiración en 10 segundos.",
+        "Fijar al paciente en camilla CMRS o aplicar abrazo invertido de sujeción.",
+        "Iniciar compresiones torácicas (100-120/min) usando método Handstand o Evetts-Russomano y traer el DEA."
+      ],
+      "verificationQuestions": [
+        "¿Responde al llamado o estímulo firme en los hombros?",
+        "¿Presenta respiración normal o solo jadeo agónico?",
+        "¿El sensor Astroskin/EPM muestra pérdida súbita de pulso o ritmo caótico?"
+      ],
+      "emergencySupplies": [
+        "CMRS-BOARD",
+        "AED-SPACE",
+        "BVM-O2-100",
+        "MED-EPINEPHRINE"
+      ]
+    },
+    {
+      "id": "SIT-HYPOXIA",
+      "label": "Hipoxia / Falta de Aire",
+      "symptomSummary": "Ahogo intenso, SpO2 < 90% o síntomas tras caminata EVA",
+      "priority": "red",
+      "recommendedProcedureId": "PROC-HYPOXIA-DECOMP",
+      "first60Seconds": [
+        "Colocar mascarilla con O2 al 100% (10-15 L/min).",
+        "Verificar presión de cabina y sello de escotilla/traje EVA.",
+        "Mantener en reposo y vigilar SpO2 cada 2 minutos."
+      ],
+      "verificationQuestions": [
+        "¿El SpO2 está por debajo de 90%?",
+        "¿Acaba de regresar de una caminata espacial (EVA)?",
+        "¿Presenta dolor articular, mareo o coloración azulada en labios?"
+      ],
+      "emergencySupplies": [
+        "BVM-O2-100",
+        "MED-ORAL-REHYDRATION"
+      ]
+    },
+    {
+      "id": "SIT-RADIATION",
+      "label": "Radiación / Tormenta Solar",
+      "symptomSummary": "Alarma del dosímetro HERA o náuseas tras alerta solar (SPE)",
+      "priority": "red",
+      "recommendedProcedureId": "PROC-RADIATION-ARS",
+      "first60Seconds": [
+        "Evacuar de inmediato al refugio blindado (Storm Shelter).",
+        "Verificar lectura del dosímetro personal HERA.",
+        "Administrar Ondansetrón 4 mg si presenta náuseas o vómitos."
+      ],
+      "verificationQuestions": [
+        "¿La tasa de dosis supera 150 uSv/h?",
+        "¿Aparecieron náuseas, vómitos o fatiga repentina?",
+        "¿Estuvo en módulo no blindado o en EVA durante el evento?"
+      ],
+      "emergencySupplies": [
+        "MED-ONDANSETRON",
+        "MED-ORAL-REHYDRATION"
+      ]
+    },
+    {
+      "id": "SIT-HEMODYNAMIC",
+      "label": "Crisis de Presión / Arritmia",
+      "symptomSummary": "Presión muy baja o alta, taquicardia severa (>115 bpm) o presíncope",
+      "priority": "red",
+      "recommendedProcedureId": "PROC-HEMODYNAMIC-SYNCOPE",
+      "first60Seconds": [
+        "Detener actividad y anclar al astronauta en posición de reposo.",
+        "Conectar Astroskin y EPM para vigilar pulso y presión continua.",
+        "Verificar SpO2 y glucemia capilar para descartar hipoxia o hipoglucemia."
+      ],
+      "verificationQuestions": [
+        "¿La presión sistólica es < 85 mmHg o > 160 mmHg?",
+        "¿Siente dolor torácico, palpitaciones o visión en túnel?",
+        "¿Mantiene estado de alerta normal y pulso palpable?"
+      ],
+      "emergencySupplies": [
+        "MED-ORAL-REHYDRATION",
+        "AED-SPACE"
+      ]
+    },
+    {
+      "id": "SIT-CO2",
+      "label": "Alto CO2 / Aire Viciado",
+      "symptomSummary": "Respiración rápida (>22 rpm), confusión o dolor de cabeza en cabina",
+      "priority": "red",
+      "recommendedProcedureId": "PROC-HYPERCAPNIA-CO2",
+      "first60Seconds": [
+        "Trasladar al tripulante a un módulo adyacente con ventilación nominal.",
+        "Activar ventiladores de mezcla de aire para disipar bolsas de CO2.",
+        "Suministrar oxígeno si SpO2 cae por debajo de 94%."
+      ],
+      "verificationQuestions": [
+        "¿La alarma de pCO2 del sistema ECLSS está activa?",
+        "¿Otros tripulantes en el mismo módulo presentan cefalea o fatiga?"
+      ],
+      "emergencySupplies": [
+        "BVM-O2-100",
+        "MED-ACETAMINOPHEN"
+      ]
+    },
+    {
+      "id": "SIT-TRAUMA",
+      "label": "Herida / Quemadura",
+      "symptomSummary": "Sangrado activo, golpe fuerte o quemadura en piel/extremidades",
+      "priority": "red",
+      "recommendedProcedureId": "PROC-TRAUMA-HEMORRHAGE",
+      "first60Seconds": [
+        "Colocar guantes y presionar firmemente con gasa hemostática sellada.",
+        "Contener cualquier gota de sangre en microgravedad.",
+        "En quemaduras, enfriar con compresa húmeda estéril y cubrir con gel estéril."
+      ],
+      "verificationQuestions": [
+        "¿El sangrado es pulsátil o no se detiene tras 5 minutos de presión?",
+        "¿La lesión afecta cara, ojos o vías respiratorias?"
+      ],
+      "emergencySupplies": [
+        "SUP-HEMOSTATIC-GAUZE",
+        "SUP-TOURNIQUET",
+        "SUP-BURN-GEL"
+      ]
+    },
+    {
+      "id": "SIT-SANS",
+      "label": "Dolor de Cabeza / Visión",
+      "symptomSummary": "Cefalea frontal, congestión facial o visión borrosa (SANS)",
+      "priority": "yellow",
+      "recommendedProcedureId": "PROC-SANS-CEPHALEA",
+      "first60Seconds": [
+        "Descartar primero nivel elevado de CO2 y tomar presión arterial.",
+        "Realizar prueba rápida de lectura/rejilla visual.",
+        "Administrar analgésico oral estándar y reducir brillo de pantallas."
+      ],
+      "verificationQuestions": [
+        "¿La visión borrosa es progresiva o reciente?",
+        "¿Presenta fiebre o rigidez cervical?"
+      ],
+      "emergencySupplies": [
+        "MED-IBUPROFEN",
+        "MED-ACETAMINOPHEN"
+      ]
+    },
+    {
+      "id": "SIT-DEHYDRATION",
+      "label": "Fiebre / Deshidratación",
+      "symptomSummary": "Temperatura elevada (>37.3 °C), dolor lumbar/renal o baja hidratación",
+      "priority": "yellow",
+      "recommendedProcedureId": "PROC-RENAL-DEHYDRATION",
+      "first60Seconds": [
+        "Medir temperatura, frecuencia cardíaca y glucosa capilar.",
+        "Iniciar rehidratación oral en sorbos frecuentes con electrolitos.",
+        "Controlar dolor o fiebre con Paracetamol 500 mg."
+      ],
+      "verificationQuestions": [
+        "¿Presenta dolor en costado lumbar o ardor al orinar?",
+        "¿Tolera líquidos por vía oral sin vomitar?"
+      ],
+      "emergencySupplies": [
+        "MED-ORAL-REHYDRATION",
+        "MED-ACETAMINOPHEN",
+        "MED-ONDANSETRON"
+      ]
+    },
+    {
+      "id": "SIT-VESTIBULAR",
+      "label": "Mareo / Vértigo Espacial",
+      "symptomSummary": "Desorientación espacial, vértigo o náuseas por microgravedad (SAS)",
+      "priority": "yellow",
+      "recommendedProcedureId": "PROC-VESTIBULAR-SAS",
+      "first60Seconds": [
+        "Anclar al tripulante mirando una referencia vertical fija y evitar giros de cabeza.",
+        "Tener lista bolsa sellada de contención.",
+        "Administrar Ondansetrón 4 mg si requiere mantener alerta operativa."
+      ],
+      "verificationQuestions": [
+        "¿El mareo ocurre al mover la cabeza en los primeros días en órbita?",
+        "¿Los signos vitales (SpO2 y presión) son normales?"
+      ],
+      "emergencySupplies": [
+        "MED-ONDANSETRON",
+        "MED-PROMETHAZINE"
+      ]
+    },
+    {
+      "id": "SIT-FATIGUE",
+      "label": "Fatiga / Insomnio",
+      "symptomSummary": "Sueño menor a 6.5 horas, despertares frecuentes o agotamiento",
+      "priority": "green",
+      "recommendedProcedureId": "PROC-CIRCADIAN-FATIGUE",
+      "first60Seconds": [
+        "Programar bloque protegido de descanso (7.5-8 h) con luz azul atenuada.",
+        "Practicar respiración guiada 4-6 y revisar flujo de aire en el saco de dormir.",
+        "Considerar Melatonina 3 mg si persiste dificultad para conciliar el sueño."
+      ],
+      "verificationQuestions": [
+        "¿Lleva más de 2 ciclos con menos de 6 horas de sueño?",
+        "¿Está asignado a tareas críticas que requieran alta precisión?"
+      ],
+      "emergencySupplies": [
+        "MED-MELATONIN"
+      ]
+    }
+  ]
+}
