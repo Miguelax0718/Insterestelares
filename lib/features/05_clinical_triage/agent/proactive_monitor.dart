@@ -19,7 +19,8 @@ class InAppAgentNotifier implements AgentNotifier {
   final StreamController<ProactiveEvent> _controller =
       StreamController<ProactiveEvent>.broadcast();
 
-  List<ProactiveEvent> get notifications => List<ProactiveEvent>.unmodifiable(_events);
+  List<ProactiveEvent> get notifications =>
+      List<ProactiveEvent>.unmodifiable(_events);
 
   Stream<ProactiveEvent> get stream => _controller.stream;
 
@@ -51,13 +52,6 @@ class InAppAgentNotifier implements AgentNotifier {
   }
 }
 
-class _EmittedRecord {
-  const _EmittedRecord({required this.timestamp, required this.severity});
-
-  final DateTime timestamp;
-  final ProactiveSeverity severity;
-}
-
 /// On-device clinical monitor watching live vitals (through [ArtifactFilterEngine]),
 /// space weather / radiation, and scheduled countermeasures, with per-(astronautId, kind)
 /// cooldown deduplication and warning->critical escalation bypass (S4, S9).
@@ -70,11 +64,13 @@ class ProactiveMonitor {
     this.cooldown = const Duration(minutes: 5),
     this.language = 'en',
     DateTime Function()? clock,
+    ProactiveAlertStore? alertStore,
     this.crewReader,
     this.spaceWeatherReader,
     this.flagsReader,
     this.memoryReader,
-  }) : _clock = clock ?? (() => DateTime.now().toUtc());
+  }) : _clock = clock ?? (() => DateTime.now().toUtc()),
+       _alertStore = alertStore ?? ProactiveAlertStore();
 
   static const Duration defaultCooldown = Duration(minutes: 5);
   static const Duration diaryOverdueThreshold = Duration(hours: 24);
@@ -88,13 +84,15 @@ class ProactiveMonitor {
   final Duration cooldown;
   final String language;
   final DateTime Function() _clock;
+  final ProactiveAlertStore _alertStore;
   final FutureOr<List<AstronautProfile>> Function()? crewReader;
   final FutureOr<SpaceWeatherSnapshot?> Function()? spaceWeatherReader;
-  final FutureOr<Map<String, Map<String, dynamic>>> Function(String astronautId)?
-      flagsReader;
+  final FutureOr<Map<String, Map<String, dynamic>>> Function(
+    String astronautId,
+  )?
+  flagsReader;
   final FutureOr<List<MemoryEntry>> Function(String astronautId)? memoryReader;
 
-  final Map<String, _EmittedRecord> _lastEmitted = {};
   final StreamController<ProactiveEvent> _eventController =
       StreamController<ProactiveEvent>.broadcast();
   Timer? _timer;
@@ -102,7 +100,7 @@ class ProactiveMonitor {
 
   Stream<ProactiveEvent> get events => _eventController.stream;
 
-  void resetCooldowns() => _lastEmitted.clear();
+  void resetCooldowns() => _alertStore.reset();
 
   void start({Duration interval = const Duration(seconds: 30)}) {
     _timer?.cancel();
@@ -170,7 +168,7 @@ class ProactiveMonitor {
     final emitted = <ProactiveEvent>[];
 
     for (final profile in crew) {
-      final astronautEvents = await evaluateAstronaut(
+      final astronautEvents = _collectAndFilterAstronautEvents(
         profile: profile,
         spaceWeather: spaceWeather,
         sepEvent: sepEvent,
@@ -185,6 +183,7 @@ class ProactiveMonitor {
       emitted.addAll(astronautEvents);
     }
 
+    await _deliverEvents(emitted, ts);
     return emitted;
   }
 
@@ -201,6 +200,35 @@ class ProactiveMonitor {
     DateTime? now,
   }) async {
     final ts = (now ?? _clock()).toUtc();
+    final delivered = _collectAndFilterAstronautEvents(
+      profile: profile,
+      spaceWeather: spaceWeather,
+      sepEvent: sepEvent,
+      activeFlags: activeFlags,
+      recentMemories: recentMemories,
+      accelerationRmsG: accelerationRmsG,
+      motionArtifactIndex: motionArtifactIndex,
+      renalStoneRisk: renalStoneRisk,
+      lbnpTargetMissed: lbnpTargetMissed,
+      now: ts,
+    );
+
+    await _deliverEvents(delivered, ts);
+    return delivered;
+  }
+
+  List<ProactiveEvent> _collectAndFilterAstronautEvents({
+    required AstronautProfile profile,
+    SpaceWeatherSnapshot? spaceWeather,
+    SepEvent? sepEvent,
+    Map<String, Map<String, dynamic>> activeFlags = const {},
+    List<MemoryEntry> recentMemories = const [],
+    double accelerationRmsG = 0.0,
+    double? motionArtifactIndex,
+    RenalStoneRiskAssessment? renalStoneRisk,
+    bool lbnpTargetMissed = false,
+    required DateTime now,
+  }) {
     final candidates = <ProactiveEvent>[];
 
     _collectVitalAlerts(
@@ -208,14 +236,14 @@ class ProactiveMonitor {
       profile: profile,
       accelerationRmsG: accelerationRmsG,
       motionArtifactIndex: motionArtifactIndex,
-      now: ts,
+      now: now,
     );
     _collectRadiationAndWeatherAlerts(
       candidates: candidates,
       profile: profile,
       spaceWeather: spaceWeather,
       sepEvent: sepEvent,
-      now: ts,
+      now: now,
     );
     _collectScheduledAndCascadeAlerts(
       candidates: candidates,
@@ -224,38 +252,44 @@ class ProactiveMonitor {
       recentMemories: recentMemories,
       renalStoneRisk: renalStoneRisk,
       lbnpTargetMissed: lbnpTargetMissed,
-      now: ts,
+      now: now,
     );
 
     final delivered = <ProactiveEvent>[];
     for (final candidate in candidates) {
-      if (!_shouldEmit(candidate, ts)) {
+      if (!_shouldEmit(candidate, now)) {
         continue;
       }
-      _lastEmitted['${candidate.astronautId}::${candidate.kind}'] =
-          _EmittedRecord(timestamp: ts, severity: candidate.severity);
+      _alertStore.recordEmitted(candidate, now: now);
       delivered.add(candidate);
-      if (!_eventController.isClosed) {
-        _eventController.add(candidate);
-      }
-      await notifier?.notify(candidate);
-      await orchestrator?.handleProactiveEvent(candidate);
     }
-
     return delivered;
   }
 
+  Future<void> _deliverEvents(
+    List<ProactiveEvent> delivered,
+    DateTime ts,
+  ) async {
+    if (delivered.isEmpty) {
+      return;
+    }
+
+    for (final event in delivered) {
+      if (!_eventController.isClosed) {
+        _eventController.add(event);
+      }
+      await notifier?.notify(event);
+    }
+
+    final target = orchestrator;
+    if (target == null) {
+      return;
+    }
+    await target.handleProactiveEvents(delivered, now: ts);
+  }
+
   bool _shouldEmit(ProactiveEvent candidate, DateTime now) {
-    final key = '${candidate.astronautId}::${candidate.kind}';
-    final previous = _lastEmitted[key];
-    if (previous == null) {
-      return true;
-    }
-    final elapsed = now.difference(previous.timestamp);
-    if (elapsed >= cooldown) {
-      return true;
-    }
-    return candidate.severity.index > previous.severity.index;
+    return _alertStore.shouldEmit(candidate, now: now, cooldown: cooldown);
   }
 
   void _collectVitalAlerts({
@@ -277,19 +311,22 @@ class ProactiveMonitor {
       exercise: isExercisingVitals ? profile.exercise : null,
     );
 
-    if (filterResult.classification == ArtifactClassification.trueClinicalAlert &&
+    if (filterResult.classification ==
+            ArtifactClassification.trueClinicalAlert &&
         !filterResult.suppressAlarm) {
       final isCritical =
           v.spO2 < 90.0 ||
           v.heartRate > 115.0 ||
           v.heartRate > ArtifactFilterEngine.maxExercisePhysiologicalHr ||
           v.systolicBP < 85.0 ||
-          v.respiratoryRate >= ArtifactFilterEngine.severeTachypneaThresholdRpm ||
+          v.respiratoryRate >=
+              ArtifactFilterEngine.severeTachypneaThresholdRpm ||
           v.capillaryRefillSeconds >
               ArtifactFilterEngine.prolongedCapillaryRefillSeconds;
 
-      final severity =
-          isCritical ? ProactiveSeverity.critical : ProactiveSeverity.warning;
+      final severity = isCritical
+          ? ProactiveSeverity.critical
+          : ProactiveSeverity.warning;
 
       final String kind;
       if (v.spO2 < MedicalThresholds.minSpO2) {
@@ -331,8 +368,9 @@ class ProactiveMonitor {
       candidates.add(
         _buildEvent(
           astronautId: profile.id,
-          severity:
-              isCritical ? ProactiveSeverity.critical : ProactiveSeverity.warning,
+          severity: isCritical
+              ? ProactiveSeverity.critical
+              : ProactiveSeverity.warning,
           kind: 'bradycardia_alert',
           skillId: 'status_report',
           title: 'Bradycardia Alert (${profile.callsign})',
@@ -351,8 +389,9 @@ class ProactiveMonitor {
       candidates.add(
         _buildEvent(
           astronautId: profile.id,
-          severity:
-              isCritical ? ProactiveSeverity.critical : ProactiveSeverity.warning,
+          severity: isCritical
+              ? ProactiveSeverity.critical
+              : ProactiveSeverity.warning,
           kind: 'hypertension_alert',
           skillId: 'status_report',
           title: 'Blood Pressure Alert (${profile.callsign})',
@@ -371,8 +410,9 @@ class ProactiveMonitor {
       candidates.add(
         _buildEvent(
           astronautId: profile.id,
-          severity:
-              isCritical ? ProactiveSeverity.critical : ProactiveSeverity.warning,
+          severity: isCritical
+              ? ProactiveSeverity.critical
+              : ProactiveSeverity.warning,
           kind: 'fever_alert',
           skillId: 'status_report',
           title: 'Temperature Alert (${profile.callsign})',
@@ -408,8 +448,7 @@ class ProactiveMonitor {
               ? '${profile.name}: tasa de radiación crítica (${rad.doseRateMicroSvPerHour.toStringAsFixed(1)} uSv/h). Refugio inmediato y revisar farmacia.'
               : '${profile.name}: critical radiation dose rate (${rad.doseRateMicroSvPerHour.toStringAsFixed(1)} uSv/h). Shelter immediately and check pharmacy batches.',
           classification: 'radiation_critical',
-          recommendedAction:
-              'Move to shielded storm shelter and assess astropharmacy batches.',
+          recommendedAction: 'Move to shielded storm shelter and assess astropharmacy batches.',
           data: {
             'dose_rate_usv_h': rad.doseRateMicroSvPerHour,
             'cumulative_msv': rad.cumulativeDoseMilliSv,
@@ -430,7 +469,8 @@ class ProactiveMonitor {
               ? '${profile.name}: radiación elevada (${rad.doseRateMicroSvPerHour.toStringAsFixed(1)} uSv/h). Monitorear dosimetría.'
               : '${profile.name}: elevated radiation (${rad.doseRateMicroSvPerHour.toStringAsFixed(1)} uSv/h). Monitor dosimetry.',
           classification: 'radiation_warning',
-          recommendedAction: 'Review shielding posture and DONKI solar telemetry.',
+          recommendedAction:
+              'Review shielding posture and DONKI solar telemetry.',
           data: {
             'dose_rate_usv_h': rad.doseRateMicroSvPerHour,
             'cumulative_msv': rad.cumulativeDoseMilliSv,
@@ -444,8 +484,8 @@ class ProactiveMonitor {
       final severity = sepEvent.peakFluxPfu >= 10000
           ? ProactiveSeverity.critical
           : (sepEvent.peakFluxPfu >= 100
-              ? ProactiveSeverity.warning
-              : ProactiveSeverity.info);
+                ? ProactiveSeverity.warning
+                : ProactiveSeverity.info);
       candidates.add(
         _buildEvent(
           astronautId: profile.id,
@@ -457,8 +497,7 @@ class ProactiveMonitor {
               ? 'Evento de partículas solares ${sepEvent.sepId} (${sepEvent.peakFluxPfu.toStringAsFixed(0)} pfu). Verificar lotes expuestos y leucocitos.'
               : 'Solar particle event ${sepEvent.sepId} (${sepEvent.peakFluxPfu.toStringAsFixed(0)} pfu). Check unshielded pharmacy batches and schedule leukocyte counts.',
           classification: 'space_weather_sep',
-          recommendedAction:
-              'Run assess_pharmacy_radiation and confirm storm countermeasures.',
+          recommendedAction: 'Run assess_pharmacy_radiation and confirm storm countermeasures.',
           data: sepEvent.toJson(),
           now: now,
         ),
@@ -506,10 +545,12 @@ class ProactiveMonitor {
     // 1. Scheduled post-storm leukocyte check due.
     final leukFlag = activeFlags['leukocyte_check_scheduled'];
     if (leukFlag != null && leukFlag['completed'] != true) {
-      final completedTimes = (leukFlag['completed_times'] as List<dynamic>? ?? const [])
-          .map((e) => e.toString())
-          .toSet();
-      final scheduledRaw = leukFlag['scheduled_times'] as List<dynamic>? ?? const [];
+      final completedTimes =
+          (leukFlag['completed_times'] as List<dynamic>? ?? const [])
+              .map((e) => e.toString())
+              .toSet();
+      final scheduledRaw =
+          leukFlag['scheduled_times'] as List<dynamic>? ?? const [];
       String? dueTimeStr;
       for (final item in scheduledRaw) {
         final raw = item.toString();
@@ -592,7 +633,8 @@ class ProactiveMonitor {
 
     // 4. LBNP target missed.
     final lbnpScheduled = activeFlags['lbnp_scheduled'];
-    final lbnpDue = lbnpScheduled != null &&
+    final lbnpDue =
+        lbnpScheduled != null &&
         lbnpScheduled['completed'] != true &&
         (() {
           final dueAt = DateTime.tryParse(
@@ -600,7 +642,8 @@ class ProactiveMonitor {
           )?.toUtc();
           return dueAt != null && !now.isBefore(dueAt);
         })();
-    final isLbnpMissed = lbnpTargetMissed ||
+    final isLbnpMissed =
+        lbnpTargetMissed ||
         activeFlags['lbnp_missed']?['missed'] == true ||
         lbnpDue;
     if (isLbnpMissed) {
@@ -623,10 +666,13 @@ class ProactiveMonitor {
     }
 
     // 5. Renal stone cascade high risk.
-    final effectiveRenal = renalStoneRisk ?? _assessRenalFromFlags(profile, activeFlags);
+    final effectiveRenal =
+        renalStoneRisk ?? _assessRenalFromFlags(profile, activeFlags);
     final explicitHighFlag =
-        activeFlags['renal_stone_risk']?['risk_level']?.toString().toLowerCase() ==
-            'high';
+        activeFlags['renal_stone_risk']?['risk_level']
+            ?.toString()
+            .toLowerCase() ==
+        'high';
     if (explicitHighFlag ||
         (effectiveRenal != null &&
             effectiveRenal.riskLevel == CorrelationRiskLevel.high)) {
@@ -657,7 +703,8 @@ class ProactiveMonitor {
     List<MemoryEntry> recentMemories,
     DateTime now,
   ) {
-    final flag = activeFlags['daily_diary_due'] ??
+    final flag =
+        activeFlags['daily_diary_due'] ??
         activeFlags['voice_diary_due'] ??
         activeFlags['daily_diary'];
     if (flag != null) {
@@ -667,7 +714,8 @@ class ProactiveMonitor {
       if (flag['overdue'] == true) {
         return true;
       }
-      final dueAt = DateTime.tryParse(flag['due_at']?.toString() ?? '')?.toUtc();
+      final dueAt = DateTime.tryParse(flag['due_at']?.toString() ?? '')
+          ?.toUtc();
       if (dueAt != null && !now.isBefore(dueAt)) {
         return true;
       }
@@ -713,8 +761,8 @@ class ProactiveMonitor {
       emesisEpisodes: (sms?['emesis_episodes'] as num?)?.toInt() ?? 0,
       hydrationMlPerDay: (hydration?['ml_per_day'] as num?)?.toDouble(),
       lowUrineOutput: hydration?['low_urine_output'] == true,
-      urinaryCalciumMgPerDay:
-          (bone?['urinary_calcium_mg_per_day'] as num?)?.toDouble(),
+      urinaryCalciumMgPerDay: (bone?['urinary_calcium_mg_per_day'] as num?)
+          ?.toDouble(),
       boneResorptionElevated: bone?['elevated'] == true,
       boneLossPercent: (bone?['bone_loss_percent'] as num?)?.toDouble(),
     );
@@ -734,7 +782,8 @@ class ProactiveMonitor {
     required DateTime now,
   }) {
     _sequence++;
-    final id = 'proactive-$astronautId-$kind-${now.millisecondsSinceEpoch}-$_sequence';
+    final id =
+        'proactive-$astronautId-$kind-${now.millisecondsSinceEpoch}-$_sequence';
     final bannerProps = <String, dynamic>{
       'title': title,
       'severity': severity.name,
@@ -756,9 +805,7 @@ class ProactiveMonitor {
       createdAt: now,
       skillId: skillId,
       data: data,
-      uiEvents: [
-        ShowComponentEvent(ComponentIds.alertBanner, bannerProps),
-      ],
+      uiEvents: [ShowComponentEvent(ComponentIds.alertBanner, bannerProps)],
     );
   }
 

@@ -494,3 +494,112 @@ class ProactiveEvent {
 abstract interface class AgentNotifier {
   Future<void> notify(ProactiveEvent event);
 }
+
+class ProactiveEmittedRecord {
+  const ProactiveEmittedRecord({
+    required this.timestamp,
+    required this.severity,
+  });
+
+  final DateTime timestamp;
+  final ProactiveSeverity severity;
+}
+
+/// Session-scoped deduplication and speech-budget store shared across
+/// [ProactiveMonitor] and [AgentConversationOrchestrator] so cooldowns and
+/// speech budgets survive provider rebuilds and panel reopens.
+class ProactiveAlertStore {
+  final Map<String, ProactiveEmittedRecord> _lastEmitted = {};
+  final Map<String, ProactiveEmittedRecord> _lastSpoken = {};
+  DateTime? _lastNonCriticalSpokenAt;
+
+  static String keyFor(String astronautId, String kind) =>
+      '$astronautId::$kind';
+
+  DateTime? get lastNonCriticalSpokenAt => _lastNonCriticalSpokenAt;
+
+  bool shouldEmit(
+    ProactiveEvent candidate, {
+    required DateTime now,
+    required Duration cooldown,
+  }) {
+    return _passesCooldown(
+      _lastEmitted[keyFor(candidate.astronautId, candidate.kind)],
+      candidate.severity,
+      now: now,
+      cooldown: cooldown,
+    );
+  }
+
+  void recordEmitted(ProactiveEvent event, {required DateTime now}) {
+    _lastEmitted[keyFor(event.astronautId, event.kind)] =
+        ProactiveEmittedRecord(timestamp: now, severity: event.severity);
+  }
+
+  bool shouldSpeak(
+    ProactiveEvent candidate, {
+    required DateTime now,
+    required Duration cooldown,
+  }) {
+    return _passesCooldown(
+      _lastSpoken[keyFor(candidate.astronautId, candidate.kind)],
+      candidate.severity,
+      now: now,
+      cooldown: cooldown,
+    );
+  }
+
+  bool canSpeakNonCritical({
+    required DateTime now,
+    required Duration budgetWindow,
+  }) {
+    final last = _lastNonCriticalSpokenAt;
+    if (last == null) {
+      return true;
+    }
+    return now.difference(last) >= budgetWindow;
+  }
+
+  void recordSpoken(ProactiveEvent event, {required DateTime now}) {
+    _lastSpoken[keyFor(event.astronautId, event.kind)] = ProactiveEmittedRecord(
+      timestamp: now,
+      severity: event.severity,
+    );
+    if (event.severity != ProactiveSeverity.critical) {
+      _lastNonCriticalSpokenAt = now;
+    }
+  }
+
+  void recordNonCriticalDigestSpoken(
+    Iterable<ProactiveEvent> events, {
+    required DateTime now,
+  }) {
+    _lastNonCriticalSpokenAt = now;
+    for (final event in events) {
+      _lastSpoken[keyFor(event.astronautId, event.kind)] =
+          ProactiveEmittedRecord(timestamp: now, severity: event.severity);
+    }
+  }
+
+  void reset() {
+    _lastEmitted.clear();
+    _lastSpoken.clear();
+    _lastNonCriticalSpokenAt = null;
+  }
+
+  static bool _passesCooldown(
+    ProactiveEmittedRecord? previous,
+    ProactiveSeverity severity, {
+    required DateTime now,
+    required Duration cooldown,
+  }) {
+    if (previous == null) {
+      return true;
+    }
+    final elapsed = now.difference(previous.timestamp);
+    if (elapsed >= cooldown) {
+      return true;
+    }
+    return severity.index > previous.severity.index;
+  }
+}

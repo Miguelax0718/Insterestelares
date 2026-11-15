@@ -249,7 +249,8 @@ ToolContext _makeContext({
       throw UnimplementedError('Provider not stubbed in test: $provider');
     },
     ui: resolvedUi,
-    confirm: confirm ??
+    confirm:
+        confirm ??
         ConfirmationGateImpl(
           auditLog: resolvedAudit,
           uiSink: resolvedUi,
@@ -301,7 +302,9 @@ void main() {
       expect(verdict.authorized, isFalse);
       expect(verdict.priority, TriagePriority.red);
       expect(
-        verdict.blockingReasons.any((r) => r.toLowerCase().contains('graybiel')),
+        verdict.blockingReasons.any(
+          (r) => r.toLowerCase().contains('graybiel'),
+        ),
         isTrue,
       );
     });
@@ -351,10 +354,7 @@ void main() {
         profile: _makeProfile(),
         activityType: 'pre_eva',
         activeFlags: {
-          'eva_blocked_by_graybiel': {
-            'blocked': true,
-            'graybiel_score': 8,
-          },
+          'eva_blocked_by_graybiel': {'blocked': true, 'graybiel_score': 8},
         },
       );
       expect(graybielFlagVerdict.authorized, isFalse);
@@ -425,9 +425,7 @@ void main() {
     });
 
     test('blocks Pre-EVA (red) on SpO2 < 94, unstable vitals, or critical radiation', () {
-      final hypoxiaVerdict = engine.evaluate(
-        profile: _makeProfile(spO2: 92.0),
-      );
+      final hypoxiaVerdict = engine.evaluate(profile: _makeProfile(spO2: 92.0));
       expect(hypoxiaVerdict.authorized, isFalse);
       expect(hypoxiaVerdict.priority, TriagePriority.red);
       expect(
@@ -453,37 +451,44 @@ void main() {
   });
 
   group('triageAgentSkills & confirmation gate', () {
-    test('evaluate_readiness emits typed EvaReadinessViewModel props', () async {
-      final skills = triageAgentSkills();
-      expect(skills.map((s) => s.id), ['readiness']);
-      final skill = skills.first;
-      expect(skill.componentIds, [ComponentIds.evaReadiness]);
+    test(
+      'evaluate_readiness emits typed EvaReadinessViewModel props',
+      () async {
+        final skills = triageAgentSkills();
+        expect(skills.map((s) => s.id), ['readiness']);
+        final skill = skills.first;
+        expect(skill.componentIds, [ComponentIds.evaReadiness]);
 
-      final evalTool = skill.tools.firstWhere((t) => t.name == 'evaluate_readiness');
-      final ui = _RecordingUiSink();
-      final ctx = _makeContext(crew: [_makeProfile()], ui: ui);
+        final evalTool = skill.tools.firstWhere(
+          (t) => t.name == 'evaluate_readiness',
+        );
+        final ui = _RecordingUiSink();
+        final ctx = _makeContext(crew: [_makeProfile()], ui: ui);
 
-      final result = await evalTool.call({'activity_type': 'pre_eva'}, ctx);
-      expect(result.ok, isTrue);
-      expect(result.data['authorized'], isTrue);
-      expect(result.uiEvents, hasLength(1));
+        final result = await evalTool.call({'activity_type': 'pre_eva'}, ctx);
+        expect(result.ok, isTrue);
+        expect(result.data['authorized'], isTrue);
+        expect(result.uiEvents, hasLength(1));
 
-      final showEvent = result.uiEvents.first as ShowComponentEvent;
-      expect(showEvent.id, ComponentIds.evaReadiness);
-      final vm = EvaReadinessViewModel.fromProps(showEvent.props);
-      expect(vm.authorized, isTrue);
-      expect(vm.priority, TriagePriority.green);
-      expect(vm.activityType, 'pre_eva');
+        final showEvent = result.uiEvents.first as ShowComponentEvent;
+        expect(showEvent.id, ComponentIds.evaReadiness);
+        final vm = EvaReadinessViewModel.fromProps(showEvent.props);
+        expect(vm.authorized, isTrue);
+        expect(vm.priority, TriagePriority.green);
+        expect(vm.activityType, 'pre_eva');
 
-      expect(
-        () => EvaReadinessViewModel.fromProps({'astronaut_id': ''}),
-        throwsFormatException,
-      );
-    });
+        expect(
+          () => EvaReadinessViewModel.fromProps({'astronaut_id': ''}),
+          throwsFormatException,
+        );
+      },
+    );
 
     test('block_eva requires confirmation and does NOT write eva_blocked when rejected', () async {
       final skills = triageAgentSkills();
-      final blockTool = skills.first.tools.firstWhere((t) => t.name == 'block_eva');
+      final blockTool = skills.first.tools.firstWhere(
+        (t) => t.name == 'block_eva',
+      );
       expect(blockTool.effect, ToolEffect.consequential);
 
       final flags = _FakeFlagsStore();
@@ -540,45 +545,55 @@ void main() {
       expect(audit.entries.last.decision, ConfirmationDecision.confirmed);
     });
 
-    test('offline readiness DeterministicFlow runs end to end in offline mode', () async {
-      final skills = triageAgentSkills();
-      final registry = SkillRegistry(skills);
-      final chat = _OfflineChatService();
-      final tts = _RecordingTts();
-      final crew = [_makeProfile()];
-      final flags = _FakeFlagsStore();
+    test(
+      'offline readiness DeterministicFlow runs end to end in offline mode',
+      () async {
+        final skills = triageAgentSkills();
+        final registry = SkillRegistry(skills);
+        final chat = _OfflineChatService();
+        final tts = _RecordingTts();
+        final crew = [_makeProfile()];
+        final flags = _FakeFlagsStore();
 
-      final orchestrator = AgentConversationOrchestrator(
-        chat: chat,
-        tts: tts,
-        skillRegistry: registry,
-        componentRegistry: ComponentRegistry(),
-        contextFactory: (astronautId, ui) => _makeContext(
-          crew: crew,
-          astronautId: astronautId,
-          flags: flags,
-          ui: ui,
-        ),
-      );
+        final orchestrator = AgentConversationOrchestrator(
+          chat: chat,
+          tts: tts,
+          skillRegistry: registry,
+          componentRegistry: ComponentRegistry(),
+          contextFactory: (astronautId, ui) => _makeContext(
+            crew: crew,
+            astronautId: astronautId,
+            flags: flags,
+            ui: ui,
+          ),
+        );
 
-      final step1 = await orchestrator.sendUserMessage('Check pre-eva readiness');
-      expect(step1.offlineMode, isTrue);
-      expect(step1.activeOfflineFlowSkillId, 'readiness');
-      expect(tts.spoken, isNotEmpty);
+        final step1 = await orchestrator.sendUserMessage(
+          'Check pre-eva readiness',
+        );
+        expect(step1.offlineMode, isTrue);
+        expect(step1.activeOfflineFlowSkillId, 'readiness');
+        expect(tts.spoken, isNotEmpty);
 
-      final step2 = await orchestrator.sendUserMessage('Pre-EVA');
-      expect(step2.offlineMode, isTrue);
-      expect(step2.activeOfflineFlowSkillId, 'readiness');
+        final step2 = await orchestrator.sendUserMessage('Pre-EVA');
+        expect(step2.offlineMode, isTrue);
+        expect(step2.activeOfflineFlowSkillId, 'readiness');
 
-      final step3 = await orchestrator.sendUserMessage('Nominal');
-      expect(step3.offlineMode, isTrue);
-      expect(step3.activeOfflineFlowSkillId, isNull);
-      expect(
-        step3.activeComponents.any((c) => c.componentId == ComponentIds.evaReadiness),
-        isTrue,
-      );
-      expect(step3.messages.last.content.toLowerCase(), contains('authorized'));
-    });
+        final step3 = await orchestrator.sendUserMessage('Nominal');
+        expect(step3.offlineMode, isTrue);
+        expect(step3.activeOfflineFlowSkillId, isNull);
+        expect(
+          step3.activeComponents.any(
+            (c) => c.componentId == ComponentIds.evaReadiness,
+          ),
+          isTrue,
+        );
+        expect(
+          step3.messages.last.content.toLowerCase(),
+          contains('authorized'),
+        );
+      },
+    );
   });
 
   group('ProactiveMonitor & InAppAgentNotifier', () {
@@ -621,11 +636,8 @@ void main() {
         tts: tts,
         skillRegistry: SkillRegistry(triageAgentSkills()),
         componentRegistry: ComponentRegistry(),
-        contextFactory: (id, ui) => _makeContext(
-          crew: [hypoxicProfile],
-          astronautId: id,
-          ui: ui,
-        ),
+        contextFactory: (id, ui) =>
+            _makeContext(crew: [hypoxicProfile], astronautId: id, ui: ui),
       );
 
       final monitor = ProactiveMonitor(
@@ -701,9 +713,7 @@ void main() {
             'leukocyte_check_scheduled': {
               'scheduled_times': ['2026-11-14T17:00:00.000Z'],
             },
-            'lbnp_scheduled': {
-              'due_at': '2026-11-14T16:00:00.000Z',
-            },
+            'lbnp_scheduled': {'due_at': '2026-11-14T16:00:00.000Z'},
             'space_motion_sickness': {'emesis_episodes': 2},
             'hydration': {'ml_per_day': 1200.0},
             'bone_resorption': {'elevated': true},
@@ -725,17 +735,22 @@ void main() {
       );
 
       final kinds = emitted.map((e) => e.kind).toSet();
-      expect(kinds, containsAll([
-        'radiation_dose_rate',
-        'space_weather_sep',
-        'leukocyte_check_due',
-        'daily_diary_overdue',
-        'exercise_target_missed',
-        'lbnp_target_missed',
-        'renal_stone_high_risk',
-      ]));
+      expect(
+        kinds,
+        containsAll([
+          'radiation_dose_rate',
+          'space_weather_sep',
+          'leukocyte_check_due',
+          'daily_diary_overdue',
+          'exercise_target_missed',
+          'lbnp_target_missed',
+          'renal_stone_high_risk',
+        ]),
+      );
 
-      final radEvent = emitted.firstWhere((e) => e.kind == 'radiation_dose_rate');
+      final radEvent = emitted.firstWhere(
+        (e) => e.kind == 'radiation_dose_rate',
+      );
       expect(radEvent.severity, ProactiveSeverity.critical);
     });
 
@@ -753,13 +768,19 @@ void main() {
         activityState: 'resting',
         signalQuality: 'optimal (98%)',
       );
-      final first = await monitor.evaluate(crew: [mildHypoxia], now: currentTime);
+      final first = await monitor.evaluate(
+        crew: [mildHypoxia],
+        now: currentTime,
+      );
       expect(first, hasLength(1));
       expect(first.first.severity, ProactiveSeverity.warning);
 
       // Identical reading 2 minutes later is deduplicated.
       currentTime = currentTime.add(const Duration(minutes: 2));
-      final second = await monitor.evaluate(crew: [mildHypoxia], now: currentTime);
+      final second = await monitor.evaluate(
+        crew: [mildHypoxia],
+        now: currentTime,
+      );
       expect(second, isEmpty);
 
       // Escalation warning -> critical 1 minute later bypasses cooldown.
@@ -769,7 +790,10 @@ void main() {
         activityState: 'resting',
         signalQuality: 'optimal (98%)',
       );
-      final escalated = await monitor.evaluate(crew: [severeHypoxia], now: currentTime);
+      final escalated = await monitor.evaluate(
+        crew: [severeHypoxia],
+        now: currentTime,
+      );
       expect(escalated, hasLength(1));
       expect(escalated.first.severity, ProactiveSeverity.critical);
 
@@ -788,6 +812,213 @@ void main() {
         now: currentTime,
       );
       expect(afterCooldown, hasLength(1));
+    });
+
+    test('S2: coalesces multiple non-critical warnings in one tick into one spoken line with zero LLM calls', () async {
+      var currentTime = DateTime.utc(2026, 11, 14, 14, 0);
+      final notifier = InAppAgentNotifier();
+      final chat = _OfflineChatService();
+      final tts = _RecordingTts();
+      final ast1 = _makeProfile(
+        id: 'AST-01',
+        name: 'Alex Vance',
+        exerciseTargetReached: false,
+      );
+      final ast2 = _makeProfile(
+        id: 'AST-02',
+        name: 'Maya Lin',
+        exerciseTargetReached: false,
+      );
+      final crew = [ast1, ast2];
+
+      final orchestrator = AgentConversationOrchestrator(
+        chat: chat,
+        tts: tts,
+        skillRegistry: SkillRegistry(triageAgentSkills()),
+        componentRegistry: ComponentRegistry(),
+        clock: () => currentTime,
+        contextFactory: (id, ui) =>
+            _makeContext(crew: crew, astronautId: id, ui: ui, now: currentTime),
+      );
+
+      final monitor = ProactiveMonitor(
+        notifier: notifier,
+        orchestrator: orchestrator,
+        clock: () => currentTime,
+        crewReader: () => crew,
+        flagsReader: (id) async => {
+          'daily_diary_due': {'overdue': true},
+        },
+      );
+
+      final emitted = await monitor.tick();
+
+      // 2 astronauts x (daily_diary_overdue + exercise_target_missed) = 4 warnings.
+      expect(emitted, hasLength(4));
+      expect(
+        emitted.every((e) => e.severity == ProactiveSeverity.warning),
+        isTrue,
+      );
+      expect(notifier.notifications, hasLength(4));
+      expect(chat.sendCalls, 0);
+      expect(tts.spoken, hasLength(1));
+      expect(
+        tts.spoken.single,
+        contains('Four things need a look when you have a moment:'),
+      );
+      expect(
+        orchestrator.state.activeComponents.any(
+          (c) => c.componentId == ComponentIds.alertBanner,
+        ),
+        isTrue,
+      );
+      expect(orchestrator.state.messages, hasLength(2));
+    });
+
+    test('S2: critical alerts in same tick speak immediately while warnings coalesce once', () async {
+      var currentTime = DateTime.utc(2026, 11, 14, 14, 0);
+      final notifier = InAppAgentNotifier();
+      final chat = _OfflineChatService();
+      final tts = _RecordingTts();
+      final criticalAst = _makeProfile(
+        id: 'AST-01',
+        name: 'Alex Vance',
+        spO2: 86.0,
+        activityState: 'resting',
+        signalQuality: 'optimal (98%)',
+        exerciseTargetReached: false,
+      );
+      final crew = [criticalAst];
+
+      final orchestrator = AgentConversationOrchestrator(
+        chat: chat,
+        tts: tts,
+        skillRegistry: SkillRegistry(triageAgentSkills()),
+        componentRegistry: ComponentRegistry(),
+        clock: () => currentTime,
+        contextFactory: (id, ui) =>
+            _makeContext(crew: crew, astronautId: id, ui: ui, now: currentTime),
+      );
+
+      final monitor = ProactiveMonitor(
+        notifier: notifier,
+        orchestrator: orchestrator,
+        clock: () => currentTime,
+        crewReader: () => crew,
+        flagsReader: (_) async => {
+          'daily_diary_due': {'overdue': true},
+        },
+      );
+
+      final emitted = await monitor.tick();
+      expect(emitted, hasLength(3));
+      expect(chat.sendCalls, 0);
+      // 1 critical spoken immediately + 1 coalesced digest for the 2 warnings.
+      expect(tts.spoken, hasLength(2));
+      expect(tts.spoken.first, contains('86%'));
+      expect(
+        tts.spoken[1],
+        contains('Two things need a look when you have a moment:'),
+      );
+      // Critical alert banner is preserved rather than downgraded by warnings in the same tick.
+      final banner = orchestrator.state.activeComponents.firstWhere(
+        (c) => c.componentId == ComponentIds.alertBanner,
+      );
+      expect(banner.toProps()['severity'], 'critical');
+    });
+
+    test('S2: dedupe survives provider rebuild and 2-minute global speech budget suppresses second batch until window passes', () async {
+      var currentTime = DateTime.utc(2026, 11, 14, 15, 0);
+      final alertStore = ProactiveAlertStore();
+      var diaryOverdue = true;
+      var exerciseMissed = false;
+      var lbnpMissed = false;
+
+      ProactiveMonitor buildMonitor({
+        required InAppAgentNotifier notifier,
+        required AgentConversationOrchestrator orchestrator,
+      }) {
+        final profile = _makeProfile(
+          id: 'AST-01',
+          name: 'Alex Vance',
+          exerciseTargetReached: !exerciseMissed,
+        );
+        return ProactiveMonitor(
+          notifier: notifier,
+          orchestrator: orchestrator,
+          alertStore: alertStore,
+          clock: () => currentTime,
+          crewReader: () => [profile],
+          flagsReader: (_) async => {
+            if (diaryOverdue) 'daily_diary_due': {'overdue': true},
+            if (lbnpMissed) 'lbnp_missed': {'missed': true},
+          },
+        );
+      }
+
+      AgentConversationOrchestrator buildOrchestrator(
+        _RecordingTts tts,
+        _OfflineChatService chat,
+      ) {
+        return AgentConversationOrchestrator(
+          chat: chat,
+          tts: tts,
+          alertStore: alertStore,
+          skillRegistry: SkillRegistry(triageAgentSkills()),
+          componentRegistry: ComponentRegistry(),
+          clock: () => currentTime,
+          contextFactory: (id, ui) => _makeContext(
+            crew: [_makeProfile()],
+            astronautId: id,
+            ui: ui,
+            now: currentTime,
+          ),
+        );
+      }
+
+      // Initial panel open / tick at t=0: diary overdue spoken once.
+      final tts1 = _RecordingTts();
+      final chat1 = _OfflineChatService();
+      final notifier1 = InAppAgentNotifier();
+      final orch1 = buildOrchestrator(tts1, chat1);
+      final mon1 = buildMonitor(notifier: notifier1, orchestrator: orch1);
+
+      await mon1.tick();
+      expect(tts1.spoken, hasLength(1));
+      expect(chat1.sendCalls, 0);
+
+      // Reopen panel / rebuild providers 30s later with same store:
+      // - diary overdue is deduped (not emitted/spoken again)
+      // - new exercise_target_missed is within 2-min speech budget -> silent, visible
+      currentTime = currentTime.add(const Duration(seconds: 30));
+      exerciseMissed = true;
+      final tts2 = _RecordingTts();
+      final chat2 = _OfflineChatService();
+      final notifier2 = InAppAgentNotifier();
+      final orch2 = buildOrchestrator(tts2, chat2);
+      final mon2 = buildMonitor(notifier: notifier2, orchestrator: orch2);
+
+      final secondBatch = await mon2.tick();
+      expect(secondBatch.map((e) => e.kind), ['exercise_target_missed']);
+      expect(notifier2.notifications, hasLength(1));
+      expect(orch2.state.messages, hasLength(1));
+      expect(orch2.state.activeComponents, isNotEmpty);
+      expect(tts2.spoken, isEmpty);
+      expect(chat2.sendCalls, 0);
+
+      // Advance past 2-minute global speech budget (total 2m05s): new lbnp_target_missed speaks.
+      currentTime = currentTime.add(const Duration(minutes: 1, seconds: 35));
+      lbnpMissed = true;
+      final thirdBatch = await mon2.tick();
+      expect(thirdBatch.map((e) => e.kind), ['lbnp_target_missed']);
+      expect(tts2.spoken, hasLength(1));
+      expect(chat2.sendCalls, 0);
+
+      // Advance past 5-minute cooldown from t=0 (total 5m10s): diary overdue speaks again.
+      currentTime = currentTime.add(const Duration(minutes: 3, seconds: 5));
+      final fourthBatch = await mon2.tick();
+      expect(fourthBatch.map((e) => e.kind), ['daily_diary_overdue']);
+      expect(tts2.spoken, hasLength(2));
     });
   });
 }

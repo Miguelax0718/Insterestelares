@@ -27,9 +27,9 @@ class _FakeTool extends AgentTool {
 
   @override
   Map<String, dynamic> get parameters => const {
-        'type': 'object',
-        'properties': <String, dynamic>{},
-      };
+    'type': 'object',
+    'properties': <String, dynamic>{},
+  };
 
   @override
   Future<ToolResult> call(Map<String, dynamic> args, ToolContext ctx) async {
@@ -192,15 +192,18 @@ class _FakeChatService implements AgentChatService {
     Map<String, dynamic>? context,
     List<ToolSpec>? tools,
     List<String>? skillInstructions,
-  ) _handler;
+  )
+  _handler;
 
   final List<
-      ({
-        List<ChatMessage> messages,
-        Map<String, dynamic>? context,
-        List<ToolSpec>? tools,
-        List<String>? skillInstructions,
-      })> calls = [];
+    ({
+      List<ChatMessage> messages,
+      Map<String, dynamic>? context,
+      List<ToolSpec>? tools,
+      List<String>? skillInstructions,
+    })
+  >
+  calls = [];
 
   @override
   Future<AgentReply> send(
@@ -224,8 +227,7 @@ class _FakeChatService implements AgentChatService {
     Map<String, dynamic>? context,
     List<ToolSpec>? tools,
     List<String>? skillInstructions,
-  }) =>
-      const Stream.empty();
+  }) => const Stream.empty();
 }
 
 class _FakeTtsService implements TextToSpeechService {
@@ -343,32 +345,41 @@ void main() {
       expect(selected.map((s) => s.id), contains('s4'));
       expect(selected.map((s) => s.id), contains('s1'));
 
-      final toolNames = selected.expand((s) => s.tools).map((t) => t.name).toList();
+      final toolNames = selected
+          .expand((s) => s.tools)
+          .map((t) => t.name)
+          .toList();
       expect(toolNames.where((n) => n == 'shared_tool').length, 1);
-      expect(toolNames, containsAll(['shared_tool', 'core_only', 'tool_s1', 'tool_s4']));
+      expect(
+        toolNames,
+        containsAll(['shared_tool', 'core_only', 'tool_s1', 'tool_s4']),
+      );
     });
 
-    test('findOfflineFlow returns matched skill deterministic flow or null', () {
-      final flow = _FakeGraybielFlow();
-      final registry = SkillRegistry([
-        AgentSkill(
-          id: 'core',
-          instructions: 'Core',
-          tools: const [],
-          alwaysOn: true,
-        ),
-        AgentSkill(
-          id: 'graybiel',
-          instructions: 'Graybiel',
-          triggers: const ['nausea', 'graybiel', 'motion sickness'],
-          tools: const [],
-          offlineFlow: flow,
-        ),
-      ]);
+    test(
+      'findOfflineFlow returns matched skill deterministic flow or null',
+      () {
+        final flow = _FakeGraybielFlow();
+        final registry = SkillRegistry([
+          AgentSkill(
+            id: 'core',
+            instructions: 'Core',
+            tools: const [],
+            alwaysOn: true,
+          ),
+          AgentSkill(
+            id: 'graybiel',
+            instructions: 'Graybiel',
+            triggers: const ['nausea', 'graybiel', 'motion sickness'],
+            tools: const [],
+            offlineFlow: flow,
+          ),
+        ]);
 
-      expect(registry.findOfflineFlow('I feel motion sickness'), same(flow));
-      expect(registry.findOfflineFlow('unrelated query'), isNull);
-    });
+        expect(registry.findOfflineFlow('I feel motion sickness'), same(flow));
+        expect(registry.findOfflineFlow('unrelated query'), isNull);
+      },
+    );
   });
 
   group('ComponentRegistry', () {
@@ -433,7 +444,8 @@ void main() {
       ui = _FakeUiSink();
       ctx = ToolContext(
         astronautId: 'AST-01',
-        read: <T>(provider) => container.read(provider as ProviderListenable<T>),
+        read: <T>(provider) =>
+            container.read(provider as ProviderListenable<T>),
         ui: ui,
         confirm: _FakeConfirmationGate(),
         audit: _FakeAuditLog(),
@@ -456,20 +468,28 @@ void main() {
         container.read(crewMembersProvider),
       );
 
-      final overviewResult = await tools['get_crew_overview']!.call(const {}, ctx);
+      final overviewResult = await tools['get_crew_overview']!.call(
+        const {},
+        ctx,
+      );
       expect(overviewResult.ok, isTrue);
       expect(overviewResult.data['count'], beforeCrew.length);
       expect(ui.emitted.last, isA<ShowComponentEvent>());
-      expect((ui.emitted.last as ShowComponentEvent).id, ComponentIds.crewStatus);
-
-      final vitalsResult = await tools['get_vitals']!.call(
-        const {'astronaut_id': 'AST-03'},
-        ctx,
+      expect(
+        (ui.emitted.last as ShowComponentEvent).id,
+        ComponentIds.crewStatus,
       );
+
+      final vitalsResult = await tools['get_vitals']!.call(const {
+        'astronaut_id': 'AST-03',
+      }, ctx);
       expect(vitalsResult.ok, isTrue);
       expect(vitalsResult.data['astronaut_id'], 'AST-03');
       expect(vitalsResult.data['active_alerts'], isNotEmpty);
-      expect((ui.emitted.last as ShowComponentEvent).id, ComponentIds.vitalsCard);
+      expect(
+        (ui.emitted.last as ShowComponentEvent).id,
+        ComponentIds.vitalsCard,
+      );
 
       final afterCrew = container.read(crewMembersProvider);
       expect(afterCrew.length, beforeCrew.length);
@@ -478,55 +498,59 @@ void main() {
       }
     });
 
-    test('get_telemetry_series reads telemetryProvider and emits telemetryChart', () async {
-      final res = await tools['get_telemetry_series']!.call(const {}, ctx);
-      expect(res.ok, isTrue);
-      expect(res.data['machines'], isA<List>());
-      expect(res.data['metrics'], isA<Map>());
-      expect((ui.emitted.last as ShowComponentEvent).id, ComponentIds.telemetryChart);
-    });
+    test(
+      'get_telemetry_series reads telemetryProvider and emits telemetryChart',
+      () async {
+        final res = await tools['get_telemetry_series']!.call(const {}, ctx);
+        expect(res.ok, isTrue);
+        expect(res.data['machines'], isA<List>());
+        expect(res.data['metrics'], isA<Map>());
+        expect(
+          (ui.emitted.last as ShowComponentEvent).id,
+          ComponentIds.telemetryChart,
+        );
+      },
+    );
 
     test('save_memory, recall_memory, show_component, and hide_component work and validate ids', () async {
-      final saveRes = await tools['save_memory']!.call(
-        const {
-          'summary': 'Crew reports mild headache after EVA',
-          'kind': 'clinical_event',
-          'tags': ['eva', 'headache'],
-        },
-        ctx,
-      );
+      final saveRes = await tools['save_memory']!.call(const {
+        'summary': 'Crew reports mild headache after EVA',
+        'kind': 'clinical_event',
+        'tags': ['eva', 'headache'],
+      }, ctx);
       expect(saveRes.ok, isTrue);
 
-      final recallRes = await tools['recall_memory']!.call(
-        const {'query': 'headache'},
-        ctx,
-      );
+      final recallRes = await tools['recall_memory']!.call(const {
+        'query': 'headache',
+      }, ctx);
       expect(recallRes.ok, isTrue);
       expect(recallRes.data['count'], 1);
 
-      final badShow = await tools['show_component']!.call(
-        const {'id': 'unknown_card', 'props': <String, dynamic>{}},
-        ctx,
-      );
+      final badShow = await tools['show_component']!.call(const {
+        'id': 'unknown_card',
+        'props': <String, dynamic>{},
+      }, ctx);
       expect(badShow.ok, isFalse);
 
-      final goodShow = await tools['show_component']!.call(
-        const {
-          'id': ComponentIds.alertBanner,
-          'props': {'message': 'Check O2 levels'},
-        },
-        ctx,
-      );
+      final goodShow = await tools['show_component']!.call(const {
+        'id': ComponentIds.alertBanner,
+        'props': {'message': 'Check O2 levels'},
+      }, ctx);
       expect(goodShow.ok, isTrue);
-      expect((ui.emitted.last as ShowComponentEvent).id, ComponentIds.alertBanner);
-
-      final hideRes = await tools['hide_component']!.call(
-        const {'id': ComponentIds.alertBanner},
-        ctx,
+      expect(
+        (ui.emitted.last as ShowComponentEvent).id,
+        ComponentIds.alertBanner,
       );
+
+      final hideRes = await tools['hide_component']!.call(const {
+        'id': ComponentIds.alertBanner,
+      }, ctx);
       expect(hideRes.ok, isTrue);
       expect(ui.emitted.last, isA<HideComponentEvent>());
-      expect((ui.emitted.last as HideComponentEvent).id, ComponentIds.alertBanner);
+      expect(
+        (ui.emitted.last as HideComponentEvent).id,
+        ComponentIds.alertBanner,
+      );
     });
   });
 
@@ -582,7 +606,8 @@ void main() {
     ToolContext buildCtx(String astronautId, AgentUiSink ui) {
       return ToolContext(
         astronautId: astronautId,
-        read: <T>(provider) => container.read(provider as ProviderListenable<T>),
+        read: <T>(provider) =>
+            container.read(provider as ProviderListenable<T>),
         ui: ui,
         confirm: confirm,
         audit: audit,
@@ -616,7 +641,12 @@ void main() {
 
     test('multi-round tool loop executes tools, updates activeComponents, and appends final reply', () async {
       var round = 0;
-      final chat = _FakeChatService((messages, context, tools, instructions) async {
+      final chat = _FakeChatService((
+        messages,
+        context,
+        tools,
+        instructions,
+      ) async {
         round++;
         if (round == 1) {
           return const AgentReply(
@@ -644,10 +674,7 @@ void main() {
             ],
           );
         }
-        return const AgentReply(
-          reply: 'Vitals are nominal.',
-          model: 'm1',
-        );
+        return const AgentReply(reply: 'Vitals are nominal.', model: 'm1');
       });
 
       final tts = _FakeTtsService();
@@ -667,55 +694,67 @@ void main() {
       expect(round, 3);
       expect(state.messages.last.role, ChatRole.assistant);
       expect(state.messages.last.content, 'Vitals are nominal.');
-      expect(
-        state.messages.where((m) => m.role == ChatRole.tool).length,
-        2,
-      );
+      expect(state.messages.where((m) => m.role == ChatRole.tool).length, 2);
       expect(state.activeComponents, isEmpty);
       expect(tts.spoken, ['Vitals are nominal.']);
     });
 
-    test('6-round cap stops looping and requests final reply without tools', () async {
-      var round = 0;
-      final chat = _FakeChatService((messages, context, tools, instructions) async {
-        round++;
-        if (round <= 6) {
-          expect(tools, isNotEmpty);
-          return AgentReply(
-            reply: '',
+    test(
+      '6-round cap stops looping and requests final reply without tools',
+      () async {
+        var round = 0;
+        final chat = _FakeChatService((
+          messages,
+          context,
+          tools,
+          instructions,
+        ) async {
+          round++;
+          if (round <= 6) {
+            expect(tools, isNotEmpty);
+            return AgentReply(
+              reply: '',
+              model: 'm1',
+              toolCalls: [
+                ToolCall(
+                  id: 'c$round',
+                  name: 'get_crew_overview',
+                  arguments: const {},
+                ),
+              ],
+            );
+          }
+          expect(tools, isEmpty);
+          return const AgentReply(
+            reply: 'Summary after tool limit.',
             model: 'm1',
-            toolCalls: [
-              ToolCall(
-                id: 'c$round',
-                name: 'get_crew_overview',
-                arguments: const {},
-              ),
-            ],
           );
-        }
-        expect(tools, isEmpty);
-        return const AgentReply(
-          reply: 'Summary after tool limit.',
-          model: 'm1',
+        });
+
+        final orchestrator = AgentConversationOrchestrator(
+          chat: chat,
+          skillRegistry: skillRegistry,
+          componentRegistry: componentRegistry,
+          contextFactory: buildCtx,
         );
-      });
 
-      final orchestrator = AgentConversationOrchestrator(
-        chat: chat,
-        skillRegistry: skillRegistry,
-        componentRegistry: componentRegistry,
-        contextFactory: buildCtx,
-      );
-
-      final state = await orchestrator.sendUserMessage('Check crew');
-      expect(round, 7);
-      expect(state.messages.last.content, 'Summary after tool limit.');
-      expect(state.activeComponents.map((c) => c.componentId), [ComponentIds.crewStatus]);
-    });
+        final state = await orchestrator.sendUserMessage('Check crew');
+        expect(round, 7);
+        expect(state.messages.last.content, 'Summary after tool limit.');
+        expect(state.activeComponents.map((c) => c.componentId), [
+          ComponentIds.crewStatus,
+        ]);
+      },
+    );
 
     test('reports invalidArguments and unknown tools back as tool error messages without crashing', () async {
       var round = 0;
-      final chat = _FakeChatService((messages, context, tools, instructions) async {
+      final chat = _FakeChatService((
+        messages,
+        context,
+        tools,
+        instructions,
+      ) async {
         round++;
         if (round == 1) {
           return const AgentReply(
@@ -728,11 +767,7 @@ void main() {
                 arguments: {},
                 invalidArguments: true,
               ),
-              ToolCall(
-                id: 'unknown',
-                name: 'does_not_exist',
-                arguments: {},
-              ),
+              ToolCall(id: 'unknown', name: 'does_not_exist', arguments: {}),
             ],
           );
         }
@@ -747,8 +782,9 @@ void main() {
       );
 
       final state = await orchestrator.sendUserMessage('Test errors');
-      final toolMessages =
-          state.messages.where((m) => m.role == ChatRole.tool).toList();
+      final toolMessages = state.messages
+          .where((m) => m.role == ChatRole.tool)
+          .toList();
       expect(toolMessages, hasLength(2));
       expect(jsonDecode(toolMessages[0].content)['ok'], isFalse);
       expect(
@@ -776,7 +812,9 @@ void main() {
         contextFactory: buildCtx,
       );
 
-      final freeChatState = await orchestrator.sendUserMessage('Tell me a joke');
+      final freeChatState = await orchestrator.sendUserMessage(
+        'Tell me a joke',
+      );
       expect(freeChatState.offlineMode, isTrue);
       expect(
         freeChatState.messages.last.content.toLowerCase(),
@@ -791,13 +829,15 @@ void main() {
       expect(flowStartState.offlineMode, isTrue);
       expect(flowStartState.activeOfflineFlowSkillId, 'graybiel');
       expect(flowStartState.messages.last.content, contains('Step 1'));
-      expect(
-        flowStartState.activeComponents.map((c) => c.componentId),
-        [ComponentIds.graybielQuestionnaire],
-      );
+      expect(flowStartState.activeComponents.map((c) => c.componentId), [
+        ComponentIds.graybielQuestionnaire,
+      ]);
       expect(tts.spoken, contains('Step 1: Rate nausea from 0 to 16.'));
 
-      final flowEndState = await orchestrator.sendUserMessage('4', speakReply: true);
+      final flowEndState = await orchestrator.sendUserMessage(
+        '4',
+        speakReply: true,
+      );
       expect(flowEndState.activeOfflineFlowSkillId, isNull);
       expect(flowEndState.messages.last.content, contains('slight malaise'));
     });
@@ -838,16 +878,14 @@ void main() {
         state.messages.last.content,
         'Critical hypoxia detected: SpO2 88 percent.',
       );
-      expect(
-        state.activeComponents.map((c) => c.componentId),
-        [ComponentIds.alertBanner],
-      );
+      expect(state.activeComponents.map((c) => c.componentId), [
+        ComponentIds.alertBanner,
+      ]);
     });
 
-    test('warning proactive event triggers agent turn when online and falls back to spokenMessage when offline', () async {
+    test('warning proactive event updates UI/transcript silently without calling LLM and speaks deterministically', () async {
       final onlineChat = _FakeChatService((messages, _, _, _) async {
-        expect(messages.last.content, contains('fatigue'));
-        return const AgentReply(reply: 'Schedule rest cycle soon.', model: 'm1');
+        fail('Non-critical proactive events must not call the LLM');
       });
       final onlineTts = _FakeTtsService();
       final onlineOrchestrator = AgentConversationOrchestrator(
@@ -865,12 +903,26 @@ void main() {
         kind: 'fatigue',
         spokenMessage: 'Sleep deficit detected.',
         createdAt: DateTime.utc(2026, 11, 14, 12),
+        uiEvents: const [
+          ShowComponentEvent(ComponentIds.alertBanner, {
+            'severity': 'warning',
+            'classification': 'fatigue',
+            'message': 'Sleep deficit detected.',
+            'suppressed': false,
+          }),
+        ],
       );
 
-      final onlineState = await onlineOrchestrator.handleProactiveEvent(warningEvent);
-      expect(onlineChat.calls, hasLength(1));
-      expect(onlineState.messages.last.content, 'Schedule rest cycle soon.');
-      expect(onlineTts.spoken, ['Schedule rest cycle soon.']);
+      final onlineState = await onlineOrchestrator.handleProactiveEvent(
+        warningEvent,
+      );
+      expect(onlineChat.calls, isEmpty);
+      expect(onlineState.messages.last.content, 'Sleep deficit detected.');
+      expect(onlineState.activeComponents.map((c) => c.componentId), [
+        ComponentIds.alertBanner,
+      ]);
+      expect(onlineTts.spoken, hasLength(1));
+      expect(onlineTts.spoken.single, contains('Sleep deficit detected'));
 
       final offlineChat = _FakeChatService((_, _, _, _) async {
         throw const AgentUnavailableException();
@@ -884,60 +936,248 @@ void main() {
         contextFactory: buildCtx,
       );
 
-      final offlineState = await offlineOrchestrator.handleProactiveEvent(warningEvent);
-      expect(offlineState.offlineMode, isTrue);
+      final offlineState = await offlineOrchestrator.handleProactiveEvent(
+        warningEvent,
+      );
+      expect(offlineChat.calls, isEmpty);
       expect(offlineState.messages.last.content, 'Sleep deficit detected.');
-      expect(offlineTts.spoken, ['Sleep deficit detected.']);
+      expect(offlineTts.spoken, hasLength(1));
     });
 
-    test('resolveConfirmation and switchAstronaut preserve per-astronaut state', () async {
-      final chat = _FakeChatService((messages, _, _, _) async {
-        return AgentReply(
-          reply: 'Reply for ${messages.last.content}',
-          model: 'm1',
-        );
+    test('S2: concurrent non-critical handleProactiveEvent calls coalesce into one spoken line and enforce 2-min speech budget & cooldown across rebuilds', () async {
+      var now = DateTime.utc(2026, 11, 14, 12, 0);
+      final alertStore = ProactiveAlertStore();
+      final chat = _FakeChatService((_, _, _, _) async {
+        fail('Non-critical proactive events must not call the LLM');
       });
+      final tts = _FakeTtsService();
       final orchestrator = AgentConversationOrchestrator(
         chat: chat,
+        tts: tts,
+        alertStore: alertStore,
+        clock: () => now,
+        proactiveSpeechBudget: const Duration(minutes: 2),
+        proactiveCooldown: const Duration(minutes: 5),
         skillRegistry: skillRegistry,
         componentRegistry: componentRegistry,
         contextFactory: buildCtx,
       );
 
-      await orchestrator.sendUserMessage('Hello AST-01');
-      confirm.setPending(
-        const ConsequentialAction(
-          id: 'act-1',
+      final warn1 = ProactiveEvent(
+        id: 'w1',
+        astronautId: 'AST-01',
+        severity: ProactiveSeverity.warning,
+        kind: 'sleep_low',
+        spokenMessage: "Alex's sleep is low.",
+        createdAt: now,
+        uiEvents: const [
+          ShowComponentEvent(ComponentIds.alertBanner, {
+            'severity': 'warning',
+            'classification': 'sleep',
+            'message': "Alex's sleep is low.",
+            'suppressed': false,
+          }),
+        ],
+      );
+      final warn2 = ProactiveEvent(
+        id: 'w2',
+        astronautId: 'AST-01',
+        severity: ProactiveSeverity.warning,
+        kind: 'daily_diary_overdue',
+        spokenMessage:
+            'Alex Vance: your daily voice diary check-in is overdue (>24h).',
+        createdAt: now,
+      );
+
+      await Future.wait([
+        orchestrator.handleProactiveEvent(warn1),
+        orchestrator.handleProactiveEvent(warn2),
+      ]);
+
+      expect(chat.calls, isEmpty);
+      expect(tts.spoken, hasLength(1));
+      expect(
+        tts.spoken.single,
+        "Two things need a look when you have a moment: Alex's sleep is low and Alex's daily log is overdue.",
+      );
+      expect(orchestrator.state.messages, hasLength(2));
+
+      // Within 2-min budget: new event stays silent but updates transcript/UI.
+      now = now.add(const Duration(minutes: 1));
+      final warn3 = ProactiveEvent(
+        id: 'w3',
+        astronautId: 'AST-01',
+        severity: ProactiveSeverity.info,
+        kind: 'hydration_reminder',
+        spokenMessage: 'Hydration target behind schedule.',
+        createdAt: now,
+      );
+      await orchestrator.handleProactiveEvent(warn3);
+      expect(tts.spoken, hasLength(1));
+      expect(orchestrator.state.messages, hasLength(3));
+
+      // Rebuild orchestrator sharing alertStore within 5-min cooldown for sleep_low,
+      // after 2-min budget has elapsed -> sleep_low must still not speak!
+      now = now.add(const Duration(minutes: 2));
+      final ttsRebuilt = _FakeTtsService();
+      final rebuilt = AgentConversationOrchestrator(
+        chat: chat,
+        tts: ttsRebuilt,
+        alertStore: alertStore,
+        clock: () => now,
+        proactiveSpeechBudget: const Duration(minutes: 2),
+        proactiveCooldown: const Duration(minutes: 5),
+        skillRegistry: skillRegistry,
+        componentRegistry: componentRegistry,
+        contextFactory: buildCtx,
+      );
+      await rebuilt.handleProactiveEvent(warn1);
+      expect(ttsRebuilt.spoken, isEmpty);
+
+      // Warning -> critical escalation for same (astronautId, kind) speaks immediately,
+      // and a second distinct critical event also speaks immediately.
+      final escalatedCritical = ProactiveEvent(
+        id: 'c1',
+        astronautId: 'AST-01',
+        severity: ProactiveSeverity.critical,
+        kind: 'sleep_low',
+        spokenMessage: 'Critical fatigue alert.',
+        createdAt: now,
+      );
+      final secondCritical = ProactiveEvent(
+        id: 'c2',
+        astronautId: 'AST-01',
+        severity: ProactiveSeverity.critical,
+        kind: 'hypoxia_alert',
+        spokenMessage: 'Critical hypoxia alert.',
+        createdAt: now,
+      );
+      await rebuilt.handleProactiveEvent(escalatedCritical);
+      await rebuilt.handleProactiveEvent(secondCritical);
+      expect(ttsRebuilt.spoken, [
+        'Critical fatigue alert.',
+        'Critical hypoxia alert.',
+      ]);
+      expect(chat.calls, isEmpty);
+    });
+
+    test('S2: non-zero proactiveCoalesceWindow coalesces sequential events within window and dispose cancels cleanly', () async {
+      var now = DateTime.utc(2026, 11, 14, 12, 0);
+      final chat = _FakeChatService((_, _, _, _) async {
+        fail('Non-critical proactive events must not call the LLM');
+      });
+      final tts = _FakeTtsService();
+      final orchestrator = AgentConversationOrchestrator(
+        chat: chat,
+        tts: tts,
+        clock: () => now,
+        proactiveCoalesceWindow: const Duration(milliseconds: 30),
+        skillRegistry: skillRegistry,
+        componentRegistry: componentRegistry,
+        contextFactory: buildCtx,
+      );
+
+      final f1 = orchestrator.handleProactiveEvent(
+        ProactiveEvent(
+          id: 'cw1',
           astronautId: 'AST-01',
-          actionType: 'block_eva',
-          description: 'Block EVA for 24h',
-          payload: {'hours': 24},
+          severity: ProactiveSeverity.warning,
+          kind: 'sleep_low',
+          spokenMessage: "Alex's sleep is low.",
+          createdAt: now,
         ),
       );
-      orchestrator.syncPendingAction(confirm.pending);
-      final afterConfirm = await orchestrator.resolveConfirmation(
-        ConfirmationDecision.confirmed,
-        reason: 'Crew approved',
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      final f2 = orchestrator.handleProactiveEvent(
+        ProactiveEvent(
+          id: 'cw2',
+          astronautId: 'AST-01',
+          severity: ProactiveSeverity.warning,
+          kind: 'daily_diary_overdue',
+          spokenMessage: 'Alex Vance: daily diary overdue.',
+          createdAt: now,
+        ),
       );
-      expect(confirm.resolutions, [('act-1', ConfirmationDecision.confirmed, 'Crew approved')]);
-      expect(afterConfirm.pendingAction, isNull);
-      expect(afterConfirm.messages.last.content.toLowerCase(), contains('confirmed'));
 
-      final ast2State = orchestrator.switchAstronaut('AST-02');
-      expect(ast2State.astronautId, 'AST-02');
-      expect(ast2State.messages, isEmpty);
-      await orchestrator.sendUserMessage('Hello AST-02');
+      await Future.wait([f1, f2]);
+      expect(tts.spoken, hasLength(1));
+      expect(
+        tts.spoken.single,
+        "Two things need a look when you have a moment: Alex's sleep is low and Alex's daily log is overdue.",
+      );
+      expect(chat.calls, isEmpty);
 
-      final backToAst1 = orchestrator.switchAstronaut('AST-01');
-      expect(backToAst1.astronautId, 'AST-01');
-      expect(
-        backToAst1.messages.any((m) => m.content == 'Hello AST-01'),
-        isTrue,
+      // Pending coalesced event completes cleanly on dispose() without dangling timers.
+      final pendingFuture = orchestrator.handleProactiveEvent(
+        ProactiveEvent(
+          id: 'cw3',
+          astronautId: 'AST-01',
+          severity: ProactiveSeverity.info,
+          kind: 'extra_info',
+          spokenMessage: 'Info note.',
+          createdAt: now.add(const Duration(minutes: 5)),
+        ),
       );
-      expect(
-        backToAst1.messages.any((m) => m.content == 'Hello AST-02'),
-        isFalse,
-      );
+      orchestrator.dispose();
+      await pendingFuture;
     });
+
+    test(
+      'resolveConfirmation and switchAstronaut preserve per-astronaut state',
+      () async {
+        final chat = _FakeChatService((messages, _, _, _) async {
+          return AgentReply(
+            reply: 'Reply for ${messages.last.content}',
+            model: 'm1',
+          );
+        });
+        final orchestrator = AgentConversationOrchestrator(
+          chat: chat,
+          skillRegistry: skillRegistry,
+          componentRegistry: componentRegistry,
+          contextFactory: buildCtx,
+        );
+
+        await orchestrator.sendUserMessage('Hello AST-01');
+        confirm.setPending(
+          const ConsequentialAction(
+            id: 'act-1',
+            astronautId: 'AST-01',
+            actionType: 'block_eva',
+            description: 'Block EVA for 24h',
+            payload: {'hours': 24},
+          ),
+        );
+        orchestrator.syncPendingAction(confirm.pending);
+        final afterConfirm = await orchestrator.resolveConfirmation(
+          ConfirmationDecision.confirmed,
+          reason: 'Crew approved',
+        );
+        expect(confirm.resolutions, [
+          ('act-1', ConfirmationDecision.confirmed, 'Crew approved'),
+        ]);
+        expect(afterConfirm.pendingAction, isNull);
+        expect(
+          afterConfirm.messages.last.content.toLowerCase(),
+          contains('confirmed'),
+        );
+
+        final ast2State = orchestrator.switchAstronaut('AST-02');
+        expect(ast2State.astronautId, 'AST-02');
+        expect(ast2State.messages, isEmpty);
+        await orchestrator.sendUserMessage('Hello AST-02');
+
+        final backToAst1 = orchestrator.switchAstronaut('AST-01');
+        expect(backToAst1.astronautId, 'AST-01');
+        expect(
+          backToAst1.messages.any((m) => m.content == 'Hello AST-01'),
+          isTrue,
+        );
+        expect(
+          backToAst1.messages.any((m) => m.content == 'Hello AST-02'),
+          isFalse,
+        );
+      },
+    );
   });
 }

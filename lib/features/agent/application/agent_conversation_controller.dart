@@ -91,6 +91,18 @@ class _TurnUiSink implements AgentUiSink {
   }
 }
 
+class _QueuedProactiveEvent {
+  _QueuedProactiveEvent({
+    required this.event,
+    required this.timestamp,
+    required this.completer,
+  });
+
+  final ProactiveEvent event;
+  final DateTime timestamp;
+  final Completer<AgentSessionState> completer;
+}
+
 class AgentConversationOrchestrator {
   AgentConversationOrchestrator({
     required this.chat,
@@ -101,13 +113,22 @@ class AgentConversationOrchestrator {
     this.contextBuilder = const AgentContextBuilder(),
     String initialAstronautId = 'AST-01',
     this.maxToolRounds = defaultMaxToolRounds,
+    DateTime Function()? clock,
+    this.proactiveSpeechBudget = defaultProactiveSpeechBudget,
+    this.proactiveCooldown = defaultProactiveCooldown,
+    this.proactiveCoalesceWindow = Duration.zero,
+    ProactiveAlertStore? alertStore,
     this.onStateChanged,
     this.onComponentSubmitted,
-  }) : _state = AgentSessionState(astronautId: initialAstronautId) {
+  }) : _clock = clock ?? (() => DateTime.now().toUtc()),
+       _alertStore = alertStore ?? ProactiveAlertStore(),
+       _state = AgentSessionState(astronautId: initialAstronautId) {
     _sessionsByAstronaut[initialAstronautId] = _state;
   }
 
   static const int defaultMaxToolRounds = 6;
+  static const Duration defaultProactiveSpeechBudget = Duration(minutes: 2);
+  static const Duration defaultProactiveCooldown = Duration(minutes: 5);
   static const String _offlineUnavailableMessage =
       'Free chat is unavailable while offline. Guided clinical protocols remain available.';
 
@@ -118,15 +139,48 @@ class AgentConversationOrchestrator {
   final ToolContext Function(String astronautId, AgentUiSink ui) contextFactory;
   final AgentContextBuilder contextBuilder;
   final int maxToolRounds;
+  final DateTime Function() _clock;
+  final Duration proactiveSpeechBudget;
+  final Duration proactiveCooldown;
+  final Duration proactiveCoalesceWindow;
+  final ProactiveAlertStore _alertStore;
   final void Function(AgentSessionState state)? onStateChanged;
   final void Function(String componentId, Map<String, dynamic> result)?
   onComponentSubmitted;
 
   final Map<String, AgentSessionState> _sessionsByAstronaut = {};
   final List<ChatMessage> _midTurnConfirmationMessages = [];
+  final List<_QueuedProactiveEvent> _pendingNonCritical = [];
+  final Map<String, DateTime> _lastCriticalBannerAtByAstronaut = {};
+  Timer? _coalesceTimer;
+  bool _microtaskScheduled = false;
+  bool _disposed = false;
   AgentSessionState _state;
 
   AgentSessionState get state => _state;
+
+  void dispose() {
+    _disposed = true;
+    _coalesceTimer?.cancel();
+    _coalesceTimer = null;
+    if (_pendingNonCritical.isNotEmpty) {
+      final pending = List<_QueuedProactiveEvent>.from(_pendingNonCritical);
+      _pendingNonCritical.clear();
+      for (final item in pending) {
+        if (!item.completer.isCompleted) {
+          item.completer.complete(_stateFor(item.event.astronautId));
+        }
+      }
+    }
+  }
+
+  AgentSessionState _stateFor(String astronautId) {
+    if (astronautId == _state.astronautId) {
+      return _state;
+    }
+    return _sessionsByAstronaut[astronautId] ??
+        AgentSessionState(astronautId: astronautId);
+  }
 
   void _emitState(AgentSessionState next) {
     _state = next;
@@ -237,28 +291,163 @@ class AgentConversationOrchestrator {
     }
   }
 
-  Future<AgentSessionState> handleProactiveEvent(ProactiveEvent event) async {
-    final targetId = event.astronautId;
-    final targetState = targetId == _state.astronautId
-        ? _state
-        : (_sessionsByAstronaut[targetId] ??
-              AgentSessionState(astronautId: targetId));
+  Future<AgentSessionState> handleProactiveEvent(
+    ProactiveEvent event, {
+    DateTime? now,
+  }) async {
+    final ts = (now ?? _clock()).toUtc();
+    if (event.severity == ProactiveSeverity.critical) {
+      return _handleCriticalProactiveEvent(event, now: ts);
+    }
 
-    var nextComponents = _applyUiEvents(
+    final completer = Completer<AgentSessionState>();
+    _pendingNonCritical.add(
+      _QueuedProactiveEvent(event: event, timestamp: ts, completer: completer),
+    );
+    _scheduleNonCriticalFlush();
+    return completer.future;
+  }
+
+  Future<AgentSessionState> handleProactiveEvents(
+    List<ProactiveEvent> events, {
+    DateTime? now,
+  }) async {
+    if (events.isEmpty) {
+      return _state;
+    }
+    final ts = (now ?? _clock()).toUtc();
+    final nonCritical = <ProactiveEvent>[];
+    for (final event in events) {
+      if (event.severity == ProactiveSeverity.critical) {
+        await _handleCriticalProactiveEvent(event, now: ts);
+      } else {
+        nonCritical.add(event);
+      }
+    }
+    if (nonCritical.isNotEmpty) {
+      await _processNonCriticalBatch(nonCritical, now: ts);
+    }
+    return _state;
+  }
+
+  void _scheduleNonCriticalFlush() {
+    if (_disposed) {
+      return;
+    }
+    if (proactiveCoalesceWindow > Duration.zero) {
+      _coalesceTimer ??= Timer(proactiveCoalesceWindow, () {
+        _coalesceTimer = null;
+        unawaited(_flushPendingNonCritical());
+      });
+      return;
+    }
+    if (!_microtaskScheduled) {
+      _microtaskScheduled = true;
+      Future.microtask(() {
+        _microtaskScheduled = false;
+        unawaited(_flushPendingNonCritical());
+      });
+    }
+  }
+
+  Future<void> _flushPendingNonCritical() async {
+    if (_disposed || _pendingNonCritical.isEmpty) {
+      return;
+    }
+    final queued = List<_QueuedProactiveEvent>.from(_pendingNonCritical);
+    _pendingNonCritical.clear();
+    final batchTimestamp = queued.last.timestamp;
+    try {
+      await _processNonCriticalBatch(
+        queued.map((q) => q.event).toList(growable: false),
+        now: batchTimestamp,
+      );
+      for (final item in queued) {
+        if (!item.completer.isCompleted) {
+          item.completer.complete(_stateFor(item.event.astronautId));
+        }
+      }
+    } catch (e, st) {
+      for (final item in queued) {
+        if (!item.completer.isCompleted) {
+          item.completer.completeError(e, st);
+        }
+      }
+    }
+  }
+
+  Future<AgentSessionState> _handleCriticalProactiveEvent(
+    ProactiveEvent event, {
+    required DateTime now,
+  }) async {
+    final targetId = event.astronautId;
+    final targetState = _stateFor(targetId);
+
+    final nextComponents = _applyUiEvents(
       targetState.activeComponents,
       event.uiEvents,
     );
+    if (event.uiEvents.any(
+      (e) => e is ShowComponentEvent && e.id == ComponentIds.alertBanner,
+    )) {
+      _lastCriticalBannerAtByAstronaut[targetId] = now;
+    }
 
-    if (event.severity == ProactiveSeverity.critical) {
-      final criticalMessage = ChatMessage(
-        role: ChatRole.assistant,
-        content: event.spokenMessage,
+    final criticalMessage = ChatMessage(
+      role: ChatRole.assistant,
+      content: event.spokenMessage,
+    );
+    final updated = targetState.copyWith(
+      messages: List<ChatMessage>.unmodifiable([
+        ...targetState.messages,
+        criticalMessage,
+      ]),
+      activeComponents: nextComponents,
+      clearLastError: true,
+    );
+    _sessionsByAstronaut[targetId] = updated;
+    if (targetId == _state.astronautId) {
+      _emitState(updated);
+    }
+
+    if (_alertStore.shouldSpeak(event, now: now, cooldown: proactiveCooldown)) {
+      _alertStore.recordSpoken(event, now: now);
+      await _safeSpeak(event.spokenMessage);
+    }
+    return updated;
+  }
+
+  Future<AgentSessionState> _processNonCriticalBatch(
+    List<ProactiveEvent> events, {
+    required DateTime now,
+  }) async {
+    if (events.isEmpty) {
+      return _state;
+    }
+
+    final speakable = <ProactiveEvent>[];
+    final seenSpeakKeys = <String>{};
+
+    for (final event in events) {
+      final targetId = event.astronautId;
+      final targetState = _stateFor(targetId);
+
+      final nextComponents = _applyProactiveUiEvents(
+        targetState.activeComponents,
+        event.uiEvents,
+        astronautId: targetId,
+        eventTime: now,
       );
+      final compactEntry = event.spokenMessage.trim();
+      final nextMessages = compactEntry.isEmpty
+          ? targetState.messages
+          : List<ChatMessage>.unmodifiable([
+              ...targetState.messages,
+              ChatMessage(role: ChatRole.assistant, content: compactEntry),
+            ]);
+
       final updated = targetState.copyWith(
-        messages: List<ChatMessage>.unmodifiable([
-          ...targetState.messages,
-          criticalMessage,
-        ]),
+        messages: nextMessages,
         activeComponents: nextComponents,
         clearLastError: true,
       );
@@ -266,72 +455,183 @@ class AgentConversationOrchestrator {
       if (targetId == _state.astronautId) {
         _emitState(updated);
       }
-      await _safeSpeak(event.spokenMessage);
-      return updated;
-    }
 
-    final summaryPrompt =
-        '[Proactive ${event.severity.name}: ${event.kind}] ${event.spokenMessage}';
-    final sink = _TurnUiSink(onSubmit: submitComponentResult);
-    final ctx = contextFactory(targetId, sink);
-    final workingMessages = [
-      ...targetState.messages,
-      ChatMessage(role: ChatRole.user, content: summaryPrompt),
-    ];
-
-    var workingState = targetState.copyWith(
-      messages: List<ChatMessage>.unmodifiable(workingMessages),
-      activeComponents: nextComponents,
-      busy: true,
-      clearLastError: true,
-    );
-    _sessionsByAstronaut[targetId] = workingState;
-    if (targetId == _state.astronautId) {
-      _emitState(workingState);
-    }
-
-    try {
-      final resultState = await _runOnlineTurn(
-        query: '${event.kind} ${event.spokenMessage}',
-        forcedSkillId: event.skillId,
-        conversation: workingMessages,
-        ctx: ctx,
-        sink: sink,
-        speakReply: true,
-        baseState: workingState,
-      );
-      return resultState;
-    } on AgentUnavailableException {
-      final fallbackMsg = ChatMessage(
-        role: ChatRole.assistant,
-        content: event.spokenMessage,
-      );
-      final offlineUpdated = workingState.copyWith(
-        messages: List<ChatMessage>.unmodifiable([
-          ...targetState.messages,
-          fallbackMsg,
-        ]),
-        activeComponents: nextComponents,
-        busy: false,
-        offlineMode: true,
-      );
-      _sessionsByAstronaut[targetId] = offlineUpdated;
-      if (targetId == _state.astronautId) {
-        _emitState(offlineUpdated);
+      final key = ProactiveAlertStore.keyFor(event.astronautId, event.kind);
+      if (seenSpeakKeys.add(key) &&
+          _alertStore.shouldSpeak(
+            event,
+            now: now,
+            cooldown: proactiveCooldown,
+          )) {
+        speakable.add(event);
       }
-      await _safeSpeak(event.spokenMessage);
-      return offlineUpdated;
-    } catch (e) {
-      final errored = workingState.copyWith(
-        busy: false,
-        lastError: e.toString(),
-      );
-      _sessionsByAstronaut[targetId] = errored;
-      if (targetId == _state.astronautId) {
-        _emitState(errored);
-      }
-      return errored;
     }
+
+    if (speakable.isNotEmpty &&
+        _alertStore.canSpeakNonCritical(
+          now: now,
+          budgetWindow: proactiveSpeechBudget,
+        )) {
+      final digest = buildNonCriticalDigest(speakable);
+      if (digest.isNotEmpty) {
+        _alertStore.recordNonCriticalDigestSpoken(speakable, now: now);
+        await _safeSpeak(digest);
+      }
+    }
+
+    return _state;
+  }
+
+  List<AgentViewModel> _applyProactiveUiEvents(
+    List<AgentViewModel> current,
+    List<AgentComponentEvent> events, {
+    required String astronautId,
+    required DateTime eventTime,
+  }) {
+    if (events.isEmpty) {
+      return current;
+    }
+    final criticalAt = _lastCriticalBannerAtByAstronaut[astronautId];
+    final preserveCriticalBanner =
+        criticalAt != null &&
+        criticalAt == eventTime &&
+        current.any((c) => c.componentId == ComponentIds.alertBanner);
+    if (!preserveCriticalBanner) {
+      return _applyUiEvents(current, events);
+    }
+    final filtered = events
+        .where(
+          (e) => !(e is ShowComponentEvent && e.id == ComponentIds.alertBanner),
+        )
+        .toList(growable: false);
+    return _applyUiEvents(current, filtered);
+  }
+
+  /// Builds one short, natural English spoken line summarizing non-critical
+  /// proactive events deterministically without invoking the LLM.
+  static String buildNonCriticalDigest(List<ProactiveEvent> events) {
+    if (events.isEmpty) {
+      return '';
+    }
+    final phrases = <String>[];
+    final seenPhrases = <String>{};
+    for (final event in events) {
+      final phrase = _shortPhraseForEvent(event);
+      if (phrase.isNotEmpty && seenPhrases.add(phrase.toLowerCase())) {
+        phrases.add(phrase);
+      }
+    }
+    if (phrases.isEmpty) {
+      return '';
+    }
+    if (phrases.length == 1) {
+      return 'When you have a moment: ${phrases.first}.';
+    }
+    if (phrases.length == 2) {
+      return 'Two things need a look when you have a moment: ${phrases[0]} and ${phrases[1]}.';
+    }
+    if (phrases.length == 3) {
+      return 'Three things need a look when you have a moment: ${phrases[0]}, ${phrases[1]}, and ${phrases[2]}.';
+    }
+    final remaining = phrases.length - 2;
+    return '${_countLabel(phrases.length)} things need a look when you have a moment: ${phrases[0]}, ${phrases[1]}, and $remaining more.';
+  }
+
+  static String _countLabel(int count) => switch (count) {
+    4 => 'Four',
+    5 => 'Five',
+    _ => '$count',
+  };
+
+  static String _shortPhraseForEvent(ProactiveEvent event) {
+    final who = _extractFirstName(event.spokenMessage);
+    return switch (event.kind) {
+      'daily_diary_overdue' =>
+        who != null
+            ? "$who's daily log is overdue"
+            : 'the daily log is overdue',
+      'exercise_target_missed' =>
+        who != null
+            ? "$who's exercise target is incomplete"
+            : 'an exercise target is incomplete',
+      'lbnp_target_missed' =>
+        who != null
+            ? "$who's LBNP session is overdue"
+            : 'an LBNP session is overdue',
+      'leukocyte_check_due' =>
+        who != null
+            ? "$who's leukocyte check is due"
+            : 'a leukocyte check is due',
+      'renal_stone_high_risk' =>
+        who != null
+            ? '$who has high renal stone risk'
+            : 'renal stone risk is elevated',
+      'radiation_dose_rate' =>
+        who != null
+            ? "$who's radiation dose rate is elevated"
+            : 'radiation dose rate is elevated',
+      'space_weather_sep' => 'a solar particle event is active',
+      'hypoxia_alert' =>
+        who != null
+            ? "$who's oxygen saturation is low"
+            : 'oxygen saturation is low',
+      'tachycardia_alert' =>
+        who != null ? "$who's heart rate is high" : 'heart rate is high',
+      'hypotension_alert' =>
+        who != null ? "$who's blood pressure is low" : 'blood pressure is low',
+      'bradycardia_alert' =>
+        who != null ? "$who's heart rate is low" : 'heart rate is low',
+      'hypertension_alert' =>
+        who != null
+            ? "$who's blood pressure is elevated"
+            : 'blood pressure is elevated',
+      'fever_alert' =>
+        who != null
+            ? "$who's temperature is elevated"
+            : 'temperature is elevated',
+      'vitals_alert' =>
+        who != null
+            ? '$who has a vital sign alert'
+            : 'there is a vital sign alert',
+      _ => _cleanCustomPhrase(event),
+    };
+  }
+
+  static String? _extractFirstName(String spokenMessage) {
+    final colonIdx = spokenMessage.indexOf(': ');
+    if (colonIdx <= 0 || colonIdx > 40) {
+      return null;
+    }
+    final prefix = spokenMessage.substring(0, colonIdx).trim();
+    if (prefix.isEmpty) {
+      return null;
+    }
+    final lower = prefix.toLowerCase();
+    const genericPrefixes = {
+      'warning',
+      'critical',
+      'info',
+      'alert',
+      'error',
+      'notice',
+    };
+    if (genericPrefixes.contains(lower)) {
+      return null;
+    }
+    final parts = prefix.split(RegExp(r'\s+'));
+    if (parts.isEmpty || parts.length > 3) {
+      return null;
+    }
+    return parts.first;
+  }
+
+  static String _cleanCustomPhrase(ProactiveEvent event) {
+    var text = event.spokenMessage.trim().replaceAll(RegExp(r'\s+'), ' ');
+    text = text.replaceFirst(RegExp(r'[.!?]+$'), '').trim();
+    if (text.isNotEmpty) {
+      return text;
+    }
+    return event.kind.replaceAll('_', ' ');
   }
 
   Future<AgentSessionState> resolveConfirmation(
@@ -722,6 +1022,13 @@ class AgentConversationController extends StateNotifier<AgentSessionState> {
     AgentContextBuilder contextBuilder = const AgentContextBuilder(),
     String initialAstronautId = 'AST-01',
     int maxToolRounds = AgentConversationOrchestrator.defaultMaxToolRounds,
+    DateTime Function()? clock,
+    Duration proactiveSpeechBudget =
+        AgentConversationOrchestrator.defaultProactiveSpeechBudget,
+    Duration proactiveCooldown =
+        AgentConversationOrchestrator.defaultProactiveCooldown,
+    Duration proactiveCoalesceWindow = Duration.zero,
+    ProactiveAlertStore? alertStore,
   }) : super(AgentSessionState(astronautId: initialAstronautId)) {
     _orchestrator = AgentConversationOrchestrator(
       chat: chat,
@@ -732,6 +1039,11 @@ class AgentConversationController extends StateNotifier<AgentSessionState> {
       contextBuilder: contextBuilder,
       initialAstronautId: initialAstronautId,
       maxToolRounds: maxToolRounds,
+      clock: clock,
+      proactiveSpeechBudget: proactiveSpeechBudget,
+      proactiveCooldown: proactiveCooldown,
+      proactiveCoalesceWindow: proactiveCoalesceWindow,
+      alertStore: alertStore,
       onStateChanged: (next) {
         if (mounted) {
           state = next;
@@ -744,13 +1056,26 @@ class AgentConversationController extends StateNotifier<AgentSessionState> {
 
   AgentConversationOrchestrator get orchestrator => _orchestrator;
 
+  @override
+  void dispose() {
+    _orchestrator.dispose();
+    super.dispose();
+  }
+
   Future<AgentSessionState> sendUserMessage(
     String text, {
     bool speakReply = false,
   }) => _orchestrator.sendUserMessage(text, speakReply: speakReply);
 
-  Future<AgentSessionState> handleProactiveEvent(ProactiveEvent event) =>
-      _orchestrator.handleProactiveEvent(event);
+  Future<AgentSessionState> handleProactiveEvent(
+    ProactiveEvent event, {
+    DateTime? now,
+  }) => _orchestrator.handleProactiveEvent(event, now: now);
+
+  Future<AgentSessionState> handleProactiveEvents(
+    List<ProactiveEvent> events, {
+    DateTime? now,
+  }) => _orchestrator.handleProactiveEvents(events, now: now);
 
   Future<AgentSessionState> resolveConfirmation(
     ConfirmationDecision decision, {
