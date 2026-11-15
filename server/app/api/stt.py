@@ -75,9 +75,9 @@ async def _read_bounded_audio(upload: UploadFile) -> bytes:
 async def post_stt(
     request: Request,
     audio: Annotated[UploadFile, File(...)],
-    language: Annotated[str, Form()] = "es",
+    language: Annotated[str, Form()] = "en",
 ) -> STTResponse:
-    clean_lang = language.strip() or "es"
+    clean_lang = language.strip() or "en"
     if not LANGUAGE_RE.fullmatch(clean_lang):
         raise InvalidRequestError("Invalid language code.")
 

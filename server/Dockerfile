@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 FROM python:3.12-slim AS base
 
-ARG PIPER_VOICE=es_MX-claude-high
+ARG PIPER_VOICE=en_US-lessac-medium
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \

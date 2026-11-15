@@ -189,31 +189,31 @@ void main() {
   );
 
   test(
-    'LocalSpeechToTextService defaults to Spanish locale and returns speech',
+    'LocalSpeechToTextService defaults to English locale and returns speech',
     () async {
       final driver = FakeSpeechDriver();
       final service = LocalSpeechToTextService(driver: driver);
 
-      final future = service.listen(language: 'es');
+      final future = service.listen();
       await Future<void>.delayed(Duration.zero);
-      driver.emitResult('Oxígeno nominal');
+      driver.emitResult('Oxygen nominal');
 
-      expect(await future, 'Oxígeno nominal');
-      expect(driver.lastLocale, 'es-ES');
+      expect(await future, 'Oxygen nominal');
+      expect(driver.lastLocale, 'en-US');
     },
   );
 
   test(
-    'LocalTextToSpeechService configures Spanish language and speaks',
+    'LocalTextToSpeechService configures English language and speaks',
     () async {
       final driver = FakeTtsDriver();
       final service = LocalTextToSpeechService(driver: driver);
 
-      await service.speak('Revisar pulso');
+      await service.speak('Check pulse');
 
       expect(driver.awaitCompletion, isTrue);
-      expect(driver.language, 'es-ES');
-      expect(driver.spoken, ['Revisar pulso']);
+      expect(driver.language, 'en-US');
+      expect(driver.spoken, ['Check pulse']);
     },
   );
 }

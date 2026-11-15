@@ -36,11 +36,7 @@ class AgentHiveBoxes {
     final memory = await Hive.openBox<dynamic>(memoryBox);
     final audit = await Hive.openBox<dynamic>(auditBox);
     final flags = await Hive.openBox<dynamic>(flagsBox);
-    return AgentHiveBoxes(
-      memoryBox: memory,
-      auditBox: audit,
-      flagsBox: flags,
-    );
+    return AgentHiveBoxes(memoryBox: memory, auditBox: audit, flagsBox: flags);
   }
 
   /// Closes all opened boxes.

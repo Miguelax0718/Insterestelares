@@ -42,7 +42,7 @@ def test_chat_non_stream_happy_path_and_system_prompt_injection() -> None:
     sent = fake_llm.recorded_messages[0]
     assert sent[0].role == "system"
     assert "flight surgeon" in sent[0].content.lower()
-    assert "spanish" in sent[0].content.lower()
+    assert "english" in sent[0].content.lower()
     # Single system message: some OpenAI-compatible providers (Gemini) keep only one.
     assert "heart_rate_bpm" in sent[0].content
     assert [m.role for m in sent].count("system") == 1

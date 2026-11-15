@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:astramed/core/theme/space_theme.dart';
+
 import '../domain/agent_contracts.dart';
 
 /// Builder signature for any visual widget bound to an agent component id.
@@ -46,10 +47,7 @@ class AgentComponentWidgetRegistry {
     Map<String, AgentComponentWidgetBuilder> overrides,
   ) {
     return AgentComponentWidgetRegistry(
-      overrides: {
-        ..._builders,
-        ...overrides,
-      },
+      overrides: {..._builders, ...overrides},
     );
   }
 
@@ -158,15 +156,18 @@ class AgentComponentWidgetRegistry {
             Wrap(
               spacing: 8,
               runSpacing: 6,
-              children: series.take(6).map((item) {
-                final map = item is Map
-                    ? Map<String, dynamic>.from(item)
-                    : const <String, dynamic>{};
-                return _MetricChip(
-                  label: map['label']?.toString() ?? '-',
-                  value: '${map['value'] ?? '--'} $unit'.trim(),
-                );
-              }).toList(growable: false),
+              children: series
+                  .take(6)
+                  .map((item) {
+                    final map = item is Map
+                        ? Map<String, dynamic>.from(item)
+                        : const <String, dynamic>{};
+                    return _MetricChip(
+                      label: map['label']?.toString() ?? '-',
+                      value: '${map['value'] ?? '--'} $unit'.trim(),
+                    );
+                  })
+                  .toList(growable: false),
             ),
           ],
         ],
@@ -228,7 +229,10 @@ class AgentComponentWidgetRegistry {
             const SizedBox(height: 6),
             Text(
               'Alerts: ${alerts.join(' · ')}',
-              style: const TextStyle(fontSize: 12, color: SpaceTheme.warningYellow),
+              style: const TextStyle(
+                fontSize: 12,
+                color: SpaceTheme.warningYellow,
+              ),
             ),
           ],
         ],
@@ -243,7 +247,8 @@ class AgentComponentWidgetRegistry {
     VoidCallback onDismiss,
   ) {
     final props = vm.toProps();
-    final status = props['status']?.toString() ??
+    final status =
+        props['status']?.toString() ??
         props['readiness']?.toString() ??
         (props['ready'] == false ? 'blocked' : 'evaluated');
     final isBlocked =
@@ -380,7 +385,9 @@ class AgentComponentWidgetRegistry {
     VoidCallback onDismiss,
   ) {
     final props = vm.toProps();
-    final batchIds = (props['batch_ids'] as List<dynamic>? ?? const []).join(', ');
+    final batchIds = (props['batch_ids'] as List<dynamic>? ?? const []).join(
+      ', ',
+    );
     return _PlaceholderComponentCard(
       viewModel: vm,
       accentColor: SpaceTheme.neonPurple,
@@ -420,7 +427,10 @@ class AgentComponentWidgetRegistry {
           ),
           if (reasons.isNotEmpty) ...[
             const SizedBox(height: 4),
-            Text(reasons, style: const TextStyle(fontSize: 12, color: Colors.white70)),
+            Text(
+              reasons,
+              style: const TextStyle(fontSize: 12, color: Colors.white70),
+            ),
           ],
           if (props['suggested_alternative_route'] != null) ...[
             const SizedBox(height: 4),
@@ -442,7 +452,8 @@ class AgentComponentWidgetRegistry {
   ) {
     final props = vm.toProps();
     final currentSymptom = props['current_symptom']?.toString() ?? 'nausea';
-    final prompt = props['current_prompt']?.toString() ??
+    final prompt =
+        props['current_prompt']?.toString() ??
         'Select severity level for $currentSymptom.';
     final answered = props['answered_count'] ?? 0;
     final total = props['total_symptoms'] ?? 7;
@@ -470,10 +481,8 @@ class AgentComponentWidgetRegistry {
             children: [
               for (final level in levels)
                 OutlinedButton(
-                  onPressed: () => onSubmit({
-                    'symptom': currentSymptom,
-                    'level': level,
-                  }),
+                  onPressed: () =>
+                      onSubmit({'symptom': currentSymptom, 'level': level}),
                   child: Text(level),
                 ),
               FilledButton(
@@ -523,9 +532,7 @@ class AgentComponentWidgetRegistry {
                 child: const Text('Submit Nominal Sample'),
               ),
               FilledButton(
-                onPressed: () => onSubmit({
-                  'completed': true,
-                }),
+                onPressed: () => onSubmit({'completed': true}),
                 child: const Text('Complete PVT'),
               ),
             ],
@@ -648,7 +655,8 @@ class AgentComponentWidgetRegistry {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            props['instruction']?.toString() ?? 'Contrast sensitivity screening',
+            props['instruction']?.toString() ??
+                'Contrast sensitivity screening',
             style: const TextStyle(fontSize: 12, color: Colors.white70),
           ),
           const SizedBox(height: 10),
@@ -657,24 +665,18 @@ class AgentComponentWidgetRegistry {
             runSpacing: 8,
             children: [
               FilledButton(
-                onPressed: () => onSubmit({
-                  'contrast_log_cs': 1.80,
-                  'contrast_loss': false,
-                }),
+                onPressed: () =>
+                    onSubmit({'contrast_log_cs': 1.80, 'contrast_loss': false}),
                 child: const Text('1.80 logCS (Nominal)'),
               ),
               OutlinedButton(
-                onPressed: () => onSubmit({
-                  'contrast_log_cs': 1.60,
-                  'contrast_loss': false,
-                }),
+                onPressed: () =>
+                    onSubmit({'contrast_log_cs': 1.60, 'contrast_loss': false}),
                 child: const Text('1.60 logCS'),
               ),
               OutlinedButton(
-                onPressed: () => onSubmit({
-                  'contrast_log_cs': 1.35,
-                  'contrast_loss': true,
-                }),
+                onPressed: () =>
+                    onSubmit({'contrast_log_cs': 1.35, 'contrast_loss': true}),
                 child: const Text('1.35 logCS (Loss)'),
               ),
             ],
@@ -759,10 +761,7 @@ class AgentComponentWidgetRegistry {
                 label: 'HR',
                 value: '${_numStr(props['heart_rate'])} bpm',
               ),
-              _MetricChip(
-                label: 'SpO2',
-                value: '${_numStr(props['spo2'])}%',
-              ),
+              _MetricChip(label: 'SpO2', value: '${_numStr(props['spo2'])}%'),
             ],
           ),
           if (props['guidance'] != null) ...[
@@ -877,10 +876,8 @@ class AgentComponentWidgetRegistry {
                 child: const Text('Next Step'),
               ),
               OutlinedButton(
-                onPressed: () => onSubmit({
-                  'step': 'completed',
-                  'completed': true,
-                }),
+                onPressed: () =>
+                    onSubmit({'step': 'completed', 'completed': true}),
                 child: const Text('Complete Scan'),
               ),
             ],
@@ -959,7 +956,10 @@ class AgentComponentWidgetRegistry {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (props['summary'] != null)
-            Text(props['summary'].toString(), style: const TextStyle(fontSize: 12)),
+            Text(
+              props['summary'].toString(),
+              style: const TextStyle(fontSize: 12),
+            ),
           const SizedBox(height: 6),
           for (final item in recs.take(4))
             if (item is Map)
@@ -1125,11 +1125,17 @@ class _PlaceholderComponentCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 4),
                 IconButton(
-                  key: ValueKey('agent_component_dismiss_${viewModel.componentId}'),
+                  key: ValueKey(
+                    'agent_component_dismiss_${viewModel.componentId}',
+                  ),
                   tooltip: 'Dismiss component',
                   visualDensity: VisualDensity.compact,
                   onPressed: onDismiss,
-                  icon: const Icon(Icons.close, size: 18, color: Colors.white60),
+                  icon: const Icon(
+                    Icons.close,
+                    size: 18,
+                    color: Colors.white60,
+                  ),
                 ),
               ],
             ),
@@ -1164,10 +1170,7 @@ class _KeyPropsSummary extends StatelessWidget {
       runSpacing: 6,
       children: [
         for (final entry in entries)
-          _MetricChip(
-            label: entry.key,
-            value: entry.value.toString(),
-          ),
+          _MetricChip(label: entry.key, value: entry.value.toString()),
       ],
     );
   }

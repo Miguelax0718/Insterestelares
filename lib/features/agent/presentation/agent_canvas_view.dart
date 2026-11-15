@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:astramed/core/theme/space_theme.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
+
 import '../application/agent_conversation_controller.dart';
 import '../domain/agent_contracts.dart';
 import '../domain/agent_models.dart';
@@ -16,18 +17,22 @@ import '../providers/agent_providers.dart';
 class AgentCanvasView extends ConsumerStatefulWidget {
   const AgentCanvasView({super.key});
 
-  static const ValueKey<String> injectionZoneKey =
-      ValueKey('agent_injection_zone');
+  static const ValueKey<String> injectionZoneKey = ValueKey(
+    'agent_injection_zone',
+  );
   static const ValueKey<String> textInputKey = ValueKey('agent_text_input');
   static const ValueKey<String> sendButtonKey = ValueKey('agent_send_button');
   static const ValueKey<String> micButtonKey = ValueKey('agent_mic_button');
   static const ValueKey<String> ttsToggleKey = ValueKey('agent_tts_toggle');
-  static const ValueKey<String> statusIndicatorKey =
-      ValueKey('agent_status_indicator');
-  static const ValueKey<String> transcriptToggleKey =
-      ValueKey('agent_transcript_toggle');
-  static const ValueKey<String> confirmationBannerKey =
-      ValueKey('agent_confirmation_banner');
+  static const ValueKey<String> statusIndicatorKey = ValueKey(
+    'agent_status_indicator',
+  );
+  static const ValueKey<String> transcriptToggleKey = ValueKey(
+    'agent_transcript_toggle',
+  );
+  static const ValueKey<String> confirmationBannerKey = ValueKey(
+    'agent_confirmation_banner',
+  );
   static const ValueKey<String> crewSidebarKey = ValueKey('agent_crew_sidebar');
 
   static const double wideBreakpoint = 900.0;
@@ -148,8 +153,8 @@ class _AgentCanvasViewState extends ConsumerState<AgentCanvasView> {
       final decision = rawDecision != null
           ? ConfirmationDecision.fromWire(rawDecision)
           : (result['confirmed'] == true
-              ? ConfirmationDecision.confirmed
-              : ConfirmationDecision.rejected);
+                ? ConfirmationDecision.confirmed
+                : ConfirmationDecision.rejected);
       controller.resolveConfirmation(
         decision,
         reason: result['reason'] as String?,
@@ -177,9 +182,7 @@ class _AgentCanvasViewState extends ConsumerState<AgentCanvasView> {
 
     _pruneDismissed(session.activeComponents);
     final visibleComponents = session.activeComponents
-        .where(
-          (vm) => !_dismissedViewModels.any((d) => identical(d, vm)),
-        )
+        .where((vm) => !_dismissedViewModels.any((d) => identical(d, vm)))
         .toList(growable: false);
 
     final hasVisibleConfirmCard = visibleComponents.any(
@@ -247,15 +250,20 @@ class _AgentCanvasViewState extends ConsumerState<AgentCanvasView> {
                                   if (session.pendingAction != null &&
                                       !hasVisibleConfirmCard)
                                     _ConfirmationBanner(
-                                      key: AgentCanvasView.confirmationBannerKey,
+                                      key:
+                                          AgentCanvasView.confirmationBannerKey,
                                       action: session.pendingAction!,
                                       onConfirm: () => ref
-                                          .read(agentOrchestratorProvider.notifier)
+                                          .read(
+                                            agentOrchestratorProvider.notifier,
+                                          )
                                           .resolveConfirmation(
                                             ConfirmationDecision.confirmed,
                                           ),
                                       onReject: () => ref
-                                          .read(agentOrchestratorProvider.notifier)
+                                          .read(
+                                            agentOrchestratorProvider.notifier,
+                                          )
                                           .resolveConfirmation(
                                             ConfirmationDecision.rejected,
                                           ),
@@ -268,7 +276,8 @@ class _AgentCanvasViewState extends ConsumerState<AgentCanvasView> {
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.stretch,
                                             children: [
-                                              for (final vm in visibleComponents)
+                                              for (final vm
+                                                  in visibleComponents)
                                                 widgetRegistry.build(
                                                   context,
                                                   vm,
@@ -280,8 +289,9 @@ class _AgentCanvasViewState extends ConsumerState<AgentCanvasView> {
                                                       ),
                                                   onDismiss: () {
                                                     setState(() {
-                                                      _dismissedViewModels
-                                                          .add(vm);
+                                                      _dismissedViewModels.add(
+                                                        vm,
+                                                      );
                                                     });
                                                   },
                                                 ),
@@ -338,11 +348,36 @@ class _AgentCanvasViewState extends ConsumerState<AgentCanvasView> {
 }
 
 enum _AgentVisualStatus {
-  nominal('NOMINAL', 'All monitored systems nominal', SpaceTheme.green, Icons.check_circle_outline),
-  caution('CAUTION', 'Clinical parameters require attention', SpaceTheme.warningYellow, Icons.warning_amber_rounded),
-  critical('CRITICAL', 'Immediate clinical intervention required', SpaceTheme.dangerRed, Icons.emergency_outlined),
-  offline('OFFLINE', 'Gateway unreachable · Local protocols active', Colors.amberAccent, Icons.cloud_off_outlined),
-  busy('BUSY', 'Processing telemetry and clinical tools', SpaceTheme.cyan, Icons.graphic_eq);
+  nominal(
+    'NOMINAL',
+    'All monitored systems nominal',
+    SpaceTheme.green,
+    Icons.check_circle_outline,
+  ),
+  caution(
+    'CAUTION',
+    'Clinical parameters require attention',
+    SpaceTheme.warningYellow,
+    Icons.warning_amber_rounded,
+  ),
+  critical(
+    'CRITICAL',
+    'Immediate clinical intervention required',
+    SpaceTheme.dangerRed,
+    Icons.emergency_outlined,
+  ),
+  offline(
+    'OFFLINE',
+    'Gateway unreachable · Local protocols active',
+    Colors.amberAccent,
+    Icons.cloud_off_outlined,
+  ),
+  busy(
+    'BUSY',
+    'Processing telemetry and clinical tools',
+    SpaceTheme.cyan,
+    Icons.graphic_eq,
+  );
 
   const _AgentVisualStatus(this.label, this.subtitle, this.color, this.icon);
 
@@ -783,8 +818,9 @@ class _VoiceAndTextBar extends StatelessWidget {
             key: AgentCanvasView.micButtonKey,
             tooltip: listening ? 'Stop listening' : 'Push to talk',
             style: IconButton.styleFrom(
-              backgroundColor:
-                  listening ? SpaceTheme.dangerRed : SpaceTheme.cyan,
+              backgroundColor: listening
+                  ? SpaceTheme.dangerRed
+                  : SpaceTheme.cyan,
               foregroundColor: Colors.black,
             ),
             onPressed: busy ? null : onToggleMic,
@@ -796,7 +832,9 @@ class _VoiceAndTextBar extends StatelessWidget {
             tooltip: speakReplies ? 'Mute voice output' : 'Enable voice output',
             onPressed: onToggleTts,
             icon: Icon(
-              speakReplies ? Icons.volume_up_outlined : Icons.volume_off_outlined,
+              speakReplies
+                  ? Icons.volume_up_outlined
+                  : Icons.volume_off_outlined,
               color: speakReplies ? SpaceTheme.cyan : Colors.white54,
             ),
           ),
@@ -883,12 +921,14 @@ class _CrewSidebar extends StatelessWidget {
                 final member = crew[index];
                 final isSelected = member.id == selectedId;
                 final statusColor = _riskColor(member.riskLevel);
-                final pendingCountermeasures =
-                    member.exercise.targetReached ? 0 : 1;
+                final pendingCountermeasures = member.exercise.targetReached
+                    ? 0
+                    : 1;
                 final alertAndCmCount =
                     member.activeAlerts.length + pendingCountermeasures;
                 final diaryLogged =
-                    member.sleep.sleepHours > 0 && member.sleep.date.year > 2000;
+                    member.sleep.sleepHours > 0 &&
+                    member.sleep.date.year > 2000;
 
                 return Card(
                   key: ValueKey('crew_sidebar_item_${member.id}'),
@@ -977,7 +1017,9 @@ class _CrewSidebar extends StatelessWidget {
                                 ),
                               ),
                               Text(
-                                diaryLogged ? 'Diary: Logged' : 'Diary: Pending',
+                                diaryLogged
+                                    ? 'Diary: Logged'
+                                    : 'Diary: Pending',
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: diaryLogged

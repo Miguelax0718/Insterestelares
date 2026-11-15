@@ -76,7 +76,9 @@ class ConfirmationGateImpl implements ConfirmationGate {
       completer: Completer<ConfirmationDecision>(),
     );
     _pending = record;
-    _uiSink?.emit(ShowComponentEvent(ComponentIds.confirmAction, action.toJson()));
+    _uiSink?.emit(
+      ShowComponentEvent(ComponentIds.confirmAction, action.toJson()),
+    );
 
     if (_awaitResolution) {
       return record.completer.future;
@@ -109,15 +111,16 @@ class ConfirmationGateImpl implements ConfirmationGate {
     }
 
     final now = _clock().toUtc();
-    final isExpired = _ttl <= Duration.zero || now.difference(current.createdAt) >= _ttl;
+    final isExpired =
+        _ttl <= Duration.zero || now.difference(current.createdAt) >= _ttl;
     final effectiveDecision =
         (decision == ConfirmationDecision.expired || isExpired)
-            ? ConfirmationDecision.expired
-            : decision;
+        ? ConfirmationDecision.expired
+        : decision;
     final effectiveReason =
         effectiveDecision == ConfirmationDecision.expired && reason == null
-            ? 'Confirmation expired'
-            : reason;
+        ? 'Confirmation expired'
+        : reason;
 
     Map<String, dynamic>? output;
     if (effectiveDecision == ConfirmationDecision.confirmed) {

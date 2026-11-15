@@ -1,10 +1,7 @@
 import '../domain/agent_contracts.dart';
 
 class ComponentSpec<T extends AgentViewModel> {
-  const ComponentSpec({
-    required this.id,
-    required this.fromProps,
-  });
+  const ComponentSpec({required this.id, required this.fromProps});
 
   final String id;
   final T Function(Map<String, dynamic> props) fromProps;
@@ -24,9 +21,7 @@ class GenericComponentViewModel extends AgentViewModel {
 }
 
 class ComponentRegistry {
-  ComponentRegistry({
-    Map<String, ComponentSpec<AgentViewModel>>? overrides,
-  }) {
+  ComponentRegistry({Map<String, ComponentSpec<AgentViewModel>>? overrides}) {
     _registerDefaults();
     if (overrides != null) {
       for (final spec in overrides.values) {
@@ -86,7 +81,8 @@ class ComponentRegistry {
           componentId: ComponentIds.vitalsCard,
         );
         final hasVitalsMap = props['vitals'] is Map;
-        final hasHeartRate = props['heart_rate'] is num || props['heartRate'] is num;
+        final hasHeartRate =
+            props['heart_rate'] is num || props['heartRate'] is num;
         if (!hasVitalsMap && !hasHeartRate) {
           throw const FormatException(
             'vitals_card requires "vitals" map or numeric "heart_rate"',

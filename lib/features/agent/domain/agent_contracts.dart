@@ -101,17 +101,13 @@ class ToolResult {
     this.uiEvents = const [],
   });
 
-  const ToolResult.ok(
-    this.data, {
-    this.uiEvents = const [],
-  }) : ok = true,
-       error = null;
+  const ToolResult.ok(this.data, {this.uiEvents = const []})
+    : ok = true,
+      error = null;
 
-  const ToolResult.fail(
-    String this.error, {
-    this.data = const {},
-  }) : ok = false,
-       uiEvents = const [];
+  const ToolResult.fail(String this.error, {this.data = const {}})
+    : ok = false,
+      uiEvents = const [];
 
   static const int maxWireChars = 4000;
 

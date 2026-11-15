@@ -3,7 +3,7 @@ import '../domain/agent_models.dart';
 
 class SkillRegistry {
   SkillRegistry([List<AgentSkill> skills = const []])
-      : _skills = List<AgentSkill>.from(skills);
+    : _skills = List<AgentSkill>.from(skills);
 
   final List<AgentSkill> _skills;
 

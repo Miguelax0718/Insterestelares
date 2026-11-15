@@ -55,7 +55,7 @@ class RemoteTextToSpeechService implements TextToSpeechService {
   Future<void> speak(
     String text, {
     String? voice,
-    String language = 'es-ES',
+    String language = 'en-US',
   }) async {
     final wavBytes = await _client.synthesize(text, voice: voice);
     await _playback.playWav(wavBytes);

@@ -72,10 +72,7 @@ class AgentContextBuilder {
     final activeFlags = await flags.allForAstronaut(astronautId);
 
     final context = <String, dynamic>{
-      'live': <String, dynamic>{
-        'id': astronautId,
-        'mission_day': ?missionDay,
-      },
+      'live': <String, dynamic>{'id': astronautId, 'mission_day': ?missionDay},
       'memory': recentMemory
           .map(
             (entry) => <String, dynamic>{

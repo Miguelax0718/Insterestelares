@@ -73,7 +73,7 @@ class FasterWhisperSTTProvider:
             segments, info = model.transcribe(tmp_path, language=language or None)
             parts = [seg.text.strip() for seg in segments if getattr(seg, "text", "")]
             text = " ".join(parts).strip()
-            detected_lang = getattr(info, "language", None) or language or "es"
+            detected_lang = getattr(info, "language", None) or language or "en"
             duration = float(getattr(info, "duration", 0.0) or 0.0)
             return TranscriptionResult(text=text, language=detected_lang, duration_s=duration)
         finally:

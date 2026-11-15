@@ -171,8 +171,8 @@ final agentFlagsStoreProvider = Provider<AgentFlagsStore>((ref) {
 
 final pharmacyInventoryRepositoryProvider =
     Provider<PharmacyInventoryRepository>((ref) {
-  return AssetPharmacyInventoryRepository();
-});
+      return AssetPharmacyInventoryRepository();
+    });
 
 final donkiSpaceWeatherServiceProvider = Provider<DonkiSpaceWeatherService>(
   (ref) => DonkiSpaceWeatherService(client: ref.watch(httpClientProvider)),
@@ -185,19 +185,13 @@ final medicationSafetyProvider = Provider<MedicationSafety>((ref) {
   );
 });
 
-final extraAgentSkillsProvider = Provider<List<AgentSkill>>(
-  (ref) => const [],
-);
+final extraAgentSkillsProvider = Provider<List<AgentSkill>>((ref) => const []);
 
 final extraComponentSpecsProvider =
-    Provider<Map<String, ComponentSpec<AgentViewModel>>>(
-  (ref) => const {},
-);
+    Provider<Map<String, ComponentSpec<AgentViewModel>>>((ref) => const {});
 
 final componentWidgetOverridesProvider =
-    Provider<Map<String, AgentComponentWidgetBuilder>>(
-  (ref) => const {},
-);
+    Provider<Map<String, AgentComponentWidgetBuilder>>((ref) => const {});
 
 final skillRegistryProvider = Provider<SkillRegistry>((ref) {
   final weather = ref.watch(donkiSpaceWeatherServiceProvider);
@@ -359,8 +353,9 @@ final componentRegistryProvider = Provider<ComponentRegistry>((ref) {
   return registry;
 });
 
-final componentWidgetRegistryProvider =
-    Provider<AgentComponentWidgetRegistry>((ref) {
+final componentWidgetRegistryProvider = Provider<AgentComponentWidgetRegistry>((
+  ref,
+) {
   final overrides = ref.watch(componentWidgetOverridesProvider);
   return AgentComponentWidgetRegistry(overrides: overrides);
 });
@@ -372,58 +367,57 @@ final _delegatingUiSinkProvider = Provider<_DelegatingUiSink>((ref) {
 final agentConfirmationGateProvider = Provider<ConfirmationGate>((ref) {
   final auditLog = ref.watch(agentAuditLogProvider);
   final uiSink = ref.watch(_delegatingUiSinkProvider);
-  return ConfirmationGateImpl(
-    auditLog: auditLog,
-    uiSink: uiSink,
-  );
+  return ConfirmationGateImpl(auditLog: auditLog, uiSink: uiSink);
 });
 
-final agentOrchestratorProvider = StateNotifierProvider<
-    AgentConversationController, AgentSessionState>((ref) {
-  final chat = ref.watch(agentChatServiceProvider);
-  final tts = ref.watch(textToSpeechServiceProvider);
-  final skillRegistry = ref.watch(skillRegistryProvider);
-  final componentRegistry = ref.watch(componentRegistryProvider);
-  final memory = ref.watch(agentMemoryStoreProvider);
-  final audit = ref.watch(agentAuditLogProvider);
-  final flags = ref.watch(agentFlagsStoreProvider);
-  final medication = ref.watch(medicationSafetyProvider);
-  final baseGate = ref.watch(agentConfirmationGateProvider);
-  final delegatingSink = ref.watch(_delegatingUiSinkProvider);
-  final initialAstronautId = ref.read(selectedAstronautIdProvider);
+final agentOrchestratorProvider =
+    StateNotifierProvider<AgentConversationController, AgentSessionState>((
+      ref,
+    ) {
+      final chat = ref.watch(agentChatServiceProvider);
+      final tts = ref.watch(textToSpeechServiceProvider);
+      final skillRegistry = ref.watch(skillRegistryProvider);
+      final componentRegistry = ref.watch(componentRegistryProvider);
+      final memory = ref.watch(agentMemoryStoreProvider);
+      final audit = ref.watch(agentAuditLogProvider);
+      final flags = ref.watch(agentFlagsStoreProvider);
+      final medication = ref.watch(medicationSafetyProvider);
+      final baseGate = ref.watch(agentConfirmationGateProvider);
+      final delegatingSink = ref.watch(_delegatingUiSinkProvider);
+      final initialAstronautId = ref.read(selectedAstronautIdProvider);
 
-  late final AgentConversationController controller;
-  final syncedGate = _ControllerSyncConfirmationGate(
-    inner: baseGate,
-    onPendingChanged: (pending) =>
-        controller.orchestrator.syncPendingAction(pending),
-  );
-
-  controller = AgentConversationController(
-    chat: chat,
-    tts: tts,
-    skillRegistry: skillRegistry,
-    componentRegistry: componentRegistry,
-    initialAstronautId: initialAstronautId,
-    contextFactory: (astronautId, ui) {
-      delegatingSink.delegate = ui;
-      return ToolContext(
-        astronautId: astronautId,
-        read: <T>(provider) => ref.read(provider as ProviderListenable<T>),
-        ui: ui,
-        confirm: syncedGate,
-        audit: audit,
-        memory: memory,
-        flags: flags,
-        medication: medication,
+      late final AgentConversationController controller;
+      final syncedGate = _ControllerSyncConfirmationGate(
+        inner: baseGate,
+        onPendingChanged: (pending) =>
+            controller.orchestrator.syncPendingAction(pending),
       );
-    },
-  );
-  ref.onDispose(() {
-    unawaited(controller.closeSession());
-  });
-  return controller;
-});
+
+      controller = AgentConversationController(
+        chat: chat,
+        tts: tts,
+        skillRegistry: skillRegistry,
+        componentRegistry: componentRegistry,
+        initialAstronautId: initialAstronautId,
+        contextFactory: (astronautId, ui) {
+          delegatingSink.delegate = ui;
+          return ToolContext(
+            astronautId: astronautId,
+            read: <T>(provider) => ref.read(provider as ProviderListenable<T>),
+            ui: ui,
+            confirm: syncedGate,
+            audit: audit,
+            memory: memory,
+            flags: flags,
+            medication: medication,
+          );
+        },
+      );
+      ref.onDispose(() {
+        unawaited(controller.closeSession());
+      });
+      return controller;
+    });
 
 final agentNotifierProvider = Provider<InAppAgentNotifier>((ref) {
   final notifier = InAppAgentNotifier();
@@ -533,7 +527,9 @@ AlertBannerViewModel _adaptAlertBannerProps(Map<String, dynamic> props) {
   });
 }
 
-MedicationCheckViewModel _adaptMedicationCheckProps(Map<String, dynamic> props) {
+MedicationCheckViewModel _adaptMedicationCheckProps(
+  Map<String, dynamic> props,
+) {
   if (props['astronaut_id'] is String && props['allowed'] is bool) {
     return MedicationCheckViewModel.fromProps(props);
   }
@@ -621,17 +617,18 @@ class _InMemoryMemoryStore implements MemoryStore {
     int limit = 10,
   }) async {
     final q = query?.trim().toLowerCase() ?? '';
-    final filtered = _entries
-        .where((e) => e.astronautId == astronautId)
-        .where((e) => kinds == null || kinds.contains(e.kind))
-        .where(
-          (e) =>
-              q.isEmpty ||
-              e.summary.toLowerCase().contains(q) ||
-              e.tags.any((t) => t.toLowerCase().contains(q)),
-        )
-        .toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final filtered =
+        _entries
+            .where((e) => e.astronautId == astronautId)
+            .where((e) => kinds == null || kinds.contains(e.kind))
+            .where(
+              (e) =>
+                  q.isEmpty ||
+                  e.summary.toLowerCase().contains(q) ||
+                  e.tags.any((t) => t.toLowerCase().contains(q)),
+            )
+            .toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return filtered.take(limit).toList(growable: false);
   }
 
@@ -661,10 +658,11 @@ class _InMemoryAuditLog implements AuditLog {
 
   @override
   Future<List<AuditEntry>> list({String? astronautId, int limit = 50}) async {
-    final items = _entries
-        .where((e) => astronautId == null || e.astronautId == astronautId)
-        .toList()
-      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    final items =
+        _entries
+            .where((e) => astronautId == null || e.astronautId == astronautId)
+            .toList()
+          ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
     return items.take(limit).toList(growable: false);
   }
 }
@@ -678,8 +676,9 @@ class _InMemoryAgentFlagsStore implements AgentFlagsStore {
     String key,
     Map<String, dynamic> value,
   ) async {
-    _flags.putIfAbsent(astronautId, () => {})[key] =
-        Map<String, dynamic>.from(value);
+    _flags.putIfAbsent(astronautId, () => {})[key] = Map<String, dynamic>.from(
+      value,
+    );
   }
 
   @override

@@ -77,7 +77,7 @@ class DeviceSpeechToTextDriver implements SpeechToTextDriver {
 class LocalSpeechToTextService implements SpeechToTextService {
   LocalSpeechToTextService({
     SpeechToTextDriver? driver,
-    this.defaultLocale = 'es-ES',
+    this.defaultLocale = 'en-US',
   }) : _driver = driver ?? DeviceSpeechToTextDriver();
 
   final SpeechToTextDriver _driver;
@@ -90,8 +90,11 @@ class LocalSpeechToTextService implements SpeechToTextService {
 
   String _resolveLocale(String language) {
     final trimmed = language.trim();
-    if (trimmed.isEmpty || trimmed == 'es') {
+    if (trimmed.isEmpty || trimmed == 'en') {
       return defaultLocale;
+    }
+    if (trimmed == 'es') {
+      return 'es-ES';
     }
     return trimmed;
   }
@@ -121,7 +124,7 @@ class LocalSpeechToTextService implements SpeechToTextService {
   Future<bool> isAvailable() => _ensureInitialized();
 
   @override
-  Future<void> startListening({String language = 'es'}) async {
+  Future<void> startListening({String language = 'en'}) async {
     final ok = await _ensureInitialized();
     if (!ok) {
       throw StateError('On-device speech recognition is unavailable.');
@@ -159,7 +162,7 @@ class LocalSpeechToTextService implements SpeechToTextService {
 
   @override
   Future<String> listen({
-    String language = 'es',
+    String language = 'en',
     Duration maxDuration = const Duration(seconds: 15),
   }) async {
     final ok = await _ensureInitialized();

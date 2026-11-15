@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     whisper_download_root: str | None = None
 
     # TTS (piper-tts)
-    piper_voice: str = "es_MX-claude-high"
+    piper_voice: str = "en_US-lessac-medium"
     piper_voices_dir: str = "/app/voices"
 
     def parsed_api_keys(self) -> list[str]:

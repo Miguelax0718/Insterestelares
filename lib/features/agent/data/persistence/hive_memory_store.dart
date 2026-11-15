@@ -126,11 +126,7 @@ class HiveMemoryStore implements MemoryStore {
     return <MemoryEntry>[...facts, ...recentEvents];
   }
 
-  int _scoreEntry(
-    MemoryEntry entry,
-    String fullQuery,
-    List<String> tokens,
-  ) {
+  int _scoreEntry(MemoryEntry entry, String fullQuery, List<String> tokens) {
     final summaryLower = entry.summary.toLowerCase();
     final tagsLower = entry.tags.map((t) => t.toLowerCase()).toList();
     var score = 0;

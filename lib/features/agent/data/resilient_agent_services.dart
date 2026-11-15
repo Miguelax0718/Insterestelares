@@ -106,7 +106,7 @@ class ResilientSpeechToTextService implements SpeechToTextService {
   }
 
   @override
-  Future<void> startListening({String language = 'es'}) async {
+  Future<void> startListening({String language = 'en'}) async {
     if (!_isRemoteConfigured) {
       _activeLocal = true;
       await _local.startListening(language: language);
@@ -142,7 +142,7 @@ class ResilientSpeechToTextService implements SpeechToTextService {
 
   @override
   Future<String> listen({
-    String language = 'es',
+    String language = 'en',
     Duration maxDuration = const Duration(seconds: 15),
   }) async {
     if (!_isRemoteConfigured) {
@@ -187,7 +187,7 @@ class ResilientTextToSpeechService implements TextToSpeechService {
   Future<void> speak(
     String text, {
     String? voice,
-    String language = 'es-ES',
+    String language = 'en-US',
   }) async {
     if (!_isRemoteConfigured) {
       await _local.speak(text, voice: voice, language: language);

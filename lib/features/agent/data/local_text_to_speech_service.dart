@@ -41,7 +41,7 @@ class DeviceTtsDriver implements TtsDriver {
 }
 
 class LocalTextToSpeechService implements TextToSpeechService {
-  LocalTextToSpeechService({TtsDriver? driver, this.defaultLanguage = 'es-ES'})
+  LocalTextToSpeechService({TtsDriver? driver, this.defaultLanguage = 'en-US'})
     : _driver = driver ?? DeviceTtsDriver();
 
   final TtsDriver _driver;
@@ -52,7 +52,7 @@ class LocalTextToSpeechService implements TextToSpeechService {
   Future<void> speak(
     String text, {
     String? voice,
-    String language = 'es-ES',
+    String language = 'en-US',
   }) async {
     if (!_configured) {
       await _driver.awaitSpeakCompletion(true);

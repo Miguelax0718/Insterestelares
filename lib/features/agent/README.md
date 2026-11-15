@@ -12,7 +12,7 @@ Provides offline-first voice (STT/TTS) and LLM chat abstractions for AstraMed wi
 - `data/`:
   - `AgentApiClient` over `package:http` implementing `GET /health`, `POST /v1/chat` (blocking and SSE streaming), `POST /v1/stt` (multipart `audio`), and `POST /v1/tts` (WAV audio bytes).
   - Remote voice adapters: `RemoteSpeechToTextService` (captures PCM16 audio via `record`, wraps into RIFF/WAV bytes in memory, uploads to `/v1/stt`) and `RemoteTextToSpeechService` (plays `/v1/tts` WAV bytes via `audioplayers` `BytesSource`).
-  - Local offline adapters: `LocalSpeechToTextService` (`speech_to_text`, Spanish `es-ES` default) and `LocalTextToSpeechService` (`flutter_tts`, Spanish `es-ES` default).
+  - Local offline adapters: `LocalSpeechToTextService` (`speech_to_text`, English `en-US` default) and `LocalTextToSpeechService` (`flutter_tts`, English `en-US` default).
   - Resilient wrappers (`ResilientAgentChatService`, `ResilientSpeechToTextService`, `ResilientTextToSpeechService`) implementing remote-first + offline fallback rules.
 - `providers/`: Riverpod providers (`agentConfigProvider`, `httpClientProvider`, `agentApiClientProvider`, `agentChatServiceProvider`, `speechToTextServiceProvider`, `textToSpeechServiceProvider`, `agentHealthProvider`) wired for dependency injection and test overrides.
 

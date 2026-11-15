@@ -60,8 +60,8 @@ class SessionSummaryGenerator {
       tags.add(audit.decision.wireName);
       final reasonSuffix =
           audit.reason != null && audit.reason!.trim().isNotEmpty
-              ? ' (${_compact(audit.reason!.trim(), 60)})'
-              : '';
+          ? ' (${_compact(audit.reason!.trim(), 60)})'
+          : '';
       actionSummaries.add(
         '${audit.actionType}: ${audit.decision.wireName}$reasonSuffix',
       );

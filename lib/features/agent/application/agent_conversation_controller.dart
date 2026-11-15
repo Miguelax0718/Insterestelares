@@ -51,8 +51,9 @@ class AgentSessionState {
       astronautId: astronautId ?? this.astronautId,
       messages: messages ?? this.messages,
       activeComponents: activeComponents ?? this.activeComponents,
-      pendingAction:
-          clearPendingAction ? null : (pendingAction ?? this.pendingAction),
+      pendingAction: clearPendingAction
+          ? null
+          : (pendingAction ?? this.pendingAction),
       activeOfflineFlowSkillId: clearActiveOfflineFlowSkillId
           ? null
           : (activeOfflineFlowSkillId ?? this.activeOfflineFlowSkillId),
@@ -67,7 +68,7 @@ class _TurnUiSink implements AgentUiSink {
   _TurnUiSink({this.onSubmit});
 
   final void Function(String componentId, Map<String, dynamic> result)?
-      onSubmit;
+  onSubmit;
   final List<AgentComponentEvent> _buffer = [];
 
   @override
@@ -119,7 +120,7 @@ class AgentConversationOrchestrator {
   final int maxToolRounds;
   final void Function(AgentSessionState state)? onStateChanged;
   final void Function(String componentId, Map<String, dynamic> result)?
-      onComponentSubmitted;
+  onComponentSubmitted;
 
   final Map<String, AgentSessionState> _sessionsByAstronaut = {};
   final List<ChatMessage> _midTurnConfirmationMessages = [];
@@ -135,14 +136,12 @@ class AgentConversationOrchestrator {
 
   void syncPendingAction(ConsequentialAction? pending) {
     final components = pending != null
-        ? _applyUiEvents(
-            _state.activeComponents,
-            [ShowComponentEvent(ComponentIds.confirmAction, pending.toJson())],
-          )
-        : _applyUiEvents(
-            _state.activeComponents,
-            const [HideComponentEvent(ComponentIds.confirmAction)],
-          );
+        ? _applyUiEvents(_state.activeComponents, [
+            ShowComponentEvent(ComponentIds.confirmAction, pending.toJson()),
+          ])
+        : _applyUiEvents(_state.activeComponents, const [
+            HideComponentEvent(ComponentIds.confirmAction),
+          ]);
     _emitState(
       _state.copyWith(
         activeComponents: components,
@@ -188,7 +187,8 @@ class AgentConversationOrchestrator {
     if (_state.messages.isNotEmpty) {
       unawaited(closeSession(astronautId: previousId));
     }
-    final restored = _sessionsByAstronaut[astronautId] ??
+    final restored =
+        _sessionsByAstronaut[astronautId] ??
         AgentSessionState(astronautId: astronautId);
     _emitState(restored);
     return _state;
@@ -232,12 +232,7 @@ class AgentConversationOrchestrator {
         speakReply: speakReply,
       );
     } catch (e) {
-      _emitState(
-        _state.copyWith(
-          busy: false,
-          lastError: e.toString(),
-        ),
-      );
+      _emitState(_state.copyWith(busy: false, lastError: e.toString()));
       return _state;
     }
   }
@@ -247,7 +242,7 @@ class AgentConversationOrchestrator {
     final targetState = targetId == _state.astronautId
         ? _state
         : (_sessionsByAstronaut[targetId] ??
-            AgentSessionState(astronautId: targetId));
+              AgentSessionState(astronautId: targetId));
 
     var nextComponents = _applyUiEvents(
       targetState.activeComponents,
@@ -358,10 +353,9 @@ class AgentConversationOrchestrator {
 
     final sinkEvents = sink.drain();
     var components = _applyUiEvents(_state.activeComponents, sinkEvents);
-    components = _applyUiEvents(
-      components,
-      const [HideComponentEvent(ComponentIds.confirmAction)],
-    );
+    components = _applyUiEvents(components, const [
+      HideComponentEvent(ComponentIds.confirmAction),
+    ]);
 
     final outcomeText = switch (decision) {
       ConfirmationDecision.confirmed =>
@@ -414,8 +408,10 @@ class AgentConversationOrchestrator {
     final toolMap = <String, AgentTool>{
       for (final tool in tools) tool.name: tool,
     };
-    final toolSpecs =
-        tools.take(32).map((t) => t.toSpec()).toList(growable: false);
+    final toolSpecs = tools
+        .take(32)
+        .map((t) => t.toSpec())
+        .toList(growable: false);
     final skillInstructions = selectedSkills
         .map((s) => s.instructions.trim())
         .where((s) => s.isNotEmpty)
@@ -448,10 +444,9 @@ class AgentConversationOrchestrator {
         }
         final nextPending = ctx.confirm.pending;
         if (nextPending == null) {
-          activeComponents = _applyUiEvents(
-            activeComponents,
-            const [HideComponentEvent(ComponentIds.confirmAction)],
-          );
+          activeComponents = _applyUiEvents(activeComponents, const [
+            HideComponentEvent(ComponentIds.confirmAction),
+          ]);
         }
         final done = targetState.copyWith(
           messages: List<ChatMessage>.unmodifiable(workingMessages),
@@ -543,10 +538,9 @@ class AgentConversationOrchestrator {
     }
     final nextPending = ctx.confirm.pending;
     if (nextPending == null) {
-      activeComponents = _applyUiEvents(
-        activeComponents,
-        const [HideComponentEvent(ComponentIds.confirmAction)],
-      );
+      activeComponents = _applyUiEvents(activeComponents, const [
+        HideComponentEvent(ComponentIds.confirmAction),
+      ]);
     }
     final done = targetState.copyWith(
       messages: List<ChatMessage>.unmodifiable(workingMessages),
@@ -672,8 +666,9 @@ class AgentConversationOrchestrator {
     ToolContext ctx,
     List<AgentViewModel> activeComponents,
   ) async {
-    final activeIds =
-        activeComponents.map((c) => c.componentId).toList(growable: false);
+    final activeIds = activeComponents
+        .map((c) => c.componentId)
+        .toList(growable: false);
     AstronautProfile? astronaut;
     try {
       final crew = ctx.read<List<AstronautProfile>>(crewMembersProvider);
@@ -723,7 +718,7 @@ class AgentConversationController extends StateNotifier<AgentSessionState> {
     required SkillRegistry skillRegistry,
     required ComponentRegistry componentRegistry,
     required ToolContext Function(String astronautId, AgentUiSink ui)
-        contextFactory,
+    contextFactory,
     AgentContextBuilder contextBuilder = const AgentContextBuilder(),
     String initialAstronautId = 'AST-01',
     int maxToolRounds = AgentConversationOrchestrator.defaultMaxToolRounds,
@@ -752,8 +747,7 @@ class AgentConversationController extends StateNotifier<AgentSessionState> {
   Future<AgentSessionState> sendUserMessage(
     String text, {
     bool speakReply = false,
-  }) =>
-      _orchestrator.sendUserMessage(text, speakReply: speakReply);
+  }) => _orchestrator.sendUserMessage(text, speakReply: speakReply);
 
   Future<AgentSessionState> handleProactiveEvent(ProactiveEvent event) =>
       _orchestrator.handleProactiveEvent(event);
@@ -761,8 +755,7 @@ class AgentConversationController extends StateNotifier<AgentSessionState> {
   Future<AgentSessionState> resolveConfirmation(
     ConfirmationDecision decision, {
     String? reason,
-  }) =>
-      _orchestrator.resolveConfirmation(decision, reason: reason);
+  }) => _orchestrator.resolveConfirmation(decision, reason: reason);
 
   AgentSessionState switchAstronaut(String astronautId) =>
       _orchestrator.switchAstronaut(astronautId);

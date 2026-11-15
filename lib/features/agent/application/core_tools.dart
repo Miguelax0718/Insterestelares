@@ -15,8 +15,7 @@ AgentSkill coreSkill() {
   return AgentSkill(
     id: 'core',
     alwaysOn: true,
-    instructions:
-        'Use core tools to inspect live crew, vitals, and telemetry data, recall or save persistent astronaut memory, and show or hide UI components. Keep responses natural, concise, and direct.',
+    instructions: 'Use core tools to inspect live crew, vitals, and telemetry data, recall or save persistent astronaut memory, and show or hide UI components. Keep responses natural, concise, and direct.',
     tools: [
       _GetCrewOverviewTool(),
       _GetVitalsTool(),
@@ -44,9 +43,9 @@ class _GetCrewOverviewTool extends AgentTool {
 
   @override
   Map<String, dynamic> get parameters => const {
-        'type': 'object',
-        'properties': <String, dynamic>{},
-      };
+    'type': 'object',
+    'properties': <String, dynamic>{},
+  };
 
   @override
   Future<ToolResult> call(Map<String, dynamic> args, ToolContext ctx) async {
@@ -90,20 +89,21 @@ class _GetVitalsTool extends AgentTool {
 
   @override
   Map<String, dynamic> get parameters => const {
-        'type': 'object',
-        'properties': {
-          'astronaut_id': {
-            'type': 'string',
-            'description': 'Optional astronaut ID. Defaults to active astronaut.',
-          },
-        },
-      };
+    'type': 'object',
+    'properties': {
+      'astronaut_id': {
+        'type': 'string',
+        'description': 'Optional astronaut ID. Defaults to active astronaut.',
+      },
+    },
+  };
 
   @override
   Future<ToolResult> call(Map<String, dynamic> args, ToolContext ctx) async {
     final requestedId = (args['astronaut_id'] as String?)?.trim();
-    final targetId =
-        (requestedId != null && requestedId.isNotEmpty) ? requestedId : ctx.astronautId;
+    final targetId = (requestedId != null && requestedId.isNotEmpty)
+        ? requestedId
+        : ctx.astronautId;
 
     final crew = ctx.read<List<AstronautProfile>>(crewMembersProvider);
     AstronautProfile? match;
@@ -161,24 +161,25 @@ class _GetTelemetrySeriesTool extends AgentTool {
 
   @override
   Map<String, dynamic> get parameters => const {
-        'type': 'object',
-        'properties': {
-          'astronaut_id': {
-            'type': 'string',
-            'description': 'Optional astronaut ID. Defaults to active astronaut.',
-          },
-          'limit': {
-            'type': 'integer',
-            'description': 'Maximum number of recent log packets (1-25).',
-          },
-        },
-      };
+    'type': 'object',
+    'properties': {
+      'astronaut_id': {
+        'type': 'string',
+        'description': 'Optional astronaut ID. Defaults to active astronaut.',
+      },
+      'limit': {
+        'type': 'integer',
+        'description': 'Maximum number of recent log packets (1-25).',
+      },
+    },
+  };
 
   @override
   Future<ToolResult> call(Map<String, dynamic> args, ToolContext ctx) async {
     final requestedId = (args['astronaut_id'] as String?)?.trim();
-    final targetId =
-        (requestedId != null && requestedId.isNotEmpty) ? requestedId : ctx.astronautId;
+    final targetId = (requestedId != null && requestedId.isNotEmpty)
+        ? requestedId
+        : ctx.astronautId;
     final limit = (args['limit'] as num?)?.toInt().clamp(1, 25) ?? 10;
 
     final telemetry = ctx.read<TelemetryState>(telemetryProvider);
@@ -259,18 +260,18 @@ class _RecallMemoryTool extends AgentTool {
 
   @override
   Map<String, dynamic> get parameters => const {
-        'type': 'object',
-        'properties': {
-          'query': {
-            'type': 'string',
-            'description': 'Optional search query to filter memories.',
-          },
-          'limit': {
-            'type': 'integer',
-            'description': 'Maximum entries to return (1-20).',
-          },
-        },
-      };
+    'type': 'object',
+    'properties': {
+      'query': {
+        'type': 'string',
+        'description': 'Optional search query to filter memories.',
+      },
+      'limit': {
+        'type': 'integer',
+        'description': 'Maximum entries to return (1-20).',
+      },
+    },
+  };
 
   @override
   Future<ToolResult> call(Map<String, dynamic> args, ToolContext ctx) async {
@@ -298,24 +299,24 @@ class _SaveMemoryTool extends AgentTool {
 
   @override
   Map<String, dynamic> get parameters => const {
-        'type': 'object',
-        'properties': {
-          'summary': {
-            'type': 'string',
-            'description': 'Concise summary to store in persistent memory.',
-          },
-          'kind': {
-            'type': 'string',
-            'enum': ['fact', 'session_summary', 'clinical_event'],
-          },
-          'tags': {
-            'type': 'array',
-            'items': {'type': 'string'},
-          },
-          'data': {'type': 'object'},
-        },
-        'required': ['summary'],
-      };
+    'type': 'object',
+    'properties': {
+      'summary': {
+        'type': 'string',
+        'description': 'Concise summary to store in persistent memory.',
+      },
+      'kind': {
+        'type': 'string',
+        'enum': ['fact', 'session_summary', 'clinical_event'],
+      },
+      'tags': {
+        'type': 'array',
+        'items': {'type': 'string'},
+      },
+      'data': {'type': 'object'},
+    },
+    'required': ['summary'],
+  };
 
   @override
   Future<ToolResult> call(Map<String, dynamic> args, ToolContext ctx) async {
@@ -358,19 +359,19 @@ class _ShowComponentTool extends AgentTool {
 
   @override
   Map<String, dynamic> get parameters => const {
+    'type': 'object',
+    'properties': {
+      'id': {
+        'type': 'string',
+        'description': 'Registered component identifier.',
+      },
+      'props': {
         'type': 'object',
-        'properties': {
-          'id': {
-            'type': 'string',
-            'description': 'Registered component identifier.',
-          },
-          'props': {
-            'type': 'object',
-            'description': 'Component properties payload.',
-          },
-        },
-        'required': ['id'],
-      };
+        'description': 'Component properties payload.',
+      },
+    },
+    'required': ['id'],
+  };
 
   @override
   Future<ToolResult> call(Map<String, dynamic> args, ToolContext ctx) async {
@@ -400,15 +401,12 @@ class _HideComponentTool extends AgentTool {
 
   @override
   Map<String, dynamic> get parameters => const {
-        'type': 'object',
-        'properties': {
-          'id': {
-            'type': 'string',
-            'description': 'Component identifier to hide.',
-          },
-        },
-        'required': ['id'],
-      };
+    'type': 'object',
+    'properties': {
+      'id': {'type': 'string', 'description': 'Component identifier to hide.'},
+    },
+    'required': ['id'],
+  };
 
   @override
   Future<ToolResult> call(Map<String, dynamic> args, ToolContext ctx) async {

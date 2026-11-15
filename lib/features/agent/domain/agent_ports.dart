@@ -19,12 +19,12 @@ abstract interface class AgentChatService {
 abstract interface class SpeechToTextService {
   Future<bool> isAvailable();
 
-  Future<void> startListening({String language = 'es'});
+  Future<void> startListening({String language = 'en'});
 
   Future<String> stopListening();
 
   Future<String> listen({
-    String language = 'es',
+    String language = 'en',
     Duration maxDuration = const Duration(seconds: 15),
   });
 
@@ -34,7 +34,7 @@ abstract interface class SpeechToTextService {
 }
 
 abstract interface class TextToSpeechService {
-  Future<void> speak(String text, {String? voice, String language = 'es-ES'});
+  Future<void> speak(String text, {String? voice, String language = 'en-US'});
 
   Future<void> stop();
 

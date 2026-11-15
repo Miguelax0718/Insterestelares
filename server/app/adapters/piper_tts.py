@@ -17,7 +17,7 @@ class PiperTTSProvider:
     def __init__(
         self,
         *,
-        default_voice: str = "es_MX-claude-high",
+        default_voice: str = "en_US-lessac-medium",
         voices_dir: str = "/app/voices",
     ) -> None:
         self._default_voice = default_voice

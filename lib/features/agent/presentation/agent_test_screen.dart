@@ -33,7 +33,7 @@ class _AgentTestScreenState extends ConsumerState<AgentTestScreen> {
     try {
       if (!_listening) {
         await ref.read(textToSpeechServiceProvider).stop();
-        await stt.startListening(language: 'es');
+        await stt.startListening(language: 'en');
         setState(() => _listening = true);
         return;
       }

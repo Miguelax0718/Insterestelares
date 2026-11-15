@@ -101,7 +101,7 @@ class RemoteSpeechToTextService implements SpeechToTextService {
 
   final AgentApiClient _client;
   final AudioCapturePort _capture;
-  String _activeLanguage = 'es';
+  String _activeLanguage = 'en';
   Completer<void>? _listenCompleter;
 
   @override
@@ -113,7 +113,7 @@ class RemoteSpeechToTextService implements SpeechToTextService {
   }
 
   @override
-  Future<void> startListening({String language = 'es'}) async {
+  Future<void> startListening({String language = 'en'}) async {
     _activeLanguage = language;
     await _capture.start();
   }
@@ -138,7 +138,7 @@ class RemoteSpeechToTextService implements SpeechToTextService {
 
   @override
   Future<String> listen({
-    String language = 'es',
+    String language = 'en',
     Duration maxDuration = const Duration(seconds: 15),
   }) async {
     await startListening(language: language);

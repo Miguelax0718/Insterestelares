@@ -40,7 +40,7 @@ Copy `.env.example` to `.env` for local runs:
 | `WHISPER_COMPUTE_TYPE` | `int8` | CTranslate2 compute type (`int8`, `float32`, etc.) |
 | `WHISPER_DEVICE` | `cpu` | Inference device (`cpu`, `cuda`) |
 | `WHISPER_DOWNLOAD_ROOT` | `None` | Optional directory for Whisper model cache |
-| `PIPER_VOICE` | `es_MX-claude-high` | Default Piper voice name |
+| `PIPER_VOICE` | `en_US-lessac-medium` | Default Piper voice name |
 | `PIPER_VOICES_DIR` | `/app/voices` | Directory containing `<voice>.onnx` and `.onnx.json` |
 
 ### Security Caveat: `X-AstraMed-Key` Soft Gate
@@ -83,7 +83,7 @@ The `Dockerfile` uses `python:3.12-slim`, installs the `voice` optional extra (`
 
 ```bash
 cd server
-docker build -t astramed-gateway --build-arg PIPER_VOICE=es_MX-claude-high .
+docker build -t astramed-gateway --build-arg PIPER_VOICE=en_US-lessac-medium .
 docker run --rm -p 8000:8000 \
   -e APP_API_KEYS=your-client-key \
   -e AGENTROUTER_API_KEY=your-agentrouter-key \
@@ -162,6 +162,6 @@ curl -s -X POST http://localhost:8000/v1/stt \
 curl -s -X POST http://localhost:8000/v1/tts \
   -H "Content-Type: application/json" \
   -H "X-AstraMed-Key: dev-key-123" \
-  -d '{"text": "Signos vitales dentro de rango nominal.", "voice": "es_MX-claude-high"}' \
+  -d '{"text": "Vital signs within nominal range.", "voice": "en_US-lessac-medium"}' \
   --output reply.wav
 ```

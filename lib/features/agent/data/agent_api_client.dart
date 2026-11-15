@@ -253,7 +253,7 @@ class AgentApiClient implements AgentChatService {
     Uint8List audioBytes, {
     String filename = 'audio.wav',
     String mimeType = 'audio/wav',
-    String language = 'es',
+    String language = 'en',
   }) async {
     final uri = config.resolveUri('/v1/stt');
     final request = http.MultipartRequest('POST', uri)

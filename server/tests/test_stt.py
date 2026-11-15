@@ -13,17 +13,17 @@ def test_stt_multipart_happy_path_default_and_custom_language() -> None:
     assert resp.status_code == 200
     body = resp.json()
     assert isinstance(body["text"], str) and len(body["text"]) > 0
-    assert body["language"] == "es"
+    assert body["language"] == "en"
     assert isinstance(body["duration_s"], int | float)
 
-    resp_en = client.post(
+    resp_es = client.post(
         "/v1/stt",
         headers=auth_headers(),
         files={"audio": ("voice.webm", b"\x1a\x45\xdf\xa3", "audio/webm")},
-        data={"language": "en"},
+        data={"language": "es"},
     )
-    assert resp_en.status_code == 200
-    assert resp_en.json()["language"] == "en"
+    assert resp_es.status_code == 200
+    assert resp_es.json()["language"] == "es"
 
 
 def test_stt_missing_file_returns_422_invalid_request() -> None:
