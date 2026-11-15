@@ -1,0 +1,301 @@
+{
+  "schema_version": "1.1.0",
+  "updated_at": "2026-11-15",
+  "description": "Criterios científicos versionados y trazables para monitoreo fisiológico pasivo permanente (4 dimensiones) de astronautas.",
+  "criteria": [
+    {
+      "id": "hr_rest_aha_general",
+      "dimension": "cardiorespiratory_metabolic",
+      "variable": "heart_rate",
+      "unit": "lpm",
+      "level": "general_scientific",
+      "context": "rest",
+      "min_value": 60.0,
+      "max_value": 100.0,
+      "hardware_reference": "Bio-Monitor (CSA), vestimenta biométrica CARDIOBREATH (NASA / Crew-5)",
+      "accuracy_estimate": "95% - 98% (reposo/sueño); 88% - 92% (ejercicio)",
+      "datasets": [
+        "NASA Life Sciences Data Archive (LSDA)",
+        "PhysioNet (WESAD / MIMIC-III)"
+      ],
+      "population": "Adultos sanos en entorno terrestre en reposo",
+      "source": "American Heart Association (Target Heart Rates); Mendes Zambetta et al. (2024); Fine et al. (2021); Canadian Space Agency (s. f.)",
+      "version": "1.1.0",
+      "limitations": "No aplicar en sueño o actividad física. En microgravedad se produce un incremento promedio poblacional no uniforme de +3.44 lpm por redistribución hídrica (Mendes Zambetta et al., 2024). Sensores PPG pierden precisión en ejercicio por artefactos de movimiento y perfusión cutánea (Fine et al., 2021)."
+    },
+    {
+      "id": "rr_rest_general",
+      "dimension": "cardiorespiratory_metabolic",
+      "variable": "respiratory_rate",
+      "unit": "rpm",
+      "level": "general_scientific",
+      "context": "rest",
+      "min_value": 12.0,
+      "max_value": 20.0,
+      "hardware_reference": "Bio-Monitor (CSA), bandas torácicas de inductancia",
+      "accuracy_estimate": "93% - 97% en entornos presurizados",
+      "datasets": [
+        "PhysioNet Clinical Lab Datasets",
+        "Bio-Monitor ISS Flight Logs"
+      ],
+      "population": "Adultos sanos en reposo",
+      "source": "Cleveland Clinic (Vital Signs); Berry et al. (2012); Canadian Space Agency (s. f.)",
+      "version": "1.1.0",
+      "limitations": "Referencia orientativa en reposo. No diagnosticar alteraciones respiratorias a partir de una única medición ni aplicar automáticamente en sueño o ejercicio."
+    },
+    {
+      "id": "spo2_terrestrial_general",
+      "dimension": "cardiorespiratory_metabolic",
+      "variable": "spo2",
+      "unit": "%",
+      "level": "general_scientific",
+      "context": "rest",
+      "min_value": 95.0,
+      "max_value": 100.0,
+      "hardware_reference": "Pulsioximetría infrarroja validada FDA 510(k) / oxímetros de dedo portátiles / Bio-Monitor",
+      "accuracy_estimate": "93% - 97% en entornos presurizados",
+      "datasets": [
+        "PhysioNet Clinical Lab Datasets",
+        "Bio-Monitor ISS Flight Logs"
+      ],
+      "population": "Adultos sanos en condiciones terrestres apropiadas",
+      "source": "U.S. Food and Drug Administration (2013, p. 7); NHLBI (2023)",
+      "version": "1.1.0",
+      "limitations": "Referencia terrestre general; no constituye un límite universal de seguridad espacial. Evaluar calidad de señal, movimiento, perfusión y condiciones ambientales de cabina."
+    },
+    {
+      "id": "core_temp_heat_flux_draeger",
+      "dimension": "cardiorespiratory_metabolic",
+      "variable": "core_temp_heat_flux",
+      "unit": "°C",
+      "level": "general_scientific",
+      "context": "rest",
+      "min_value": 36.0,
+      "max_value": 37.3,
+      "hardware_reference": "Draeger Double Sensor (validado por DLR y NASA)",
+      "accuracy_estimate": "96% - 98% (error inferior a ±0.2 °C frente a sonda esofágica/rectal)",
+      "datasets": [
+        "NASA Human Research Program (HRP) Data Portal"
+      ],
+      "population": "Tripulación en cabina presurizada o ejercicio aeróbico en microgravedad",
+      "source": "NASA-STD-3001 Vol. 2; DLR / NASA Thermal Physiology Reports",
+      "version": "1.1.0",
+      "limitations": "La ausencia de convección térmica natural en 0 g eleva la temperatura central fisiológica durante ejercicio (hasta 38.4 °C). Sustituye sondas invasivas mediante flujo de calor cutáneo."
+    },
+    {
+      "id": "hydration_bis_fluid_shift",
+      "dimension": "cardiorespiratory_metabolic",
+      "variable": "hydration_bioimpedance_index",
+      "unit": "%",
+      "level": "operational_limit",
+      "context": "rest",
+      "min_value": 68.0,
+      "max_value": 100.0,
+      "hardware_reference": "Parches biométricos dermales de espectroscopia de bioimpedancia eléctrica multifrecuencia (Bodystat BIS)",
+      "accuracy_estimate": "90% - 94% (con compensación por software de desplazamiento cefálico de fluidos)",
+      "datasets": [
+        "NASA HRP Fluid Shift Database"
+      ],
+      "population": "Tripulación en vuelo espacial con ajuste de desplazamiento cefálico (TBW)",
+      "source": "NASA-STD-3001 Vol. 2; NASA HRP Fluid Shift Protocols",
+      "version": "1.1.0",
+      "limitations": "Durante los primeros 7 días de microgravedad se requiere corrección algorítmica por redistribución cefálica de líquidos y diuresis compensatoria."
+    },
+    {
+      "id": "hrv_bimodal_actigraphy_0g",
+      "dimension": "cardiorespiratory_metabolic",
+      "variable": "hrv_rmssd_sdnn",
+      "unit": "ms",
+      "level": "general_scientific",
+      "context": "rest",
+      "min_value": 30.0,
+      "max_value": null,
+      "hardware_reference": "Bio-Monitor (CSA) / ECG de parches secos (RMSSD, SDNN)",
+      "accuracy_estimate": "95% - 98% en reposo/inmovilidad nocturna",
+      "datasets": [
+        "NASA Life Sciences Data Archive (LSDA)",
+        "PhysioNet (WESAD / MIMIC-III)"
+      ],
+      "population": "Tripulación en ventanas válidas de reposo o sueño (validación actigráfica bimodal)",
+      "source": "Mendes Zambetta et al. (2024); NASA-HRP Bimodal Actigraphy Fusion",
+      "version": "1.1.0",
+      "limitations": "Excluida como marcador de estrés autonómico durante ejercicio físico o esfuerzo EVA."
+    },
+    {
+      "id": "eye_tracking_pupillometry_npi",
+      "dimension": "neurological_sensory",
+      "variable": "pupillometry_npi",
+      "unit": "NPi",
+      "level": "operational_limit",
+      "context": "rest",
+      "min_value": 3.0,
+      "max_value": 5.0,
+      "hardware_reference": "Tobii Pro Glasses 3, Pupil Labs Core, NeurOptics VIP-200",
+      "accuracy_estimate": "96% - 98% en resolución pupilar (sensibilidad 0.05 mm)",
+      "datasets": [
+        "DLR / ESA Microgravity Cognition and Pupillometry Database",
+        "PhysioNet Pupillometric Signal Database"
+      ],
+      "population": "Evaluación autonómica pasiva y fatiga de tronco encefálico (diámetro, PLR, NPi, parpadeo, micro-sacadas)",
+      "source": "DLR / ESA Space Physiology Reports",
+      "version": "1.1.0",
+      "limitations": "Valores de NPi < 3.0 o latencia PLR > 280 ms indican alteración reactiva que exige correlación neuro-ocular y clínica inmediata."
+    },
+    {
+      "id": "hyperopic_shift_tof_passive",
+      "dimension": "neurological_sensory",
+      "variable": "passive_near_focus_tof",
+      "unit": "cm",
+      "level": "operational_limit",
+      "context": "rest",
+      "min_value": 20.0,
+      "max_value": 35.0,
+      "hardware_reference": "Sensor óptico Time-of-Flight (ToF) e infrarrojo en tableta táctil de misión o visores",
+      "accuracy_estimate": "95% - 99% de sensibilidad clínica (+0.50 a +1.75 D)",
+      "datasets": [
+        "NASA Space Medicine On-Orbit Visual Acuity Logs"
+      ],
+      "population": "Detección pasiva temprana de desplazamiento hiperópico asociado a SANS",
+      "source": "Lee et al. (2020, p. 4); Macias et al. (2021, p. 321)",
+      "version": "1.1.0",
+      "limitations": "Estima distancia de enfoque visual frente a pantallas como marcador indirecto temprano de SANS; confirmar con optometría y ecografía ONSD."
+    },
+    {
+      "id": "passive_background_pvt_b",
+      "dimension": "neurological_sensory",
+      "variable": "passive_pvt_reaction_ms",
+      "unit": "ms",
+      "level": "operational_limit",
+      "context": "rest",
+      "min_value": 150.0,
+      "max_value": 355.0,
+      "hardware_reference": "Algoritmo de fondo en SO de tableta de misión (matriz NASA Spaceflight PVT-B)",
+      "accuracy_estimate": "> 95% de sensibilidad para privación de sueño y fatiga cognitiva",
+      "datasets": [
+        "NASA LSDA Spaceflight Psychomotor Vigilance Task Database"
+      ],
+      "population": "Analítica pasiva de tiempo de reacción, precisión táctil y lapsos de atención (>500 ms)",
+      "source": "Basner & Dinges (2011, p. 582); Basner et al. (2014, p. 93298); Piechowski et al. (2020, p. 45)",
+      "version": "1.1.0",
+      "limitations": "El PVT-B de fondo captura latencia táctil operativa continua sin interrumpir al tripulante; lapsos >500 ms reflejan deterioro de vigilancia."
+    },
+    {
+      "id": "inertial_imu_biomechanics",
+      "dimension": "musculoskeletal",
+      "variable": "peak_impact_g",
+      "unit": "g",
+      "level": "operational_limit",
+      "context": "physical_activity",
+      "min_value": 0.005,
+      "max_value": 2.5,
+      "hardware_reference": "Sensores inerciales triaxiales (IMU) vestibles en pulsera/tobillo o integrados en traje EVA/Rover",
+      "accuracy_estimate": "95% - 98% en clasificación de actividad (reposo, marcha, ejercicio) e impacto",
+      "datasets": [
+        "NASA HRP Biomechanics Archives",
+        "ESA Human Performance Database"
+      ],
+      "population": "Monitoreo pasivo de actividad diaria, gasto energético, cadencia de zancada e impactos inerciales",
+      "source": "NASA HRP Biomechanics Archives; ESA Human Performance Database",
+      "version": "1.1.0",
+      "limitations": "Aceleraciones pico >= 2.5 g activan detección automática de caída o impacto inercial contra mamparos o superficie."
+    },
+    {
+      "id": "localized_muscle_bioimpedance",
+      "dimension": "musculoskeletal",
+      "variable": "muscle_volume_retention_percent",
+      "unit": "%",
+      "level": "operational_limit",
+      "context": "rest",
+      "min_value": 80.0,
+      "max_value": null,
+      "hardware_reference": "Parches dermales vestibles multifrecuencia de bioimpedancia muscular focalizada (cuádriceps y gastrocnemio)",
+      "accuracy_estimate": "93% - 96% de concordancia en volumen muscular y ángulo de pennación",
+      "datasets": [
+        "ESA Spaceflight Musculoskeletal Atrophy Database"
+      ],
+      "population": "Vigilancia pasiva de atrofia muscular y remodelación fascicular en miembros inferiores",
+      "source": "ESA Spaceflight Musculoskeletal Atrophy Database; NASA-STD-3001 Vol. 1 V1 4024",
+      "version": "1.1.0",
+      "limitations": "Requiere calibración con estado hídrico para evitar sesgos por redistribución de fluidos."
+    },
+    {
+      "id": "muscle_strength_nasa_std_3001",
+      "dimension": "musculoskeletal",
+      "variable": "muscle_strength_retention",
+      "unit": "%",
+      "level": "operational_limit",
+      "context": "physical_activity",
+      "min_value": 80.0,
+      "max_value": null,
+      "hardware_reference": "Evaluación instrumental comparativa ARED / dinamometría estandarizada",
+      "accuracy_estimate": "93% - 96% con protocolo instrumental equivalente pre-misión",
+      "datasets": [
+        "NASA-STD-3001 Vol. 1; ESA Human Performance Database"
+      ],
+      "population": "Tripulación en misiones espaciales respecto a basal pre-misión equivalente",
+      "source": "NASA-STD-3001 Volume 1, Requisito V1 4024; NASA OCHMO-TB-031 (2023)",
+      "version": "1.1.0",
+      "limitations": "Aplicable únicamente a evaluaciones instrumentales estandarizadas comparables con el mismo protocolo pre-misión. Una medición <80% no constituye diagnóstico aislado."
+    },
+    {
+      "id": "sleep_duration_nsf_aasm",
+      "dimension": "circadian_psychoemotional",
+      "variable": "sleep_duration",
+      "unit": "h",
+      "level": "general_scientific",
+      "context": "sleep",
+      "min_value": 7.0,
+      "max_value": 9.0,
+      "hardware_reference": "Actígrafo biométrico de muñeca de grado médico",
+      "accuracy_estimate": "90% - 95% de concordancia con polisomnografía (PSG) en duración y fragmentación",
+      "datasets": [
+        "NASA LSDA Spaceflight Actigraphy Database",
+        "PhysioNet Sleep-EDF Database"
+      ],
+      "population": "Adultos (por cada 24 horas)",
+      "source": "Sadeh (2011, p. 260); Hirshkowitz et al. (2015, p. 40); Watson et al. (2015, p. 843); Smith et al. (2018, p. 1231); Barger et al. (2014, p. 904)",
+      "version": "1.1.0",
+      "limitations": "La actigrafía estima sueño, eficiencia y fragmentación a partir de movimiento corporal y no determina fases clínicas REM/NREM. Duraciones >9 h deben contextualizarse."
+    },
+    {
+      "id": "nocturnal_hrv_autonomic_recovery",
+      "dimension": "circadian_psychoemotional",
+      "variable": "nocturnal_hrv_rmssd_sdnn",
+      "unit": "ms",
+      "level": "general_scientific",
+      "context": "sleep",
+      "min_value": 30.0,
+      "max_value": null,
+      "hardware_reference": "Prenda inteligente Bio-Monitor (CSA) / parches biométricos de ECG nocturno",
+      "accuracy_estimate": "95% - 98% respecto a electrocardiografía Holter en inmovilidad nocturna",
+      "datasets": [
+        "NASA HRP Autonomic Physiology Records",
+        "PhysioNet WESAD"
+      ],
+      "population": "Ventanas de descanso nocturno como marcador objetivo de estrés fisiológico y tono parasimpático",
+      "source": "NASA HRP Autonomic Physiology Records; Mendes Zambetta et al. (2024)",
+      "version": "1.1.0",
+      "limitations": "RMSSD < 30 ms sostenida durante descanso nocturno sugiere sobrecarga simpática, déficit de recuperación o estrés operacional."
+    },
+    {
+      "id": "nocturnal_integrated_vitals",
+      "dimension": "circadian_psychoemotional",
+      "variable": "nocturnal_vitals_fc_fr_spo2",
+      "unit": "compuesto",
+      "level": "operational_limit",
+      "context": "sleep",
+      "min_value": 94.0,
+      "max_value": 100.0,
+      "hardware_reference": "Pulsioximetría vestible y banda respiratoria de inductancia torácica o Bio-Monitor",
+      "accuracy_estimate": "93% - 97% en ventanas de reposo presurizado",
+      "datasets": [
+        "PhysioNet Clinical Lab Datasets",
+        "Bio-Monitor ISS Flight Logs"
+      ],
+      "population": "Promedios nocturnos integrados de FC, FR y SpO2 para detectar desaturaciones y variaciones respiratorias",
+      "source": "Bio-Monitor ISS Flight Logs; U.S. FDA (2013)",
+      "version": "1.1.0",
+      "limitations": "Cualquier desaturación nocturna repetida o caída de SpO2 media < 94% requiere revisar ventilación de cabina y descartar hipopnea nocturna."
+    }
+  ]
+}

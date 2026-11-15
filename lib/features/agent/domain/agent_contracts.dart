@@ -445,6 +445,14 @@ abstract interface class DeterministicFlow {
   Future<DeterministicStep> advance(String userInput, ToolContext ctx);
 }
 
+/// Optional extension for offline flows that can act on the very first
+/// message (e.g. "I drank 500 ml") instead of only greeting. The
+/// orchestrator calls [startWithQuery] instead of [start] when available.
+abstract interface class QueryAwareDeterministicFlow
+    implements DeterministicFlow {
+  Future<DeterministicStep> startWithQuery(String query, ToolContext ctx);
+}
+
 class AgentSkill {
   const AgentSkill({
     required this.id,

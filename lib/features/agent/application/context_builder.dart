@@ -34,6 +34,51 @@ class AgentContextBuilder {
         'blood_glucose': astronaut.vitals.bloodGlucose,
         'respiratory_rate': astronaut.vitals.respiratoryRate,
         'capillary_refill_seconds': astronaut.vitals.capillaryRefillSeconds,
+        'hrv_rmssd_ms': astronaut.vitals.hrvRmssdMs,
+        'hrv_sdnn_ms': astronaut.vitals.hrvSdnnMs,
+        'core_temp_heat_flux_c': astronaut.vitals.coreTempHeatFluxC,
+        'hydration_bis_calibrated_pct':
+            astronaut.vitals.calibratedHydrationIndex,
+        'local_co2_mmhg': astronaut.vitals.localCo2MmHg,
+        'local_o2_pct': astronaut.vitals.localO2Percent,
+      },
+      'passive_dimensions': <String, dynamic>{
+        'cardiorespiratory_metabolic': <String, dynamic>{
+          'hrv_rmssd_ms': astronaut.vitals.hrvRmssdMs,
+          'hrv_sdnn_ms': astronaut.vitals.hrvSdnnMs,
+          'core_temp_heat_flux_c': astronaut.vitals.coreTempHeatFluxC,
+          'hydration_bis_calibrated_pct':
+              astronaut.vitals.calibratedHydrationIndex,
+        },
+        'neurological_sensory': <String, dynamic>{
+          'pupil_diameter_mm': astronaut.vitals.pupilDiameterMm,
+          'pupillometry_npi': astronaut.vitals.pupillometryNpi,
+          'plr_latency_ms': astronaut.vitals.plrLatencyMs,
+          'passive_near_focus_cm': astronaut.vitals.passiveNearFocusCm,
+          'hyperopic_shift_diopters':
+              astronaut.vitals.estimatedHyperopicShiftDiopters,
+          'passive_pvt_reaction_ms': astronaut.vitals.passivePvtReactionMs,
+          'passive_pvt_lapses': astronaut.vitals.passivePvtLapsesCount,
+          'pointer_accuracy_pct': astronaut.vitals.touchPointerAccuracyPercent,
+        },
+        'musculoskeletal': <String, dynamic>{
+          'accelerometry_rms_g': astronaut.vitals.accelerometryRmsG,
+          'peak_impact_g': astronaut.vitals.peakImpactG,
+          'muscle_volume_retention_pct':
+              astronaut.vitals.muscleVolumeRetentionPercent,
+          'pennation_angle_deg': astronaut.vitals.pennationAngleDeg,
+        },
+        'circadian_psychoemotional': <String, dynamic>{
+          'sleep_hours': astronaut.sleep.sleepHours,
+          'sleep_efficiency_pct': astronaut.vitals.sleepEfficiencyPercent,
+          'sleep_fragmentation_index':
+              astronaut.vitals.sleepFragmentationIndex,
+          'sleep_regularity_index': astronaut.vitals.sleepRegularityIndex,
+          'nocturnal_hrv_rmssd_ms': astronaut.vitals.nocturnalHrvRmssdMs,
+          'nocturnal_spo2_mean_pct': astronaut.vitals.nocturnalSpO2MeanPercent,
+          'nocturnal_desaturations':
+              astronaut.vitals.nocturnalDesaturationEvents,
+        },
       },
       'active_alerts': List<String>.from(astronaut.activeAlerts),
     };
@@ -127,6 +172,13 @@ class AgentContextBuilder {
     }
     if (_encodedByteLength(context) <= maxBytes) {
       return context;
+    }
+
+    if (live.containsKey('passive_dimensions')) {
+      live.remove('passive_dimensions');
+      if (_encodedByteLength(context) <= maxBytes) {
+        return context;
+      }
     }
 
     return <String, dynamic>{
