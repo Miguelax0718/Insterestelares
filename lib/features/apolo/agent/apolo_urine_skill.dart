@@ -9,7 +9,9 @@ class ApoloUrineSkill extends AgentSkill {
     : super(
         id: 'apolo_urine_health',
         instructions:
-            'You are APOLO, the crew urine-biomarker and daily wellness assistant. '
+            'You are APOLO, the crew\'s space-health assistant dog for urine biomarkers and daily wellness. '
+            'Keep a calm, playful, lightly teasing Navi-and-TARS tone—gently nudging hydration, workouts, and due samples in short, plain-text TTS sentences, never preachy or robotic. '
+            'On any critical (crit) module or emergency, drop all jokes immediately (zero humor) and give clear, direct guidance first. '
             'Use get_apolo_modules for an overview of all 8 health circles, '
             'get_apolo_biomarker_detail to inspect biomarkers and reveal a circle, '
             'log_water_intake (50-2000 ml) when the astronaut reports drinking water, '
@@ -17,7 +19,7 @@ class ApoloUrineSkill extends AgentSkill {
             'submit_urine_sample when a new urine sample is taken, '
             'complete_recommendation to check off an action item, and '
             'show_apolo_orbs to control which circles appear on stage. '
-            'Relay exact metrics and recommendations concisely and warmly without inventing thresholds.',
+            'Relay exact metrics and recommendations concisely without inventing thresholds.',
         tools: const [
           GetApoloModulesTool(),
           GetApoloBiomarkerDetailTool(),
@@ -639,27 +641,34 @@ class ApoloUrineOfflineFlow implements QueryAwareDeterministicFlow {
     final state = actions.stateFor(ctx.astronautId);
     final ranked = state.rankedModules;
     final bad = ranked.where((m) => m.severity != ApoloSeverity.ok).toList();
+    final isCrit = bad.isNotEmpty && bad.first.severity == ApoloSeverity.crit;
 
     final buffer = StringBuffer('Hi, ${state.firstName}! ');
     if (state.samples.isEmpty) {
       buffer.write(
-        'I do not have any urine samples yet. Submit your first sample to establish your baseline.',
+        'I do not have any urine samples yet. Submit your first sample so I can build your baseline.',
       );
-    } else if (bad.isNotEmpty && bad.first.severity == ApoloSeverity.crit) {
+    } else if (isCrit) {
       buffer.write(
         'Something needs urgent attention: ${bad.first.title} is critical (${bad.first.keyMetric}).',
       );
     } else if (bad.isNotEmpty) {
       final names = bad.map((m) => m.title.toLowerCase()).join(' and ');
       buffer.write(
-        'Almost everything looks good. ${bad.length == 1 ? 'One area needs' : '${bad.length} areas need'} attention: $names.',
+        'Hey, listen—almost everything looks steady, though ${bad.length == 1 ? 'one area needs' : '${bad.length} areas need'} attention: $names.',
       );
     } else {
-      buffer.write('Everything is stable today! Ask me about any circle.');
+      buffer.write(
+        'All eight circles look steady today. Ask me about any circle—I am keeping an ear up.',
+      );
     }
 
     if (state.sampleSchedule.isDue && state.samples.isNotEmpty) {
-      buffer.write(' Also, your urine sample is due now.');
+      buffer.write(
+        isCrit
+            ? ' Also, your urine sample is due now.'
+            : ' Also, your urine sample is due now—just a friendly nudge.',
+      );
     }
 
     return DeterministicStep(
@@ -706,8 +715,8 @@ class ApoloUrineOfflineFlow implements QueryAwareDeterministicFlow {
       final updated = actions.stateFor(ctx.astronautId);
       final left = math.max(0, updated.waterGoalMl - updated.waterMlToday);
       final leftMsg = left > 0
-          ? '${(left / 1000).toStringAsFixed(1)} L remaining for today\'s goal.'
-          : 'You reached today\'s hydration goal!';
+          ? '${(left / 1000).toStringAsFixed(1)} L remaining for today\'s goal—yes, I am keeping count.'
+          : 'You reached today\'s hydration goal! Nicely done.';
       return DeterministicStep(
         prompt: 'Logged +$ml ml of water. $leftMsg',
         options: const ['How am I?', 'What should I do today?'],
@@ -734,7 +743,7 @@ class ApoloUrineOfflineFlow implements QueryAwareDeterministicFlow {
       final updated = actions.stateFor(ctx.astronautId);
       return DeterministicStep(
         prompt:
-            'Nice work! Logged $minutes min of exercise. You are at ${updated.exerciseMinToday} of ${updated.exerciseGoalMin} min today.',
+            'Nice work! Logged $minutes min of exercise. You are at ${updated.exerciseMinToday} of ${updated.exerciseGoalMin} min today—your bones owe you one.',
         options: const ['How are my bones?', 'How am I?'],
       );
     }
@@ -745,9 +754,12 @@ class ApoloUrineOfflineFlow implements QueryAwareDeterministicFlow {
     ).hasMatch(t)) {
       actions.submitSample(astronautId: ctx.astronautId);
       final updated = actions.stateFor(ctx.astronautId);
+      final suffix = updated.overallSeverity == ApoloSeverity.crit
+          ? ''
+          : ' That keeps me happy.';
       return DeterministicStep(
         prompt:
-            'Sample received and analyzed! ${updated.sampleSchedule.title}.',
+            'Sample received and analyzed. ${updated.sampleSchedule.title}.$suffix',
         options: const ['How am I?', 'Show all'],
       );
     }
@@ -757,7 +769,8 @@ class ApoloUrineOfflineFlow implements QueryAwareDeterministicFlow {
         .hasMatch(t)) {
       final state = actions.stateFor(ctx.astronautId);
       return DeterministicStep(
-        prompt: 'Woof! Anytime, ${state.firstName}.',
+        prompt:
+            'Woof! Anytime, ${state.firstName}. Just trying to keep you in one piece up here.',
         options: const ['How am I?', 'Show all'],
       );
     }
@@ -857,7 +870,8 @@ class ApoloUrineOfflineFlow implements QueryAwareDeterministicFlow {
       }
       if (crit.isEmpty && warn.isEmpty) {
         return const DeterministicStep(
-          prompt: 'All 8 health circles are stable. Great work!',
+          prompt:
+              'All 8 health circles are stable. Great work—nothing for me to nag you about!',
           options: ['Show all', 'What should I do today?'],
         );
       }
@@ -867,8 +881,11 @@ class ApoloUrineOfflineFlow implements QueryAwareDeterministicFlow {
         if (warn.isNotEmpty)
           '${warn.length} needing attention (${warn.map((m) => m.title).join(', ')})',
       ];
+      final suffix = crit.isEmpty
+          ? ' Everything else is stable—consider this a gentle nudge.'
+          : ' Everything else is stable.';
       return DeterministicStep(
-        prompt: '${parts.join(' and ')}. Everything else is stable.',
+        prompt: '${parts.join(' and ')}.$suffix',
         options: const ['What should I do today?', 'Show all'],
       );
     }

@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     # TTS (kokoro-onnx)
     kokoro_model_path: str = "/app/models/kokoro/kokoro-v1.0.onnx"
     kokoro_voices_path: str = "/app/models/kokoro/voices-v1.0.bin"
-    kokoro_voice: str = "af_heart"
+    kokoro_voice: str = "am_puck"
     kokoro_speed: float = Field(default=1.0, ge=0.5, le=2.0)
     kokoro_lang: str = "en-us"
 

@@ -251,29 +251,33 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
 
   String _initialGreeting(ApoloAstronautState state) {
     if (state.samples.isEmpty) {
-      return 'Hello, ${state.firstName}! I do not have your urine data yet. Submit your first sample to establish your baseline.';
+      return 'Hey, listen, ${state.firstName}! Zero urine data on file yet. Submit your first sample so I can calibrate your baseline—promise not to judge.';
     }
     final ranked = state.rankedModules;
     final nonOk = ranked
         .where((m) => m.severity != ApoloSeverity.ok)
         .toList(growable: false);
-    final base = StringBuffer('Hello, ${state.firstName}! ');
+    final base = StringBuffer();
     if (nonOk.isNotEmpty && nonOk.first.severity == ApoloSeverity.crit) {
       base.write(
-        'Urgent attention needed: ${nonOk.first.title.toLowerCase()} is critical. Tap the red circle to see what to do.',
+        '${state.firstName}, listen—urgent attention needed: ${nonOk.first.title.toLowerCase()} is critical. Tap the red circle now to see what to do.',
       );
     } else if (nonOk.isNotEmpty) {
       final names = nonOk.map((m) => m.title.toLowerCase()).join(' and ');
       base.write(
-        'Most systems look good. ${nonOk.length == 1 ? 'One circle needs' : '${nonOk.length} circles need'} attention: $names.',
+        'Hey, ${state.firstName}. Mostly smooth orbit, though ${nonOk.length == 1 ? 'one circle needs' : '${nonOk.length} circles need'} a nudge: $names.',
       );
     } else {
       base.write(
-        'All systems are stable today! Ask me about any metric or tap Show all.',
+        'Hey, ${state.firstName}! All systems are green and surprisingly well-behaved today. Ask me anything or tap Show all.',
       );
     }
     if (state.sampleSchedule.isDue) {
-      base.write(' Your urine sample is also due.');
+      if (nonOk.isNotEmpty && nonOk.first.severity == ApoloSeverity.crit) {
+        base.write(' Your urine sample is also due.');
+      } else {
+        base.write(' Also, your urine sample is due—consider this your friendly nudge.');
+      }
     }
     return base.toString();
   }
@@ -369,13 +373,8 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
         .lastOrNull
         ?.content;
 
-    final bubbleText = session.busy
-        ? (lastAssistantMessage != null
-              ? '$lastAssistantMessage\n\nThinking…'
-              : 'Thinking…')
-        : (_localBubbleText ??
-              lastAssistantMessage ??
-              _initialGreeting(apoloState));
+    final bubbleText =
+        _localBubbleText ?? lastAssistantMessage ?? _initialGreeting(apoloState);
 
     final isDogListening =
         _manualListening ||
@@ -959,16 +958,21 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
           ),
           child: Column(
             children: [
-              Text(
-                bubbleText,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF16142E),
-                  fontSize: 16.5,
-                  fontWeight: FontWeight.w500,
-                  height: 1.4,
+              if (session.busy)
+                const _ThinkingBubbleIndicator(
+                  key: Key('apolo_thinking_indicator'),
+                )
+              else
+                Text(
+                  bubbleText,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFF16142E),
+                    fontSize: 16.5,
+                    fontWeight: FontWeight.w500,
+                    height: 1.4,
+                  ),
                 ),
-              ),
               const SizedBox(height: 12),
               Wrap(
                 alignment: WrapAlignment.center,
@@ -1048,6 +1052,7 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
           severity: apoloState.overallSeverity,
           isListening: isDogListening,
           isSpeaking: _ttsSpeaking,
+          isThinking: session.busy,
           highContrast: apoloState.highContrast,
           lookOffset: _lookOffset,
           size: dogSize,
@@ -1356,6 +1361,97 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ThinkingBubbleIndicator extends StatefulWidget {
+  const _ThinkingBubbleIndicator({super.key});
+
+  @override
+  State<_ThinkingBubbleIndicator> createState() =>
+      _ThinkingBubbleIndicatorState();
+}
+
+class _ThinkingBubbleIndicatorState extends State<_ThinkingBubbleIndicator>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.stop();
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final t = disableAnimations ? 0.0 : _controller.value;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (var i = 0; i < 3; i++) ...[
+              Builder(
+                builder: (context) {
+                  final wave = disableAnimations
+                      ? 0.7
+                      : (math.sin((t - i * 0.22) * math.pi * 2) * 0.5 + 0.5);
+                  final scale = 0.72 + wave * 0.42;
+                  final opacity = 0.35 + wave * 0.65;
+                  return Transform.scale(
+                    scale: scale,
+                    child: Opacity(
+                      opacity: opacity,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Color(0xFF6B4EC7),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+            const SizedBox(width: 8),
+            const Text(
+              'Apolo is thinking…',
+              style: TextStyle(
+                color: Color(0xFF16142E),
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

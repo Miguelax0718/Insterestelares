@@ -49,7 +49,7 @@ class KokoroTTSProvider:
         *,
         model_path: str = "/app/models/kokoro/kokoro-v1.0.onnx",
         voices_path: str = "/app/models/kokoro/voices-v1.0.bin",
-        default_voice: str = "af_heart",
+        default_voice: str = "am_puck",
         speed: float = 1.0,
         default_lang: str = "en-us",
     ) -> None:

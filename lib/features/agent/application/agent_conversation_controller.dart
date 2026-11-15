@@ -759,9 +759,18 @@ class AgentConversationOrchestrator {
           lastError: capturedError,
           clearLastError: capturedError == null,
         );
-        _commitTargetState(done);
-        if (speakReply && reply.reply.isNotEmpty) {
-          await _safeSpeak(reply.reply);
+        if (speakReply &&
+            reply.reply.trim().isNotEmpty &&
+            tts is SynchronizedTextToSpeechService) {
+          await _safeSpeakSynchronized(
+            reply.reply,
+            onAudioReady: () => _commitTargetState(done),
+          );
+        } else {
+          _commitTargetState(done);
+          if (speakReply && reply.reply.isNotEmpty) {
+            await _safeSpeak(reply.reply);
+          }
         }
         return done;
       }
@@ -853,9 +862,18 @@ class AgentConversationOrchestrator {
       lastError: capturedError,
       clearLastError: capturedError == null,
     );
-    _commitTargetState(done);
-    if (speakReply && finalReply.reply.isNotEmpty) {
-      await _safeSpeak(finalReply.reply);
+    if (speakReply &&
+        finalReply.reply.trim().isNotEmpty &&
+        tts is SynchronizedTextToSpeechService) {
+      await _safeSpeakSynchronized(
+        finalReply.reply,
+        onAudioReady: () => _commitTargetState(done),
+      );
+    } else {
+      _commitTargetState(done);
+      if (speakReply && finalReply.reply.isNotEmpty) {
+        await _safeSpeak(finalReply.reply);
+      }
     }
     return done;
   }
@@ -892,9 +910,16 @@ class AgentConversationOrchestrator {
         busy: false,
         offlineMode: true,
       );
-      _emitState(updated);
-      if (speakReply) {
-        await _safeSpeak(_offlineUnavailableMessage);
+      if (speakReply && tts is SynchronizedTextToSpeechService) {
+        await _safeSpeakSynchronized(
+          _offlineUnavailableMessage,
+          onAudioReady: () => _emitState(updated),
+        );
+      } else {
+        _emitState(updated);
+        if (speakReply) {
+          await _safeSpeak(_offlineUnavailableMessage);
+        }
       }
       return updated;
     }
@@ -922,8 +947,17 @@ class AgentConversationOrchestrator {
       offlineMode: true,
       clearLastError: true,
     );
-    _emitState(updated);
-    await _safeSpeak(step.prompt);
+    if (speakReply &&
+        step.prompt.trim().isNotEmpty &&
+        tts is SynchronizedTextToSpeechService) {
+      await _safeSpeakSynchronized(
+        step.prompt,
+        onAudioReady: () => _emitState(updated),
+      );
+    } else {
+      _emitState(updated);
+      await _safeSpeak(step.prompt);
+    }
     return updated;
   }
 
@@ -1009,6 +1043,32 @@ class AgentConversationOrchestrator {
       await ttsService.speak(text);
     } catch (_) {
       // TTS failures must not break clinical state updates.
+    }
+  }
+
+  Future<void> _safeSpeakSynchronized(
+    String text, {
+    required void Function() onAudioReady,
+  }) async {
+    var fired = false;
+    void fireOnce() {
+      if (!fired) {
+        fired = true;
+        onAudioReady();
+      }
+    }
+
+    final ttsService = tts;
+    if (ttsService is! SynchronizedTextToSpeechService || text.trim().isEmpty) {
+      fireOnce();
+      return;
+    }
+    try {
+      await ttsService.speakSynchronized(text, onAudioReady: fireOnce);
+    } catch (_) {
+      // TTS failures must not break clinical state updates.
+    } finally {
+      fireOnce();
     }
   }
 }

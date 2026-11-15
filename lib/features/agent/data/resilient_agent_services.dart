@@ -174,7 +174,7 @@ class ResilientSpeechToTextService implements SpeechToTextService {
   }
 }
 
-class ResilientTextToSpeechService implements TextToSpeechService {
+class ResilientTextToSpeechService implements SynchronizedTextToSpeechService {
   ResilientTextToSpeechService({
     required this._remote,
     required this._local,
@@ -184,6 +184,47 @@ class ResilientTextToSpeechService implements TextToSpeechService {
   final TextToSpeechService _remote;
   final TextToSpeechService _local;
   final bool _isRemoteConfigured;
+
+  @override
+  Future<void> speakSynchronized(
+    String text, {
+    String? voice,
+    String language = 'en-US',
+    required void Function() onAudioReady,
+  }) async {
+    var readyCalled = false;
+    void fireReady() {
+      if (!readyCalled) {
+        readyCalled = true;
+        onAudioReady();
+      }
+    }
+
+    if (!_isRemoteConfigured) {
+      fireReady();
+      await _local.speak(text, voice: voice, language: language);
+      return;
+    }
+    try {
+      if (_remote is SynchronizedTextToSpeechService) {
+        await _remote.speakSynchronized(
+          text,
+          voice: voice,
+          language: language,
+          onAudioReady: fireReady,
+        );
+      } else {
+        fireReady();
+        await _remote.speak(text, voice: voice, language: language);
+      }
+    } catch (e) {
+      if (!isFallbackEligibleError(e)) {
+        rethrow;
+      }
+      fireReady();
+      await _local.speak(text, voice: voice, language: language);
+    }
+  }
 
   @override
   Future<void> speak(
@@ -221,7 +262,7 @@ class ResilientTextToSpeechService implements TextToSpeechService {
 /// Non-breaking [TextToSpeechService] wrapper that exposes [TtsSpeakingSignal]
 /// so hands-free capture can pause/ignore audio while TTS output is active.
 class SpeakingTrackedTextToSpeechService
-    implements TextToSpeechService, TtsSpeakingSignal {
+    implements SynchronizedTextToSpeechService, TtsSpeakingSignal {
   SpeakingTrackedTextToSpeechService({
     required this._inner,
     this.disposeInner = false,
@@ -248,6 +289,48 @@ class SpeakingTrackedTextToSpeechService
     _isSpeaking = value;
     if (!_speakingController.isClosed) {
       _speakingController.add(value);
+    }
+  }
+
+  @override
+  Future<void> speakSynchronized(
+    String text, {
+    String? voice,
+    String language = 'en-US',
+    required void Function() onAudioReady,
+  }) async {
+    var readyFired = false;
+    void handleReady() {
+      if (readyFired) {
+        return;
+      }
+      readyFired = true;
+      _activeSpeaks++;
+      _setSpeaking(true);
+      onAudioReady();
+    }
+
+    try {
+      if (_inner is SynchronizedTextToSpeechService) {
+        await _inner.speakSynchronized(
+          text,
+          voice: voice,
+          language: language,
+          onAudioReady: handleReady,
+        );
+      } else {
+        handleReady();
+        await _inner.speak(text, voice: voice, language: language);
+      }
+    } finally {
+      if (readyFired) {
+        if (_activeSpeaks > 0) {
+          _activeSpeaks--;
+        }
+        if (_activeSpeaks == 0) {
+          _setSpeaking(false);
+        }
+      }
     }
   }
 

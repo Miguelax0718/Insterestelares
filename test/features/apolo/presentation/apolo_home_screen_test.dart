@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:astramed/features/agent/application/hands_free_controller.dart';
 import 'package:astramed/features/agent/domain/agent_contracts.dart';
 import 'package:astramed/features/agent/domain/agent_models.dart';
@@ -444,6 +446,41 @@ class _FakeTextToSpeechService implements TextToSpeechService {
   Future<void> stop() async {}
 }
 
+class _ControllableSynchronizedTts implements SynchronizedTextToSpeechService {
+  final Completer<void> synthGate = Completer<void>();
+  final Completer<void> playGate = Completer<void>();
+
+  @override
+  Future<void> speakSynchronized(
+    String text, {
+    String? voice,
+    String language = 'en-US',
+    required void Function() onAudioReady,
+  }) async {
+    await synthGate.future;
+    onAudioReady();
+    await playGate.future;
+  }
+
+  @override
+  Future<void> speak(
+    String text, {
+    String? voice,
+    String language = 'en-US',
+  }) => speakSynchronized(
+    text,
+    voice: voice,
+    language: language,
+    onAudioReady: () {},
+  );
+
+  @override
+  Future<void> stop() async {}
+
+  @override
+  Future<void> dispose() async {}
+}
+
 class _FakeMemoryStore implements MemoryStore {
   @override
   Future<List<MemoryEntry>> recall(
@@ -523,6 +560,7 @@ void main() {
   List<Override> buildOverrides({
     required _FakeApoloController controller,
     AgentChatService? chatService,
+    TextToSpeechService? ttsService,
   }) {
     final chat =
         chatService ??
@@ -542,7 +580,9 @@ void main() {
       _fakeApoloProvider.overrideWith((ref) => controller),
       agentChatServiceProvider.overrideWithValue(chat),
       speechToTextServiceProvider.overrideWithValue(_FakeSpeechToTextService()),
-      textToSpeechServiceProvider.overrideWithValue(_FakeTextToSpeechService()),
+      textToSpeechServiceProvider.overrideWithValue(
+        ttsService ?? _FakeTextToSpeechService(),
+      ),
       agentMemoryStoreProvider.overrideWithValue(_FakeMemoryStore()),
       agentAuditLogProvider.overrideWithValue(_FakeAuditLog()),
       agentFlagsStoreProvider.overrideWithValue(_FakeFlagsStore()),
@@ -807,6 +847,90 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('apolo_modules_button')));
       await tester.pumpAndSettle();
       expect(openedDashboard, isTrue);
+    },
+  );
+
+  testWidgets(
+    'S4: shows apolo_thinking_indicator and isThinking=true while waiting for voice, then reveals reply text and isSpeaking=true together',
+    (tester) async {
+      final controller = _FakeApoloController(_buildFakeApoloState());
+      final chat = _FakeChatService((messages, _, _, _) async {
+        return const AgentReply(
+          reply: 'Listen! Drink 500 ml of water right away.',
+          model: 'test-model',
+        );
+      });
+      final syncTts = _ControllableSynchronizedTts();
+
+      await tester.pumpWidget(
+        buildTestApp(
+          tester,
+          disableAnimations: false,
+          overrides: buildOverrides(
+            controller: controller,
+            chatService: chat,
+            ttsService: syncTts,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.enterText(
+        find.byKey(const ValueKey('apolo_ask_input')),
+        'Check hydration',
+      );
+      await tester.tap(find.byKey(const ValueKey('apolo_send_button')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // While TTS synthesis is pending: thinking indicator is shown, reply text is withheld,
+      // ApoloDogWidget is thinking and NOT speaking yet.
+      expect(
+        find.byKey(const Key('apolo_thinking_indicator')),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Listen! Drink 500 ml of water right away.'),
+        findsNothing,
+      );
+      final thinkingDog = tester.widget<ApoloDogWidget>(
+        find.byType(ApoloDogWidget),
+      );
+      expect(thinkingDog.isThinking, isTrue);
+      expect(thinkingDog.isSpeaking, isFalse);
+
+      // Complete synthesis -> onAudioReady fires -> text & isSpeaking appear synchronously!
+      syncTts.synthGate.complete();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(
+        find.byKey(const Key('apolo_thinking_indicator')),
+        findsNothing,
+      );
+      final bubble = find.byKey(const ValueKey('apolo_speech_bubble'));
+      expect(
+        find.descendant(
+          of: bubble,
+          matching: find.text('Listen! Drink 500 ml of water right away.'),
+        ),
+        findsOneWidget,
+      );
+      final speakingDog = tester.widget<ApoloDogWidget>(
+        find.byType(ApoloDogWidget),
+      );
+      expect(speakingDog.isThinking, isFalse);
+      expect(speakingDog.isSpeaking, isTrue);
+
+      // Complete playback -> isSpeaking returns to false.
+      syncTts.playGate.complete();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      final idleDog = tester.widget<ApoloDogWidget>(
+        find.byType(ApoloDogWidget),
+      );
+      expect(idleDog.isSpeaking, isFalse);
+      expect(idleDog.isThinking, isFalse);
     },
   );
 }
