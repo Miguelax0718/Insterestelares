@@ -68,15 +68,15 @@ Delivery: ask-on-risk; user authorized pushing in several commits. Runners: `ser
 
 | ID | Specs | Route | Status | Commit |
 |----|-------|-------|--------|--------|
-| T0 | S1–S10 | inline (parent, software-architect; opus subagent denied by runtime) | done | (with T1) |
-| T1 | S1,S2,S7,S8,S9 | inline (parent): domain contracts + client wire models/serialization for D2 | done | (this commit) |
+| T0 | S1–S10 | inline (parent, software-architect; opus subagent denied by runtime) | done | 4e1b247 |
+| T1 | S1,S2,S7,S8,S9 | inline (parent): domain contracts + client wire models/serialization for D2 | done | 4e1b247 |
 | T2 | S3,S5,S9,S10 | delegated writer (parallel with T1): server tool-calling relay per D2 | done | 0e840e6 |
-| T3 | S2,S3,S7,S9 | delegated writer (wave 2): agent runtime, registries, core tools | pending | — |
-| T4 | S1,S8 | delegated writer (wave 2): Hive memory, audit log, flags, confirmation gate, session summary | pending | — |
-| T5 | S5,S8 | delegated writer (wave 2): pharmacy + space weather (02) | pending | — |
-| T6 | S5,S8 | delegated writer (wave 2): microgravity skills (03) | pending | — |
-| T7 | S5,S8 | delegated writer (wave 2): mental-health skills (04) | pending | — |
-| T8 | S3,S5 | delegated writer (wave 2): general-health skills (01) | pending | — |
+| T3 | S2,S3,S7,S9 | delegated writer (wave 2): agent runtime, registries, core tools | done | 0698125 |
+| T4 | S1,S8 | delegated writer (wave 2): Hive memory, audit log, flags, confirmation gate, session summary | done | 3c18d6c |
+| T5 | S5,S8 | delegated writer (wave 2): pharmacy + space weather (02) | done | 3c18d6c |
+| T6 | S5,S8 | delegated writer (wave 2): microgravity skills (03) | done | cc9221c |
+| T7 | S5,S8 | delegated writer (wave 2): mental-health skills (04) | done | cc9221c |
+| T8 | S3,S5 | delegated writer (wave 2): general-health skills (01) | done | cc9221c |
 | T9 | S4,S5,S9 | wave 3: readiness + proactive monitor (05) | pending | — |
 | T10 | S7 | wave 3: agent canvas, component placeholders, crew sidebar, Hive init, main wiring, frontend handoff doc | pending | — |
 | T11 | S8 | independent verifier: confirmation gate + medication safety (Risk item 2) | pending | — |
