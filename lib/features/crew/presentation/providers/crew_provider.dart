@@ -431,6 +431,36 @@ class CrewNotifier extends StateNotifier<List<AstronautProfile>> {
     ];
   }
 
+  /// Inserta resultados del simulador usando el mismo evaluador de triage.
+  void applySimulationProfile({
+    required String astronautId,
+    required VitalsRecord vitals,
+    required SleepRecord sleep,
+    required RadiationDose radiation,
+    required ExerciseSession exercise,
+    required String eventLabel,
+  }) {
+    state = [
+      for (final profile in state)
+        if (profile.id == astronautId)
+          () {
+            final evaluated = _evaluateClinicalTriage(
+              profile: profile,
+              vitals: vitals,
+              radiation: radiation,
+              exercise: exercise,
+              sleep: sleep,
+              syncTimestamp: vitals.timestamp,
+              sourceLabel: 'simulación: $eventLabel',
+            );
+            _dbService.saveAstronautProfile(evaluated);
+            return evaluated;
+          }()
+        else
+          profile,
+    ];
+  }
+
   /// Actualiza el estado de riesgo y alertas de un astronauta
   void updateRiskStatus({
     required String astronautId,
