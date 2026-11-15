@@ -346,7 +346,10 @@ abstract interface class ApoloStateActions {
 
   void toggleRecommendation(String recId, bool done, {String? astronautId});
 
-  ApoloUrineSample submitSample({String method = 'sensor', String? astronautId});
+  ApoloUrineSample submitSample({
+    String method = 'sensor',
+    String? astronautId,
+  });
 
   void setHighContrast(bool enabled);
 

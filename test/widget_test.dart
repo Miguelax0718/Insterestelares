@@ -4,8 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:astramed/main.dart';
 
 void main() {
-  testWidgets('APOLO is the home screen and opens the clinical dashboard',
-      (WidgetTester tester) async {
+  testWidgets('APOLO is the home screen and opens the clinical dashboard', (
+    WidgetTester tester,
+  ) async {
     tester.view.physicalSize = const Size(1440, 900);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
