@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:astramed/core/constants/medical_thresholds.dart';
 import 'package:astramed/core/theme/space_theme.dart';
 import 'package:astramed/features/04_mental_health/models/sleep_record.dart';
+import 'package:astramed/features/04_mental_health/presentation/sleep_trend_card.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 
 class MentalHealthView extends ConsumerWidget {
@@ -110,6 +111,10 @@ class MentalHealthView extends ConsumerWidget {
             ),
           ),
         ),
+        const SizedBox(height: 12),
+
+        // Tendencia de la misión (DB/samples/sleep)
+        SleepTrendCard(astronautId: astronaut.id),
       ],
     );
   }
