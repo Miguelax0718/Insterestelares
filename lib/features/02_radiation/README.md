@@ -110,3 +110,27 @@ preservation, shared day/crew/date, missing personal records, return-day handlin
 longer mission input, and hypothetical scenario separation. Standalone biomarker
 tests retain their original mock defaults. Tests requiring the external
 Inspiration4 source CSV may be skipped when that untracked file is absent.
+
+## Clinical agent bridge
+
+`agent/radiation_health_skills.dart` exposes this module to the clinical agent
+(`lib/features/agent`) as the `radiation_health` skill, registered in
+`agent_providers.dart`. Its three tools are read-only and use the same providers
+as the Radiation screen, for the agent's current astronaut and the mission day
+selected on the screen (or a `mission_day` argument):
+
+| Tool | Returns |
+| --- | --- |
+| `get_radiation_dose` | Career effective dose, remaining margin to the 600 mSv NASA-STD-3001 limit, % of each organ's non-cancer limit used, SPE status |
+| `get_radiation_biomarkers` | Biological score B, its level (normal / watch / alert), % change of each marker vs. baseline, sample pending |
+| `get_radiation_symptoms` | Symptoms marked today, most urgent first, with when / why / what to do |
+
+Missing data (no dosimetry, return day, astronaut without biomarkers) is reported
+as `available: false`, never filled in.
+
+When the LLM gateway is unreachable, `RadiationHealthOfflineFlow` answers
+radiation questions deterministically: it reads the three tools, shows an
+`alert_banner` and asks the crew to contact the flight surgeon if a symptom is
+urgent, the score is in alert or an SPE is active. Thresholds are illustrative,
+not clinical criteria. Space weather and pharmacy remain in Carlos's
+`radiation_agent_skills.dart`.

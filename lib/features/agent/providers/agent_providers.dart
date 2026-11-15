@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import '../../01_general_health/agent/general_health_skills.dart';
 import '../../02_radiation/agent/donki_space_weather_service.dart';
 import '../../02_radiation/agent/radiation_agent_skills.dart';
+import '../../02_radiation/agent/radiation_health_skills.dart';
 import '../../03_microgravity/agent/exercise_guidance_engine.dart';
 import '../../03_microgravity/agent/graybiel_engine.dart';
 import '../../03_microgravity/agent/microgravity_skills.dart';
@@ -272,6 +273,7 @@ final skillRegistryProvider = Provider<SkillRegistry>((ref) {
       spaceWeatherService: weather,
       pharmacyRepository: pharmacyRepo,
     ),
+    radiationHealthSkill(),
     ...microgravitySkills(),
     ...mentalHealthSkills(),
     ...triageAgentSkills(),
