@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:astramed/core/theme/space_theme.dart';
+import 'package:astramed/features/03_microgravity/presentation/microgravity_trend_cards.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 
 class MicrogravityView extends ConsumerWidget {
@@ -109,15 +110,10 @@ class MicrogravityView extends ConsumerWidget {
             subtitle: Text('Redistribución cefálica de fluidos: Monitoreo periódico'),
           ),
         ),
-        const SizedBox(height: 8),
-        const Card(
-          color: SpaceTheme.card,
-          child: ListTile(
-            leading: Icon(Icons.shield_moon_outlined, color: Colors.amberAccent),
-            title: Text('Densidad Mineral Ósea (BMD)'),
-            subtitle: Text('Pérdida esperada mitigada con resistencia ARED'),
-          ),
-        ),
+        const SizedBox(height: 12),
+
+        // Tendencias de la misión (DB/samples/microgravity)
+        MicrogravityTrendCards(astronautId: astronaut.id),
       ],
     );
   }
