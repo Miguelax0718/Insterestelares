@@ -13,6 +13,7 @@ class ApoloOrbHoverWindow extends StatefulWidget {
     required this.windowKey,
     required this.accent,
     required this.highContrast,
+    this.diameter = 144.0,
     required this.content,
     required this.child,
   });
@@ -21,6 +22,7 @@ class ApoloOrbHoverWindow extends StatefulWidget {
   final Key windowKey;
   final Color accent;
   final bool highContrast;
+  final double diameter;
   final Widget content;
   final Widget child;
 
@@ -46,66 +48,83 @@ class _ApoloOrbHoverWindowState extends State<ApoloOrbHoverWindow> {
     return OverlayPortal(
       controller: _portal,
       overlayChildBuilder: (context) {
+        final renderObject = this.context.findRenderObject();
+        if (renderObject is! RenderBox || !renderObject.hasSize) {
+          return const SizedBox.shrink();
+        }
         final screen = MediaQuery.sizeOf(context);
-        final horizontalMargin = math.min(24.0, screen.width / 4);
-        final verticalMargin = math.min(24.0, screen.height / 4);
-        final width = math.max(0.0, screen.width - horizontalMargin * 2);
-        final height = math.max(0.0, screen.height - verticalMargin * 2);
-        final innerPadding = screen.width < 420 ? 18.0 : 28.0;
-        return Positioned.fill(
+        final maxAllowed = math.max(
+          0.0,
+          math.min(screen.width - 32.0, screen.height - 32.0),
+        );
+        final expandedDiameter = math.min(widget.diameter * 2.0, maxAllowed);
+        if (expandedDiameter <= 0) {
+          return const SizedBox.shrink();
+        }
+        final overlay =
+            Overlay.of(context).context.findRenderObject()! as RenderBox;
+        final orbCenter = renderObject.localToGlobal(
+          renderObject.size.center(Offset.zero),
+        );
+        final maxLeft = math.max(16.0, screen.width - expandedDiameter - 16.0);
+        final maxTop = math.max(16.0, screen.height - expandedDiameter - 16.0);
+        final left = (orbCenter.dx - expandedDiameter / 2).clamp(16.0, maxLeft);
+        final top = (orbCenter.dy - expandedDiameter / 2).clamp(16.0, maxTop);
+        final position = overlay.globalToLocal(Offset(left, top));
+        return Positioned(
+          left: position.dx,
+          top: position.dy,
+          width: expandedDiameter,
+          height: expandedDiameter,
           child: IgnorePointer(
-            child: Container(
-              color: widget.highContrast
-                  ? const Color(0xB3000000)
-                  : const Color(0x88050612),
-              padding: EdgeInsets.symmetric(
-                horizontal: horizontalMargin,
-                vertical: verticalMargin,
-              ),
-              alignment: Alignment.center,
-              child: Material(
-                color: Colors.transparent,
-                child: Container(
-                  key: widget.windowKey,
-                  width: width,
-                  height: height,
-                  padding: EdgeInsets.all(innerPadding),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(32),
-                    color: widget.highContrast
-                        ? const Color(0xFF000000)
-                        : const Color(0xF215173A),
-                    gradient: widget.highContrast
-                        ? null
-                        : RadialGradient(
-                            center: const Alignment(-0.55, -0.7),
-                            radius: 1.35,
-                            colors: [
-                              widget.accent.withValues(alpha: 0.22),
-                              const Color(0xF215173A),
-                              const Color(0xF70D0E26),
-                            ],
-                            stops: const [0.0, 0.55, 1.0],
-                          ),
-                    border: Border.all(
-                      color: widget.accent,
-                      width: widget.highContrast ? 3 : 2,
-                    ),
-                    boxShadow: widget.highContrast
-                        ? null
-                        : [
-                            BoxShadow(
-                              color: widget.accent.withValues(alpha: 0.28),
-                              blurRadius: 36,
-                              spreadRadius: 2,
-                            ),
-                            const BoxShadow(
-                              color: Color(0xAA000000),
-                              blurRadius: 48,
-                              offset: Offset(0, 18),
-                            ),
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                key: widget.windowKey,
+                width: expandedDiameter,
+                height: expandedDiameter,
+                clipBehavior: Clip.antiAlias,
+                padding: EdgeInsets.symmetric(
+                  horizontal: expandedDiameter * 0.13,
+                  vertical: expandedDiameter * 0.12,
+                ),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: widget.highContrast
+                      ? const Color(0xFF000000)
+                      : const Color(0xF215173A),
+                  gradient: widget.highContrast
+                      ? null
+                      : RadialGradient(
+                          center: const Alignment(-0.55, -0.7),
+                          radius: 1.35,
+                          colors: [
+                            widget.accent.withValues(alpha: 0.22),
+                            const Color(0xF215173A),
+                            const Color(0xF70D0E26),
                           ],
+                          stops: const [0.0, 0.55, 1.0],
+                        ),
+                  border: Border.all(
+                    color: widget.accent,
+                    width: widget.highContrast ? 3 : 2,
                   ),
+                  boxShadow: widget.highContrast
+                      ? null
+                      : [
+                          BoxShadow(
+                            color: widget.accent.withValues(alpha: 0.28),
+                            blurRadius: 36,
+                            spreadRadius: 2,
+                          ),
+                          const BoxShadow(
+                            color: Color(0xAA000000),
+                            blurRadius: 48,
+                            offset: Offset(0, 18),
+                          ),
+                        ],
+                ),
+                child: Center(
                   child: SingleChildScrollView(child: widget.content),
                 ),
               ),
@@ -271,17 +290,19 @@ class _ApoloOrbWidgetState extends State<ApoloOrbWidget>
           windowKey: ValueKey('apolo_orb_hover_window_${widget.snapshot.id.name}'),
           accent: severityColor,
           highContrast: widget.highContrast,
+          diameter: diameter,
           content: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Wrap(
-                spacing: 14,
-                runSpacing: 10,
+                spacing: (diameter * 0.055).clamp(5.0, 9.0),
+                runSpacing: (diameter * 0.035).clamp(4.0, 6.0),
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Container(
-                    width: 52,
-                    height: 52,
+                    width: (diameter * 0.20).clamp(22.0, 32.0),
+                    height: (diameter * 0.20).clamp(22.0, 32.0),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: severityColor.withValues(alpha: 0.18),
@@ -292,113 +313,114 @@ class _ApoloOrbWidgetState extends State<ApoloOrbWidget>
                     child: Icon(
                       apoloModuleIcon(widget.snapshot.id),
                       color: severityColor,
-                      size: 28,
+                      size: (diameter * 0.11).clamp(13.0, 18.0),
                     ),
                   ),
                   Text(
                     widget.snapshot.title,
                     style: TextStyle(
                       color: palette.text,
-                      fontSize: 24,
+                      fontSize: (diameter * 0.105).clamp(13.0, 17.0),
                       fontWeight: FontWeight.w700,
-                      height: 1.2,
+                      height: 1.15,
                     ),
                   ),
                   ApoloStatusChip(
                     severity: widget.snapshot.severity,
                     highContrast: widget.highContrast,
+                    compact: true,
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 8),
               Text(
                 widget.snapshot.keyMetric,
                 style: TextStyle(
                   color: palette.text,
-                  fontSize: 40,
+                  fontSize: (diameter * 0.16).clamp(17.0, 26.0),
                   fontWeight: FontWeight.w800,
                   height: 1.1,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 2),
               Text(
                 widget.snapshot.subMetric,
                 style: TextStyle(
                   color: palette.text2,
-                  fontSize: 16,
-                  height: 1.35,
+                  fontSize: (diameter * 0.085).clamp(11.0, 13.5),
+                  height: 1.3,
                 ),
               ),
               if (widget.snapshot.measures.trim().isNotEmpty) ...[
-                const SizedBox(height: 20),
+                const SizedBox(height: 10),
                 Text(
                   'WHAT THIS MEASURES',
                   style: TextStyle(
                     color: severityColor,
-                    fontSize: 11.5,
+                    fontSize: (diameter * 0.07).clamp(9.5, 11.0),
                     fontWeight: FontWeight.w700,
-                    letterSpacing: 1.1,
+                    letterSpacing: 0.85,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 3),
                 Text(
                   widget.snapshot.measures,
                   style: TextStyle(
                     color: palette.text,
-                    fontSize: 16,
-                    height: 1.45,
+                    fontSize: (diameter * 0.085).clamp(11.0, 13.5),
+                    height: 1.35,
                   ),
                 ),
               ],
               if (widget.snapshot.whyItMatters.trim().isNotEmpty) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
                 Text(
                   'WHY IT MATTERS',
                   style: TextStyle(
                     color: severityColor,
-                    fontSize: 11.5,
+                    fontSize: (diameter * 0.07).clamp(9.5, 11.0),
                     fontWeight: FontWeight.w700,
-                    letterSpacing: 1.1,
+                    letterSpacing: 0.85,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 3),
                 Text(
                   widget.snapshot.whyItMatters,
                   style: TextStyle(
                     color: palette.text2,
-                    fontSize: 15,
-                    height: 1.45,
+                    fontSize: (diameter * 0.08).clamp(10.5, 12.5),
+                    height: 1.35,
                   ),
                 ),
               ],
               if (pendingRecommendations.isNotEmpty) ...[
-                const SizedBox(height: 18),
+                const SizedBox(height: 9),
                 Text(
                   'PENDING ACTIONS',
                   style: TextStyle(
                     color: severityColor,
-                    fontSize: 11.5,
+                    fontSize: (diameter * 0.07).clamp(9.5, 11.0),
                     fontWeight: FontWeight.w700,
-                    letterSpacing: 1.1,
+                    letterSpacing: 0.85,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 for (final rec in pendingRecommendations)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.only(bottom: 5),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Padding(
-                          padding: const EdgeInsets.only(top: 2),
+                          padding: const EdgeInsets.only(top: 1),
                           child: Icon(
                             Icons.arrow_right_rounded,
                             color: severityColor,
-                            size: 20,
+                            size: 15,
                           ),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 3),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -407,9 +429,9 @@ class _ApoloOrbWidgetState extends State<ApoloOrbWidget>
                                 rec.text,
                                 style: TextStyle(
                                   color: palette.text,
-                                  fontSize: 15,
+                                  fontSize: (diameter * 0.082).clamp(11.0, 12.5),
                                   fontWeight: FontWeight.w600,
-                                  height: 1.4,
+                                  height: 1.3,
                                 ),
                               ),
                               if (rec.why.trim().isNotEmpty)
@@ -417,8 +439,8 @@ class _ApoloOrbWidgetState extends State<ApoloOrbWidget>
                                   rec.why,
                                   style: TextStyle(
                                     color: palette.text2,
-                                    fontSize: 13.5,
-                                    height: 1.35,
+                                    fontSize: (diameter * 0.075).clamp(10.0, 11.5),
+                                    height: 1.3,
                                   ),
                                 ),
                             ],
@@ -428,22 +450,22 @@ class _ApoloOrbWidgetState extends State<ApoloOrbWidget>
                     ),
                   ),
               ],
-              const SizedBox(height: 24),
+              const SizedBox(height: 10),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
                     Icons.touch_app_outlined,
                     color: severityColor,
-                    size: 16,
+                    size: (diameter * 0.095).clamp(12.0, 15.0),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   Flexible(
                     child: Text(
                       'Click orb for interactive actions',
                       style: TextStyle(
                         color: severityColor,
-                        fontSize: 14,
+                        fontSize: (diameter * 0.08).clamp(10.5, 12.5),
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -453,137 +475,145 @@ class _ApoloOrbWidgetState extends State<ApoloOrbWidget>
             ],
           ),
           child: MouseRegion(
-          onEnter: (_) => setState(() { _hovered = true; _dismissed = false; }),
-          onExit: (_) => setState(() => _hovered = false),
-          child: AnimatedScale(
-            scale: expanded ? 1.14 : 1.0,
-            duration: disableAnimations
-                ? Duration.zero
-                : const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            child: Material(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(diameter),
-              child: InkWell(
-                key: ValueKey('apolo_orb_${widget.snapshot.id.name}'),
+            onEnter: (_) => setState(() {
+              _hovered = true;
+              _dismissed = false;
+            }),
+            onExit: (_) => setState(() => _hovered = false),
+            child: AnimatedScale(
+              scale: expanded ? 2.0 : 1.0,
+              duration: disableAnimations
+                  ? Duration.zero
+                  : const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              child: Material(
+                color: Colors.transparent,
                 borderRadius: BorderRadius.circular(diameter),
-                onTap: () {
-                  setState(() { _hovered = false; _dismissed = true; });
-                  widget.onTap();
-                },
-                child: Container(
-                  width: diameter,
-                  height: diameter,
-                  padding: EdgeInsets.all(diameter * 0.075),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(diameter),
-                    color: widget.highContrast
-                        ? const Color(0xFF000000)
-                        : const Color(0xE61A1C46),
-                    gradient: widget.highContrast
-                        ? null
-                        : RadialGradient(
-                            center: const Alignment(-0.36, -0.48),
-                            radius: 0.95,
-                            colors: [
-                              const Color(0x1FF0FFF1),
-                              const Color(0xE61A1C46),
-                              severityColor.withValues(alpha: 0.24),
-                            ],
-                            stops: const [0.0, 0.55, 1.0],
-                          ),
-                    border: Border.all(
+                child: InkWell(
+                  key: ValueKey('apolo_orb_${widget.snapshot.id.name}'),
+                  borderRadius: BorderRadius.circular(diameter),
+                  onTap: () {
+                    setState(() {
+                      _hovered = false;
+                      _dismissed = true;
+                    });
+                    widget.onTap();
+                  },
+                  child: Container(
+                    width: diameter,
+                    height: diameter,
+                    padding: EdgeInsets.all(diameter * 0.075),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(diameter),
                       color: widget.highContrast
-                          ? severityColor
-                          : severityColor.withValues(alpha: expanded ? 1.0 : 0.72),
-                      width:
-                          widget.highContrast ||
-                              widget.snapshot.severity == ApoloSeverity.crit ||
-                              expanded
-                          ? 3.0
-                          : 2.0,
-                    ),
-                    boxShadow: widget.highContrast
-                        ? null
-                        : [
-                            BoxShadow(
-                              color: severityColor.withValues(
-                                alpha: expanded ? 0.24 : 0.12,
-                              ),
-                              spreadRadius: expanded ? 8 : 5,
-                            ),
-                            BoxShadow(
-                              color: severityColor.withValues(
-                                alpha: expanded ? 0.42 : 0.22,
-                              ),
-                              blurRadius: expanded ? 36 : 26,
-                            ),
-                          ],
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: (diameter * 0.25).clamp(26.0, 42.0),
-                        height: (diameter * 0.25).clamp(26.0, 42.0),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: severityColor.withValues(alpha: 0.18),
-                        ),
-                        child: Icon(
-                          apoloModuleIcon(widget.snapshot.id),
-                          size: (diameter * 0.15).clamp(16.0, 24.0),
-                          color: severityColor,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Flexible(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            widget.snapshot.keyMetric,
-                            maxLines: 1,
-                            style: TextStyle(
-                              fontSize: (diameter * 0.135).clamp(13.0, 22.0),
-                              fontWeight: FontWeight.w700,
-                              color: palette.text,
-                              fontFeatures: const [
-                                FontFeature.tabularFigures(),
+                          ? const Color(0xFF000000)
+                          : const Color(0xE61A1C46),
+                      gradient: widget.highContrast
+                          ? null
+                          : RadialGradient(
+                              center: const Alignment(-0.36, -0.48),
+                              radius: 0.95,
+                              colors: [
+                                const Color(0x1FF0FFF1),
+                                const Color(0xE61A1C46),
+                                severityColor.withValues(alpha: 0.24),
                               ],
-                              height: 1.1,
+                              stops: const [0.0, 0.55, 1.0],
+                            ),
+                      border: Border.all(
+                        color: widget.highContrast
+                            ? severityColor
+                            : severityColor.withValues(
+                                alpha: expanded ? 1.0 : 0.72,
+                              ),
+                        width:
+                            widget.highContrast ||
+                                widget.snapshot.severity == ApoloSeverity.crit ||
+                                expanded
+                            ? 3.0
+                            : 2.0,
+                      ),
+                      boxShadow: widget.highContrast
+                          ? null
+                          : [
+                              BoxShadow(
+                                color: severityColor.withValues(
+                                  alpha: expanded ? 0.24 : 0.12,
+                                ),
+                                spreadRadius: expanded ? 8 : 5,
+                              ),
+                              BoxShadow(
+                                color: severityColor.withValues(
+                                  alpha: expanded ? 0.42 : 0.22,
+                                ),
+                                blurRadius: expanded ? 36 : 26,
+                              ),
+                            ],
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: (diameter * 0.25).clamp(26.0, 42.0),
+                          height: (diameter * 0.25).clamp(26.0, 42.0),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: severityColor.withValues(alpha: 0.18),
+                          ),
+                          child: Icon(
+                            apoloModuleIcon(widget.snapshot.id),
+                            size: (diameter * 0.15).clamp(16.0, 24.0),
+                            color: severityColor,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              widget.snapshot.keyMetric,
+                              maxLines: 1,
+                              style: TextStyle(
+                                fontSize: (diameter * 0.135).clamp(13.0, 22.0),
+                                fontWeight: FontWeight.w700,
+                                color: palette.text,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                ],
+                                height: 1.1,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      Text(
-                        widget.snapshot.shortLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: (diameter * 0.085).clamp(10.5, 14.0),
-                          fontWeight: FontWeight.w600,
-                          color: palette.text2,
-                          height: 1.15,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Flexible(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: ApoloStatusChip(
-                            severity: widget.snapshot.severity,
-                            highContrast: widget.highContrast,
-                            compact: true,
+                        Text(
+                          widget.snapshot.shortLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: (diameter * 0.085).clamp(10.5, 14.0),
+                            fontWeight: FontWeight.w600,
+                            color: palette.text2,
+                            height: 1.15,
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 3),
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: ApoloStatusChip(
+                              severity: widget.snapshot.severity,
+                              highContrast: widget.highContrast,
+                              compact: true,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
         ),
       ),
     );
