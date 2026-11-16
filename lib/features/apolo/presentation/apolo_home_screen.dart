@@ -27,10 +27,17 @@ import 'apolo_theme.dart';
 /// speech bubble wired to `AgentConversationController`, voice/text input, and
 /// dynamic clinical component tray.
 class ApoloHomeScreen extends ConsumerStatefulWidget {
-  const ApoloHomeScreen({super.key, this.onOpenClinicalDashboard});
+  const ApoloHomeScreen({
+    super.key,
+    this.onOpenClinicalDashboard,
+    this.onOpenClinicalModule,
+  });
 
   /// Optional callback to open the legacy 5-tab clinical modules dashboard.
   final VoidCallback? onOpenClinicalDashboard;
+
+  /// Optional callback to open the clinical modules dashboard at a specific tab.
+  final void Function(int initialIndex)? onOpenClinicalModule;
 
   @override
   ConsumerState<ApoloHomeScreen> createState() => _ApoloHomeScreenState();
@@ -350,6 +357,30 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
       if (currentId != nextId) {
         ref.read(agentOrchestratorProvider.notifier).switchAstronaut(nextId);
       }
+    });
+
+    ref.listen<ClinicalNavigationRequest?>(clinicalNavigationRequestProvider, (
+      previous,
+      next,
+    ) {
+      if (next == null || next.nonce == previous?.nonce) return;
+      if (next.openManualVitals) {
+        ref.read(pendingManualVitalsDialogProvider.notifier).state = true;
+      }
+      if (next.procedureId != null && next.procedureId!.isNotEmpty) {
+        ref.read(pendingProcedureSelectionProvider.notifier).state =
+            next.procedureId;
+      }
+      if (widget.onOpenClinicalModule != null) {
+        widget.onOpenClinicalModule!(next.tabIndex);
+      } else {
+        widget.onOpenClinicalDashboard?.call();
+      }
+      Future.microtask(() {
+        if (mounted) {
+          ref.read(clinicalNavigationRequestProvider.notifier).state = null;
+        }
+      });
     });
 
     ref.listen<AgentSessionState>(agentOrchestratorProvider, (prev, next) {
@@ -792,7 +823,8 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
             ),
           ] else
             const Spacer(),
-          if (widget.onOpenClinicalDashboard != null) ...[
+          if (widget.onOpenClinicalDashboard != null ||
+              widget.onOpenClinicalModule != null) ...[
             const SizedBox(width: 6),
             Tooltip(
               message: 'Clinical modules',
@@ -811,7 +843,9 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
                           borderRadius: BorderRadius.circular(22),
                         ),
                       ),
-                      onPressed: widget.onOpenClinicalDashboard,
+                      onPressed:
+                          widget.onOpenClinicalDashboard ??
+                          () => widget.onOpenClinicalModule?.call(0),
                       icon: const Icon(Icons.grid_view_rounded, size: 18),
                       label: const Text(
                         'Modules',
@@ -828,7 +862,9 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
                         side: BorderSide(color: palette.border),
                         fixedSize: const Size(42, 42),
                       ),
-                      onPressed: widget.onOpenClinicalDashboard,
+                      onPressed:
+                          widget.onOpenClinicalDashboard ??
+                          () => widget.onOpenClinicalModule?.call(0),
                       icon: const Icon(Icons.grid_view_rounded, size: 18),
                     ),
             ),

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:astramed/core/theme/space_theme.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
+import 'package:astramed/features/simulation/presentation/mission_simulator_view.dart';
 import 'package:astramed/features/telemetry/presentation/providers/telemetry_provider.dart';
 import 'package:astramed/features/telemetry/presentation/widgets/telemetry_config_modal.dart';
 
@@ -520,6 +521,21 @@ class CrewSidebarDrawer extends ConsumerWidget {
       padding: const EdgeInsets.all(12.0),
       child: Column(
         children: [
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: SpaceTheme.neonPurple,
+              side: const BorderSide(color: SpaceTheme.neonPurple),
+              minimumSize: const Size(double.infinity, 38),
+            ),
+            icon: const Icon(Icons.rocket_launch_outlined, size: 16),
+            label: const Text('Simulación de misión', style: TextStyle(fontSize: 12)),
+            onPressed: () {
+              final rootContext = Navigator.of(context, rootNavigator: true).context;
+              Navigator.of(context).pop();
+              Navigator.of(rootContext).push(MaterialPageRoute(builder: (_) => const MissionSimulatorView()));
+            },
+          ),
+          const SizedBox(height: 8),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
               backgroundColor: SpaceTheme.cyan,

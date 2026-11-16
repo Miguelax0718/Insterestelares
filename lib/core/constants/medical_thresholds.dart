@@ -36,4 +36,25 @@ class MedicalThresholds {
   static const double biomechanicalImpactAlertG = 2.5;
   static const double minMuscleVolumeRetentionPercent = 80.0;
   static const double minMuscleStrengthRetentionPercent = 80.0;
+
+  // Mareo Espacial (SMS) & Función Sensoriomotora (NASA NTRS 20150018603 / Graybiel 1968)
+  static const int graybielModerateMalaiseThreshold = 5;
+  static const int graybielSevereMalaiseThreshold = 8;
+  static const int graybielFrankSicknessThreshold = 16;
+  static const double facialGreennessWarningDeltaRatio = 0.035;
+  static const double facialGreennessCriticalDeltaRatio = 0.070;
+  static const double targetHeadOscillationHz = 1.0;
+  static const double minAcceptableGazeStabilityScore = 0.80;
+  static const int zeroGHorizonDurationSeconds = 45;
+  static const double minZeroGHorizonPassScore = 70.0;
+
+  // Síndrome Neuro-Ocular Asociado a Vuelos Espaciales (SANS - Mader 2011 / TechPort 97109 / Lawley 2017)
+  static const double defaultCrewIpdMm = 63.0;
+  static const double defaultNearPointBaselineCm = 25.0;
+  static const double sansHyperopicShiftPair1Diopters = 0.50;
+  static const double sansHyperopicShiftPair2Diopters = 1.00;
+  static const double sansHyperopicShiftPair3Diopters = 1.50;
+  static const double blindSpotTemporalDeg = 15.0;
+  static const double lbnpTargetPressureMmHg = -20.0;
+  static const int lbnpMinDecompressionSeconds = 15;
 }
