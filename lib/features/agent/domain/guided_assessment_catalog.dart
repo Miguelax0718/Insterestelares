@@ -1,5 +1,12 @@
 import 'package:flutter/foundation.dart';
 
+abstract final class ApoloCockpitIds {
+  static const String missionSimulator = 'mission_simulator';
+  static const String manualVitals = 'manual_vitals';
+  static const String medicalProcedures = 'medical_procedures';
+  static const Set<String> all = {missionSimulator, manualVitals, medicalProcedures};
+}
+
 /// Additional Space Cockpit component IDs introduced alongside the 22 core
 /// [ComponentIds.all] identifiers without altering [ComponentIds.all.length].
 abstract final class MicrogravityCockpitIds {
@@ -143,6 +150,24 @@ abstract final class GuidedAssessmentCatalog {
       componentId: 'eva_readiness',
       estimatedMinutes: 2,
       summary: 'Deterministic clinical GO / NO-GO gate for EVA or landing.',
+    ),
+    GuidedAssessmentDescriptor(
+      id: ApoloCockpitIds.manualVitals,
+      title: 'Manual Vitals (Tap-to-Count)',
+      category: 'readiness',
+      skillId: 'clinical_navigation_and_procedures',
+      componentId: ApoloCockpitIds.manualVitals,
+      estimatedMinutes: 2,
+      summary: 'Offline pulse, respiration, capillary refill and temperature entry.',
+    ),
+    GuidedAssessmentDescriptor(
+      id: ApoloCockpitIds.medicalProcedures,
+      title: 'Medical Procedures',
+      category: 'readiness',
+      skillId: 'clinical_navigation_and_procedures',
+      componentId: ApoloCockpitIds.medicalProcedures,
+      estimatedMinutes: 2,
+      summary: 'Offline situation triage, ten protocols and first-aid supplies.',
     ),
   ];
 

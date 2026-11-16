@@ -550,7 +550,10 @@ class _ShowComponentTool extends AgentTool {
   @override
   Future<ToolResult> call(Map<String, dynamic> args, ToolContext ctx) async {
     final id = args['id'];
-    if (id is! String || !ComponentIds.all.contains(id)) {
+    if (id is! String ||
+        (!ComponentIds.all.contains(id) &&
+            !MicrogravityCockpitIds.all.contains(id) &&
+            !ApoloCockpitIds.all.contains(id))) {
       return ToolResult.fail('Unknown component id: $id');
     }
     final rawProps = args['props'];

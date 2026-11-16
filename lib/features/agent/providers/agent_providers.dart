@@ -29,6 +29,8 @@ import '../../crew/presentation/providers/crew_provider.dart';
 import '../../pharmacy/data/asset_pharmacy_inventory_repository.dart';
 import '../../pharmacy/domain/deterministic_medication_safety.dart';
 import '../../pharmacy/domain/pharmacy_inventory_repository.dart';
+import '../../simulation/agent/mission_simulator_skill.dart';
+import '../../simulation/presentation/providers/mission_simulator_provider.dart';
 import '../application/agent_conversation_controller.dart';
 import '../application/component_registry.dart';
 import '../application/component_submission_coordinator.dart';
@@ -334,6 +336,7 @@ final skillRegistryProvider = Provider<SkillRegistry>((ref) {
     ...mentalHealthSkills(),
     ...triageAgentSkills(),
     apoloSkill,
+    MissionSimulatorSkill(),
     ...extraSkills,
   ]);
 });
@@ -341,7 +344,7 @@ final skillRegistryProvider = Provider<SkillRegistry>((ref) {
 final componentRegistryProvider = Provider<ComponentRegistry>((ref) {
   final extraSpecs = ref.watch(extraComponentSpecsProvider);
   final registry = ComponentRegistry();
-  for (final id in MicrogravityCockpitIds.all) {
+  for (final id in {...MicrogravityCockpitIds.all, ...ApoloCockpitIds.all}) {
     registry.register(ComponentSpec<GenericComponentViewModel>(
       id: id,
       fromProps: (props) => GenericComponentViewModel(
@@ -541,6 +544,7 @@ final agentOrchestratorProvider =
         alertStore: alertStore,
         submissionCoordinator: ref.watch(componentSubmissionCoordinatorProvider),
         missionDay: ref.watch(missionContextProvider).missionDay,
+        missionDayReader: () => ref.read(missionSimulatorProvider).missionDay,
         contextFactory: (astronautId, ui) {
           delegatingSink.delegate = ui;
           return ToolContext(

@@ -72,7 +72,7 @@ void main() {
       expect((live['critical_causes'] as List).join(' '), contains(mod.keyMetric));
     }
     expect(live['apolo']['urgent_modules'], isNotEmpty);
-    expect(context['available_tests'], hasLength(11));
+    expect(context['available_tests'], hasLength(13));
     flags.values['huge'] = {'text': List.filled(20000, '🚀').join()};
     final compact = await const AgentContextBuilder().build(
       astronaut: astronaut, memory: memory, flags: flags,
@@ -90,7 +90,7 @@ void main() {
     expect(vitals.data['apolo_overall_severity'], 'crit');
     expect(vitals.data['critical_causes'], isNotEmpty);
     final catalog = await tools['get_available_assessments']!.call({}, ctx);
-    expect(catalog.data['assessments'], hasLength(11));
+    expect(catalog.data['assessments'], hasLength(13));
     for (final id in ['zero_g_horizon', 'starfield_distortion']) {
       final result = await tools['launch_assessment']!.call({'assessment_id': id}, ctx);
       expect(result.data['launched'], true);

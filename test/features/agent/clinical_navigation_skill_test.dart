@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:astramed/features/agent/application/core_tools.dart';
 import 'package:astramed/features/agent/domain/agent_contracts.dart';
 import 'package:astramed/features/agent/providers/agent_providers.dart';
+import 'package:astramed/features/05_clinical_triage/agent/clinical_navigation_and_procedures_skill.dart';
 
 class _CapturingUiSink implements AgentUiSink {
   final List<AgentComponentEvent> emitted = [];
@@ -32,6 +33,44 @@ ToolContext _buildTestContext(ProviderContainer container, _CapturingUiSink ui) 
 }
 
 void main() {
+  test('Spanish and English offline intents open interactive APOLO cards', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final ctx = _buildTestContext(container, _CapturingUiSink());
+    for (final entry in {
+      'medir pulso': 'manual_vitals',
+      'toma manual': 'manual_vitals',
+      'take pulse': 'manual_vitals',
+      'measure pulse': 'manual_vitals',
+      'record manual vitals': 'manual_vitals',
+      'grafica vitales': ComponentIds.telemetryChart,
+      'vitals trend': ComponentIds.telemetryChart,
+      'abre triage': 'medical_procedures',
+      'procedimientos': 'medical_procedures',
+      'procedures': 'medical_procedures',
+      'simulador': 'mission_simulator',
+      'simulator': 'mission_simulator',
+    }.entries) {
+      final result = await const ClinicalNavigationOfflineFlow()
+        .startWithQuery(entry.key, ctx);
+      expect(result.uiEvents.whereType<ShowComponentEvent>().map((e) => e.id),
+        contains(entry.value), reason: entry.key);
+    }
+  });
+  test('APOLO orb commands retain their original route and result', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final ctx = _buildTestContext(container, _CapturingUiSink());
+    final tool = clinicalNavigationAndProceduresSkill().tools
+      .firstWhere((t) => t.name == 'open_clinical_terminal');
+    for (final command in ['orbs', 'show_all_orbs', 'hydration', 'renal', 'bones', 'immunity', 'metabolism']) {
+      final result = await tool.call({'module': command}, ctx);
+      expect(result.ok, true);
+      expect(result.data['mode'], 'apolo_orb');
+      expect(result.data['show_all_orbs'], command == 'orbs' || command == 'show_all_orbs');
+      expect(container.read(clinicalNavigationRequestProvider), isNull);
+    }
+  });
   group('show_component hydration & clinical_navigation_and_procedures skill', () {
     test(
       'show_component hydrates crew_status even when LLM passes empty props',
@@ -65,7 +104,7 @@ void main() {
     );
 
     test(
-      'open_clinical_terminal sets clinicalNavigationRequestProvider and resolves status_report',
+      'open_clinical_terminal opens cockpit cards without legacy navigation',
       () async {
         final container = ProviderContainer();
         addTearDown(container.dispose);
@@ -83,13 +122,14 @@ void main() {
         }, ctx);
         expect(res1.ok, isTrue);
         final req1 = container.read(clinicalNavigationRequestProvider);
-        expect(req1, isNotNull);
-        expect(req1!.tabIndex, 1);
-        expect(req1.openManualVitals, isFalse);
+        expect(req1, isNull);
+        expect(res1.uiEvents.whereType<ShowComponentEvent>().map((e) => e.id),
+            contains(ComponentIds.statusReport));
 
         // Must pass StatusReportViewModel.fromProps validation without error.
         final registry = container.read(componentRegistryProvider);
-        final statusEvent = res1.uiEvents.first as ShowComponentEvent;
+        final statusEvent = res1.uiEvents.whereType<ShowComponentEvent>()
+            .firstWhere((e) => e.id == ComponentIds.statusReport);
         final vm = registry.resolve(statusEvent.id, statusEvent.props);
         expect(vm.componentId, ComponentIds.statusReport);
 
@@ -99,9 +139,28 @@ void main() {
         }, ctx);
         expect(res2.ok, isTrue);
         final req2 = container.read(clinicalNavigationRequestProvider);
-        expect(req2!.tabIndex, 0);
-        expect(req2.openManualVitals, isTrue);
-        expect(req2.nonce, greaterThan(req1.nonce));
+        expect(req2, isNull);
+        expect(res2.uiEvents.whereType<ShowComponentEvent>().map((e) => e.id),
+            contains('manual_vitals'));
+        for (final entry in {
+          'vitals': ComponentIds.telemetryChart,
+          'triage': 'medical_procedures',
+          'simulador': 'mission_simulator',
+          'microgravity': 'zero_g_horizon',
+          'mental_health': ComponentIds.pvtTest,
+        }.entries) {
+          final result = await openTool.call({'module': entry.key}, ctx);
+          expect(result.uiEvents.whereType<ShowComponentEvent>().map((e) => e.id),
+              contains(entry.value));
+          for (final event in result.uiEvents.whereType<ShowComponentEvent>()) {
+            if (event.id == ComponentIds.telemetryChart ||
+                event.id == ComponentIds.vitalsCard ||
+                event.id == ComponentIds.statusReport) {
+              expect(registry.resolve(event.id, event.props).componentId, event.id);
+            }
+          }
+          expect(container.read(clinicalNavigationRequestProvider), isNull);
+        }
       },
     );
 
@@ -123,6 +182,9 @@ void main() {
           'query': 'mareo espacial sms sas vestibular',
         }, ctx);
         expect(sasRes.ok, isTrue);
+        final card = sasRes.uiEvents.whereType<ShowComponentEvent>()
+            .firstWhere((e) => e.id == 'medical_procedures');
+        expect(card.props['procedure_id'], 'PROC-VESTIBULAR-SAS');
         expect(
           (sasRes.data['primary_procedure'] as Map)['id'],
           'PROC-VESTIBULAR-SAS',
@@ -167,8 +229,9 @@ void main() {
         final step1 = await terminalFlow.startWithQuery('abre la terminal', ctx);
         expect(step1.isTerminal, isTrue);
         final navReq = container.read(clinicalNavigationRequestProvider);
-        expect(navReq, isNotNull);
-        expect(navReq!.tabIndex, 0);
+        expect(navReq, isNull);
+        expect(step1.uiEvents.whereType<ShowComponentEvent>().map((e) => e.id),
+            contains(ComponentIds.telemetryChart));
 
         final manualFlow =
             skills.findOfflineFlow('como tomar signos vitales manualmente')
