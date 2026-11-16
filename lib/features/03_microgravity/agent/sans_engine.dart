@@ -1,4 +1,5 @@
 import 'package:astramed/features/agent/domain/agent_contracts.dart';
+import 'procedures_engine.dart';
 
 enum SansGrade {
   nominal('nominal'),
@@ -193,6 +194,96 @@ class SansEngine {
       recommendedGoggles: goggles,
       summary: summary,
     );
+  }
+}
+
+/// Pure elapsed-time adapter over the established LBNP clinical state machine.
+/// No pressure controller or device access is implied by advancing this guide.
+class LbnpProtocolMachine {
+  LbnpProtocolMachine({LbnpState? initialState}) : _state = initialState ?? LbnpEngine.start();
+  LbnpState _state;
+  int _elapsedSeconds = 0;
+  LbnpState get state => _state;
+  int get remainingSeconds =>
+    (_state.phase.durationMinutes * 60 - _elapsedSeconds).clamp(0, 24 * 60 * 60);
+  void tick({int deltaSeconds = 1}) {
+    if (deltaSeconds < 0) throw ArgumentError('Elapsed seconds must be non-negative.');
+    _elapsedSeconds += deltaSeconds;
+  }
+  LbnpTransitionResult advance({LbnpPhase? requestedPhase}) {
+    if (remainingSeconds > 0) {
+      return LbnpTransitionResult(ok: false, state: _state,
+        error: 'Safety lock: complete the ${remainingSeconds}s monitored hold first.');
+    }
+    return _apply(LbnpEngine.advance(_state, sealChecked: true, requestedPhase: requestedPhase));
+  }
+  LbnpTransitionResult abort({bool emergency = false}) {
+    if (!emergency && (_state.abortPending ||
+        _state.phase == LbnpPhase.gradualDecompressionMinus10_3min ||
+        _state.phase == LbnpPhase.gradualDecompression0_2min)) {
+      return LbnpTransitionResult(ok: false, state: _state,
+        error: 'Safety lock: finish gradual decompression before dismissing.');
+    }
+    return _apply(LbnpEngine.abort(_state, emergencySyncope: emergency));
+  }
+  LbnpTransitionResult _apply(LbnpTransitionResult result) {
+    if (result.ok) {
+      _state = result.state;
+      _elapsedSeconds = 0;
+    }
+    return result;
+  }
+}
+
+// Separate screening suggestions from the legacy inventory-backed goggle pairs.
+// These tiers never assign inventory or constitute an optical prescription.
+// ignore: constant_identifier_names
+enum SpaceAnticipationGlassesTier { none, pairA_plus0_75, pairB_plus1_50, pairC_plus2_25 }
+
+class NearPointEstimate {
+  const NearPointEstimate(this.deltaDiopters, this.confidenceBand, this.tier);
+  final double deltaDiopters;
+  /// Heuristic measurement uncertainty, not a validated clinical confidence interval.
+  final double confidenceBand;
+  final SpaceAnticipationGlassesTier tier;
+}
+
+abstract final class NearPointDiopterCalculator {
+  static NearPointEstimate evaluate({required double distanceCm, double baselineCm = 25}) {
+    if (!distanceCm.isFinite || !baselineCm.isFinite ||
+        distanceCm <= 0 || baselineCm <= 0) {
+      throw ArgumentError('Near-point distances must be finite and positive.');
+    }
+    final delta = (100 / baselineCm - 100 / distanceCm).clamp(0.0, double.infinity);
+    return NearPointEstimate(delta, (100 / distanceCm * .08).clamp(.12, .4),
+      delta >= 2.25 ? SpaceAnticipationGlassesTier.pairC_plus2_25 :
+      delta >= 1.5 ? SpaceAnticipationGlassesTier.pairB_plus1_50 :
+      delta >= .75 ? SpaceAnticipationGlassesTier.pairA_plus0_75 :
+      SpaceAnticipationGlassesTier.none);
+  }
+}
+
+class StarfieldDistortionResult {
+  const StarfieldDistortionResult(this.distortionIndex, this.missRatio, this.grade);
+  final double distortionIndex;
+  final double missRatio;
+  final SansGrade grade;
+}
+
+/// Functional self-screening only; formal SANS staging requires ocular imaging.
+abstract final class StarfieldDistortionAnalyzer {
+  static StarfieldDistortionResult evaluate({
+    required double distortionIndex, required int scotomaMisses, required int totalFlashes,
+  }) {
+    if (!distortionIndex.isFinite || distortionIndex < 0 || distortionIndex > 1 ||
+        totalFlashes < 0 || scotomaMisses < 0 || scotomaMisses > totalFlashes) {
+      throw ArgumentError('Invalid distortion or peripheral flash counts.');
+    }
+    final ratio = totalFlashes == 0 ? 0.0 : scotomaMisses / totalFlashes;
+    final grade = distortionIndex >= .35 || ratio > .3 ? SansGrade.grade2 :
+      distortionIndex >= .18 || ratio > .15 ? SansGrade.grade1 :
+      distortionIndex > 0 || ratio > 0 ? SansGrade.borderline : SansGrade.nominal;
+    return StarfieldDistortionResult(distortionIndex, ratio, grade);
   }
 }
 
