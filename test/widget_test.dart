@@ -183,7 +183,21 @@ void main() {
       await _pumpUi(tester);
 
       expect(find.text('Telemetry & Hardware Configuration'), findsOneWidget);
-      expect(find.textContaining('astronautId'), findsWidgets);
+      expect(find.text('Inspect DB JSON'), findsNothing);
+      expect(find.textContaining('Smart wearable vest'), findsOneWidget);
+      expect(find.textContaining('NASA-HRP BioSignalKalman v3.2'), findsNothing);
+      final detailsBtn = find.byKey(
+        const ValueKey('machine_details_toggle_DEV-ASTROSKIN'),
+      );
+      await tester.ensureVisible(detailsBtn);
+      await _pumpUi(tester);
+      await tester.tap(detailsBtn);
+      await _pumpUi(tester);
+      expect(find.text('Hide details'), findsOneWidget);
+      expect(
+        find.text('Algorithm: NASA-HRP BioSignalKalman v3.2', skipOffstage: false),
+        findsOneWidget,
+      );
     },
   );
 }
