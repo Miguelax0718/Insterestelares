@@ -200,4 +200,209 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'crew sidebar deduplicates alerts and renders circular +1 / +n badge for multi-issue astronauts',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1440, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(const ApoloApp());
+      await _pumpUi(tester);
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(ApoloHomeScreen)),
+      );
+
+      // Day 1 nominal: no extra-alerts badge.
+      await tester.tap(find.byKey(const ValueKey('apolo_sidebar_button')));
+      await _pumpUi(tester);
+      expect(
+        find.byKey(const ValueKey('crew_extra_alerts_badge_AST-01')),
+        findsNothing,
+      );
+      expect(
+        container.read(crewEffectiveStatusesProvider)['AST-01']!.extraIssueCount,
+        0,
+      );
+
+      // 1 non-ok APOLO module on selected AST-01 must NOT produce a duplicate +1.
+      container.read(apoloStateNotifierProvider.notifier).applySimulationProgress(
+            missionDay: 1,
+            extraDoseMsv: 0,
+            sleepDeltaHours: 0,
+            targetAstronautId: 'AST-01',
+            biomarkerOverrides: const {'cort': 92.0},
+          );
+      await _pumpUi(tester);
+
+      final oneIssueStatus =
+          container.read(crewEffectiveStatusesProvider)['AST-01']!;
+      expect(oneIssueStatus.alerts, hasLength(1));
+      expect(oneIssueStatus.extraIssueCount, 0);
+      expect(
+        find.byKey(const ValueKey('crew_extra_alerts_badge_AST-01')),
+        findsNothing,
+      );
+
+      // Add a 2nd distinct issue (Radiation module out of range) -> +1 badge.
+      container.read(apoloStateNotifierProvider.notifier).applySimulationProgress(
+            missionDay: 1,
+            extraDoseMsv: 0,
+            sleepDeltaHours: 0,
+            targetAstronautId: 'AST-01',
+            biomarkerOverrides: const {'ohdg': 11.2},
+          );
+      await _pumpUi(tester);
+
+      final twoIssueStatus =
+          container.read(crewEffectiveStatusesProvider)['AST-01']!;
+      expect(twoIssueStatus.alerts, hasLength(2));
+      expect(twoIssueStatus.extraIssueCount, 1);
+
+      final badgeFinder = find.byKey(
+        const ValueKey('crew_extra_alerts_badge_AST-01'),
+      );
+      expect(badgeFinder, findsOneWidget);
+      final badgeContainer = tester.widget<Container>(badgeFinder);
+      final decoration = badgeContainer.decoration! as BoxDecoration;
+      expect(decoration.shape, BoxShape.circle);
+      expect(
+        find.descendant(of: badgeFinder, matching: find.text('+1')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('crew_status_AST-01')),
+          matching: find.text(twoIssueStatus.title),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('crew_status_AST-01')),
+          matching: find.text(twoIssueStatus.alerts.first),
+        ),
+        findsOneWidget,
+      );
+
+      // Switching active astronaut must keep AST-01's alert count and +1 badge intact.
+      container.read(selectedAstronautIdProvider.notifier).state = 'AST-02';
+      await _pumpUi(tester);
+      expect(
+        container.read(crewEffectiveStatusesProvider)['AST-01']!.extraIssueCount,
+        1,
+      );
+      expect(
+        find.descendant(of: badgeFinder, matching: find.text('+1')),
+        findsOneWidget,
+      );
+
+      // Add a 3rd distinct issue (Solar storm active) -> +2 badge.
+      container.read(apoloStateNotifierProvider.notifier).setSolarStorm(true);
+      await _pumpUi(tester);
+
+      final threeIssueStatus =
+          container.read(crewEffectiveStatusesProvider)['AST-01']!;
+      expect(threeIssueStatus.alerts, hasLength(3));
+      expect(threeIssueStatus.extraIssueCount, 2);
+      expect(
+        find.descendant(of: badgeFinder, matching: find.text('+2')),
+        findsOneWidget,
+      );
+
+      final tooltip = tester.widget<Tooltip>(
+        find.ancestor(of: badgeFinder, matching: find.byType(Tooltip)).first,
+      );
+      expect(tooltip.message, threeIssueStatus.alerts.join('\n'));
+
+      // Tapping the +2 badge expands remaining alerts without closing the drawer.
+      await tester.tap(badgeFinder);
+      await _pumpUi(tester);
+      expect(find.byType(CrewSidebarDrawer), findsOneWidget);
+      for (final extra in threeIssueStatus.alerts.skip(1)) {
+        expect(
+          find.descendant(
+            of: find.byKey(const ValueKey('crew_status_AST-01')),
+            matching: find.text('• $extra'),
+          ),
+          findsOneWidget,
+        );
+      }
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await _pumpUi(tester);
+    },
+  );
+
+  testWidgets(
+    'sidebar Manual Vitals opens Ask Apolo CTA, closes sheet with manual instructions, and Telemetry omits Inspect DB JSON',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(const ApoloApp());
+      await _pumpUi(tester);
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(ApoloHomeScreen)),
+      );
+      container.read(agentVoiceRepliesEnabledProvider.notifier).state = false;
+
+      // Open CrewSidebarDrawer -> Manual Vitals.
+      await tester.tap(find.byKey(const ValueKey('apolo_sidebar_button')));
+      await _pumpUi(tester);
+      await tester.tap(
+        find.byKey(const ValueKey('sidebar_manual_vitals_button')),
+      );
+      await _pumpUi(tester);
+
+      expect(find.byType(ManualVitalsTapCard), findsOneWidget);
+      final askBtn = find.byKey(
+        const ValueKey('manual_vitals_ask_apolo_button'),
+      );
+      expect(askBtn, findsOneWidget);
+      expect(find.text('Ask Apolo how to measure manually'), findsOneWidget);
+
+      // Tap CTA -> sheet closes and Apolo replies with manual instructions.
+      await tester.tap(askBtn);
+      await _pumpUi(tester);
+      await _pumpUi(tester);
+
+      expect(find.byType(ManualVitalsTapCard), findsNothing);
+      final messages = container.read(agentOrchestratorProvider).messages;
+      expect(
+        messages.any(
+          (m) =>
+              m.content.contains('Manual vital signs guide') &&
+              m.content.contains('radial artery'),
+        ),
+        isTrue,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('apolo_speech_bubble')),
+          matching: find.textContaining('Manual vital signs guide'),
+        ),
+        findsOneWidget,
+      );
+
+      // Confirm Inspect DB JSON remains absent in TelemetryConfigModal.
+      await tester.tap(find.byKey(const ValueKey('apolo_sidebar_button')));
+      await _pumpUi(tester);
+      await tester.tap(
+        find.byKey(const ValueKey('sidebar_telemetry_config_button')),
+      );
+      await _pumpUi(tester);
+      expect(find.text('Telemetry & Hardware Configuration'), findsOneWidget);
+      expect(find.text('Inspect DB JSON'), findsNothing);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await _pumpUi(tester);
+    },
+  );
 }

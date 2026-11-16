@@ -24,6 +24,8 @@ class CrewEffectiveStatus {
   final ApoloSeverity severity;
   final String title;
   final List<String> alerts;
+
+  int get extraIssueCount => alerts.length > 1 ? alerts.length - 1 : 0;
 }
 
 final crewEffectiveStatusesProvider =
@@ -57,16 +59,33 @@ final crewEffectiveStatusesProvider =
           components.severity,
           if (astronaut.id == selectedId) global.severity,
         ]);
-        final alerts = <String>{
-          ...astronaut.activeAlerts,
+        final moduleAlerts = state == null
+            ? const <String>[]
+            : [
+                for (final mod in state.rankedModules)
+                  if (mod.severity != ApoloSeverity.ok)
+                    '${mod.title}: ${mod.keyMetric}',
+              ];
+        final duplicateGlobalReasons = <String>{
+          if (astronaut.riskLevel == CrewRiskLevel.critical)
+            astronaut.riskTitle,
           if (state != null)
             for (final mod in state.rankedModules)
-              if (mod.severity != ApoloSeverity.ok)
-                '${mod.title}: ${mod.keyMetric}',
+              if (mod.severity != ApoloSeverity.ok) ...[
+                '${mod.title} critical (${mod.keyMetric})',
+                '${mod.title} (${mod.keyMetric})',
+              ],
+        };
+        final alerts = <String>{
+          ...astronaut.activeAlerts,
+          ...moduleAlerts,
           if (state?.solarStormActive == true) 'Solar storm active',
           ...components.reasons,
-          if (astronaut.id == selectedId) ...global.reasons,
-        }.toList();
+          if (astronaut.id == selectedId)
+            ...global.reasons.where(
+              (reason) => !duplicateGlobalReasons.contains(reason),
+            ),
+        }.where((alert) => alert.trim().isNotEmpty).toList(growable: false);
         final title = profileSeverity == severity &&
                 astronaut.riskLevel != CrewRiskLevel.nominal
             ? astronaut.riskTitle
@@ -137,7 +156,8 @@ final apoloGlobalAlertStateProvider = Provider<ApoloGlobalAlertState>((ref) {
       CrewRiskLevel.nominal => ApoloSeverity.ok,
     };
     worst = ApoloSeverity.worst([worst, profileSev]);
-    if (profile.riskLevel == CrewRiskLevel.critical) {
+    if (profile.riskLevel == CrewRiskLevel.critical &&
+        !reasons.contains(profile.riskTitle)) {
       reasons.add(profile.riskTitle);
     }
     for (final alert in profile.activeAlerts) {
@@ -171,13 +191,18 @@ final apoloGlobalAlertStateProvider = Provider<ApoloGlobalAlertState>((ref) {
   reasons.addAll(components.reasons.where((reason) => !reasons.contains(reason)));
   if (apoloState.solarStormActive) {
     worst = ApoloSeverity.worst([worst, ApoloSeverity.warn]);
-    reasons.add('Solar storm active');
+    if (!reasons.contains('Solar storm active')) {
+      reasons.add('Solar storm active');
+    }
   }
 
   if (worst == ApoloSeverity.warn && reasons.isEmpty) {
     for (final mod in apoloState.rankedModules) {
       if (mod.severity == ApoloSeverity.warn) {
-        reasons.add('${mod.title} (${mod.keyMetric})');
+        final line = '${mod.title} (${mod.keyMetric})';
+        if (!reasons.contains(line)) {
+          reasons.add(line);
+        }
       }
     }
   }
@@ -201,21 +226,22 @@ ApoloGlobalAlertState _componentAlerts(Iterable<AgentViewModel> components) {
     final props = vm.toProps();
     if (vm.componentId == ComponentIds.alertBanner) {
       final sev = props['severity']?.toString().toLowerCase();
+      final rawMsg = props['message']?.toString().trim();
+      final msg = (rawMsg != null && rawMsg.isNotEmpty) ? rawMsg : vm.title;
       if (sev == 'critical' || sev == 'crit') {
         worst = ApoloSeverity.crit;
-        final msg = props['message']?.toString() ?? vm.title;
-        if (!reasons.contains(msg)) reasons.add(msg);
+        if (msg.isNotEmpty && !reasons.contains(msg)) reasons.add(msg);
       } else if (sev == 'warning' || sev == 'warn' || sev == 'caution') {
         worst = ApoloSeverity.worst([worst, ApoloSeverity.warn]);
-        final msg = props['message']?.toString() ?? vm.title;
-        if (!reasons.contains(msg)) reasons.add(msg);
+        if (msg.isNotEmpty && !reasons.contains(msg)) reasons.add(msg);
       }
     }
     if (vm.componentId == ComponentIds.evaReadiness &&
         props['authorized'] == false) {
       evaBlocked = true;
       worst = ApoloSeverity.worst([worst, ApoloSeverity.warn]);
-      reasons.add('NO-GO EVA: Authorization withheld');
+      const msg = 'NO-GO EVA: Authorization withheld';
+      if (!reasons.contains(msg)) reasons.add(msg);
     }
     if (vm.componentId == ComponentIds.graybielQuestionnaire &&
         props['eva_blocked'] == true) {
