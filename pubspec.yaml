@@ -90,6 +90,9 @@ flutter:
     - assets/guides/
     - assets/animations/
     - DB/samples/radiation/
+    - DB/samples/vitals/
+    - DB/samples/sleep/
+    - DB/samples/microgravity/
     - DB/Users/
     - DB/Information/
     - DB/Pharmacy/

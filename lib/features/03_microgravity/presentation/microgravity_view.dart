@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:astramed/features/03_microgravity/presentation/microgravity_trend_cards.dart';
 import 'package:astramed/features/agent/domain/guided_assessment_catalog.dart';
 import 'package:astramed/features/agent/providers/agent_providers.dart';
 import 'package:astramed/features/apolo/presentation/apolo_theme.dart';
@@ -436,15 +437,10 @@ class MicrogravityView extends ConsumerWidget {
               ),
             ),
         ],
-        const SizedBox(height: 8),
-        const Card(
-          color: SpaceTheme.card,
-          child: ListTile(
-            leading: Icon(Icons.shield_moon_outlined, color: Colors.amberAccent),
-            title: Text('Densidad Mineral Ósea (BMD)'),
-            subtitle: Text('Pérdida esperada mitigada con resistencia ARED'),
-          ),
-        ),
+        const SizedBox(height: 12),
+
+        // Tendencias de la misión (DB/samples/microgravity)
+        MicrogravityTrendCards(astronautId: astronaut.id),
       ],
     ));
   }

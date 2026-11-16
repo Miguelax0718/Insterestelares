@@ -64,6 +64,23 @@ Gestiona la base de datos de los 5 miembros de la misión espacial de espacio pr
 ## Radiation integration sample
 
 The radiation sample profiles now use the global mock roster names and ages for AST-01 through AST-04. Sex is unspecified because the global roster does not supply it. Dose CSVs and prior career-dose values are unchanged. AST-05 has no personal dosimetry; missing data are never copied from another crewmember. See lib/features/02_radiation/README.md for the day/date convention and biological adapter.
+
+## 📊 Muestras para los módulos de salud (`DB/samples/`)
+
+Datos simulados de una misión de 180 días con 5 astronautas, ajustados a
+valores publicados en astronautas reales. Cada carpeta tiene dos escenarios:
+`realistic` (`synthetic_from_real`) y `extreme` (`synthetic_hypothetical`,
+emergencias inventadas para probar alertas). Fuentes y límites en el README de
+cada carpeta y en `sources/links.md`.
+
+| Carpeta | Módulo | Contenido |
+|---|---|---|
+| `samples/vitals/` | `01_general_health` | FC, presión, SpO₂, temperatura, glucosa, FR y llenado capilar diarios |
+| `samples/radiation/` | `02_radiation` | Dosimetría diaria, clima espacial y perfiles |
+| `samples/biomarkers/` | `02_radiation` | Sangre y orina (no se sube a git) |
+| `samples/microgravity/` | `03_microgravity` | Densidad ósea, volumen muscular y sesiones de ejercicio |
+| `samples/sleep/` | `04_mental_health` | Horas de sueño, despertares, ánimo y medicación por noche |
+
 ## 🛰️ Módulo `DB/Information/`
 
 ### `telemetry_machines_catalog.json`
