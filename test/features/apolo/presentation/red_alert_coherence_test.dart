@@ -60,6 +60,19 @@ Future<ProviderContainer> _mount(
 }
 
 void main() {
+  testWidgets('effective crew status preserves selected global alert overrides',
+      (tester) async {
+    final container = await _mount(tester);
+    final status = container.read(crewEffectiveStatusesProvider)['AST-03']!;
+    expect(status.severity, ApoloSeverity.crit);
+    expect(status.alerts, containsAll(_causes));
+    expect(container.read(effectiveCriticalCrewCountProvider), greaterThan(0));
+    final total = container.read(effectiveCriticalCrewCountProvider) +
+        container.read(effectiveWarningCrewCountProvider) +
+        container.read(effectiveNominalCrewCountProvider);
+    expect(total, container.read(crewMembersProvider).length);
+  });
+
   testWidgets('AST-03 critical causes agree across banner, greeting, sky and dog',
       (tester) async {
     await _mount(tester);

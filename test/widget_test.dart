@@ -3,6 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:astramed/features/apolo/presentation/apolo_home_screen.dart';
+import 'package:astramed/features/apolo/presentation/apolo_crew_menu_dialog.dart';
+import 'package:astramed/features/apolo/presentation/apolo_theme.dart';
+import 'package:astramed/features/apolo/domain/apolo_models.dart';
+import 'package:astramed/features/apolo/providers/apolo_providers.dart';
+import 'package:astramed/features/apolo/providers/apolo_alert_state_provider.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 import 'package:astramed/features/crew/presentation/widgets/crew_sidebar_drawer.dart';
 import 'package:astramed/main.dart';
@@ -20,6 +25,55 @@ Future<void> _pumpUi(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('radiation updates crew card, totals and crew menu without abnormal vitals',
+      (tester) async {
+    tester.view.physicalSize = const Size(1440, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(const ApoloApp());
+    await _pumpUi(tester);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(ApoloHomeScreen)),
+    );
+    expect(container.read(crewMembersProvider).first.riskLevel.name, 'nominal');
+    container.read(apoloStateNotifierProvider.notifier).setSolarStorm(true);
+    await tester.tap(find.byKey(const ValueKey('apolo_sidebar_button')));
+    await _pumpUi(tester);
+    final drawer = find.byType(CrewSidebarDrawer);
+    expect(find.descendant(of: drawer, matching: find.text('0 Nominal')), findsOneWidget);
+    expect(find.descendant(of: drawer, matching: find.text(
+      '${container.read(effectiveCriticalCrewCountProvider)} Critical',
+    )), findsOneWidget);
+    expect(find.descendant(of: drawer, matching: find.text(
+      '${container.read(effectiveWarningCrewCountProvider)} Attention',
+    )), findsOneWidget);
+    expect(find.descendant(of: drawer, matching: find.textContaining('Radiation:')), findsWidgets);
+    final alex = find.byKey(const ValueKey('crew_status_AST-01'));
+    expect(tester.widget<ApoloStatusChip>(find.descendant(
+      of: alex, matching: find.byType(ApoloStatusChip),
+    )).severity, isNot(ApoloSeverity.ok));
+    // Switching away must not clear Alex's radiation status.
+    container.read(selectedAstronautIdProvider.notifier).state = 'AST-02';
+    await _pumpUi(tester);
+    expect(tester.widget<ApoloStatusChip>(find.descendant(
+      of: alex, matching: find.byType(ApoloStatusChip),
+    )).severity, isNot(ApoloSeverity.ok));
+    expect(tester.widgetList<ApoloStatusChip>(
+      find.descendant(of: drawer, matching: find.byType(ApoloStatusChip)),
+    ).every((chip) => chip.severity != ApoloSeverity.ok), isTrue);
+    Navigator.of(tester.element(drawer)).pop();
+    await _pumpUi(tester);
+    ApoloCrewMenuDialog.show(tester.element(find.byType(ApoloHomeScreen)));
+    await _pumpUi(tester);
+    expect(tester.widgetList<ApoloStatusChip>(
+      find.descendant(of: find.byType(ApoloCrewMenuDialog),
+        matching: find.byType(ApoloStatusChip)),
+    ).every((chip) => chip.severity != ApoloSeverity.ok), isTrue);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await _pumpUi(tester);
+  });
+
   testWidgets(
     'APOLO starts all crew nominal on Day 1 without legacy Modules, and sidebar exposes Mission Simulator & Telemetry Config',
     (WidgetTester tester) async {
@@ -105,6 +159,8 @@ void main() {
       await _pumpUi(tester);
       expect(container.read(nominalCrewCountProvider), 5);
       expect(container.read(criticalCrewCountProvider), 0);
+      expect(container.read(effectiveNominalCrewCountProvider), 5);
+      expect(container.read(effectiveCriticalCrewCountProvider), 0);
       expect(find.byKey(const Key('apolo_red_alert_banner')), findsNothing);
       expect(container.read(agentNotifierProvider).notifications, isEmpty);
       expect(container.read(agentOrchestratorProvider).activeComponents.where(

@@ -416,7 +416,7 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
     final session = ref.watch(agentOrchestratorProvider);
     final handsFreeState = ref.watch(handsFreeControllerProvider);
     final widgetRegistry = ref.watch(componentWidgetRegistryProvider);
-    final criticalCrewCount = ref.watch(criticalCrewCountProvider);
+    final criticalCrewCount = ref.watch(effectiveCriticalCrewCountProvider);
 
     final disableAnimations = MediaQuery.disableAnimationsOf(context);
     _syncSamplePulse(

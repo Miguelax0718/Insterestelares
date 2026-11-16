@@ -8,6 +8,7 @@ import 'package:astramed/features/apolo/presentation/apolo_assessment_launcher_s
 import 'package:astramed/features/apolo/presentation/apolo_theme.dart';
 import 'package:astramed/features/apolo/domain/apolo_models.dart';
 import 'package:astramed/features/apolo/providers/apolo_contract_providers.dart';
+import 'package:astramed/features/apolo/providers/apolo_alert_state_provider.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 import 'package:astramed/features/simulation/presentation/mission_simulator_card.dart';
@@ -25,9 +26,9 @@ class CrewSidebarDrawer extends ConsumerWidget {
     final selectedId = ref.watch(selectedAstronautIdProvider);
     final telemetryState = ref.watch(telemetryProvider);
 
-    final criticalCount = ref.watch(criticalCrewCountProvider);
-    final warningCount = ref.watch(warningCrewCountProvider);
-    final nominalCount = ref.watch(nominalCrewCountProvider);
+    final criticalCount = ref.watch(effectiveCriticalCrewCountProvider);
+    final warningCount = ref.watch(effectiveWarningCrewCountProvider);
+    final nominalCount = ref.watch(effectiveNominalCrewCountProvider);
     final apoloState = ref.watch(apoloActiveStateProvider);
     final palette = ApoloPalette.of(apoloState.highContrast);
 
@@ -169,7 +170,9 @@ class CrewSidebarDrawer extends ConsumerWidget {
   ) {
     final highContrast = ref.watch(apoloActiveStateProvider).highContrast;
     final palette = ApoloPalette.of(highContrast);
-    final severity = switch (astronaut.riskLevel) {
+    final status = ref.watch(crewEffectiveStatusesProvider)[astronaut.id];
+    final alerts = status?.alerts ?? astronaut.activeAlerts;
+    final severity = status?.severity ?? switch (astronaut.riskLevel) {
       CrewRiskLevel.critical => ApoloSeverity.crit,
       CrewRiskLevel.warning => ApoloSeverity.warn,
       CrewRiskLevel.nominal => ApoloSeverity.ok,
@@ -177,6 +180,7 @@ class CrewSidebarDrawer extends ConsumerWidget {
     final statusColor = palette.forSeverity(severity);
 
     return Card(
+      key: ValueKey('crew_status_${astronaut.id}'),
       margin: const EdgeInsets.symmetric(vertical: 6),
       elevation: isSelected ? 4 : 1,
       color: isSelected
@@ -187,10 +191,10 @@ class CrewSidebarDrawer extends ConsumerWidget {
         side: BorderSide(
           color: isSelected
               ? palette.lav2
-              : (astronaut.riskLevel == CrewRiskLevel.critical
-                   ? palette.crit
+              : (severity != ApoloSeverity.ok
+                   ? statusColor
                    : palette.border),
-          width: isSelected ? 2.0 : (astronaut.riskLevel == CrewRiskLevel.critical ? 1.5 : 1.0),
+          width: isSelected ? 2.0 : (severity != ApoloSeverity.ok ? 1.5 : 1.0),
         ),
       ),
       child: InkWell(
@@ -337,11 +341,11 @@ class CrewSidebarDrawer extends ConsumerWidget {
                 ),
                 child: Row(
                   children: [
-                    Icon(_getRiskIcon(astronaut.riskLevel), size: 14, color: statusColor),
+                    Icon(apoloSeverityIcon(severity), size: 14, color: statusColor),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        astronaut.riskTitle,
+                        status?.title ?? astronaut.riskTitle,
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -402,7 +406,7 @@ class CrewSidebarDrawer extends ConsumerWidget {
               ),
 
               // Alerta principal si existe riesgo
-              if (astronaut.activeAlerts.isNotEmpty) ...[
+              if (alerts.isNotEmpty) ...[
                 const SizedBox(height: 6),
                 Row(
                   children: [
@@ -410,7 +414,7 @@ class CrewSidebarDrawer extends ConsumerWidget {
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        astronaut.activeAlerts.first,
+                        alerts.first,
                         style: const TextStyle(
                           fontSize: 10,
                           color: Colors.amberAccent,
@@ -800,14 +804,4 @@ class CrewSidebarDrawer extends ConsumerWidget {
     );
   }
 
-  IconData _getRiskIcon(CrewRiskLevel level) {
-    switch (level) {
-      case CrewRiskLevel.critical:
-        return Icons.emergency;
-      case CrewRiskLevel.warning:
-        return Icons.warning_amber_rounded;
-      case CrewRiskLevel.nominal:
-        return Icons.verified;
-    }
-  }
 }
