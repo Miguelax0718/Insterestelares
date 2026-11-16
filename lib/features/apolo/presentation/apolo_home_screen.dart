@@ -9,13 +9,16 @@ import 'package:astramed/features/agent/application/agent_conversation_controlle
 import 'package:astramed/features/agent/application/hands_free_controller.dart';
 import 'package:astramed/features/agent/domain/agent_contracts.dart';
 import 'package:astramed/features/agent/domain/agent_models.dart';
+import 'package:astramed/features/agent/presentation/component_widget_registry.dart';
 import 'package:astramed/features/agent/providers/agent_providers.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
+import 'package:astramed/features/crew/presentation/widgets/crew_sidebar_drawer.dart';
 
 import '../domain/apolo_models.dart';
 import '../providers/apolo_contract_providers.dart';
 import '../providers/apolo_alert_state_provider.dart';
 import 'apolo_assessment_launcher_sheet.dart';
+import 'apolo_chat_orbs.dart';
 import 'apolo_crew_menu_dialog.dart';
 import 'apolo_detail_sheet.dart';
 import 'apolo_dog_widget.dart';
@@ -23,21 +26,11 @@ import 'apolo_orb_widget.dart';
 import 'apolo_sky_background.dart';
 import 'apolo_theme.dart';
 
-/// Primary APOLO home screen: astronaut dog assistant, floating health orbs,
-/// speech bubble wired to `AgentConversationController`, voice/text input, and
-/// dynamic clinical component tray.
+/// Primary APOLO home screen: astronaut dog assistant, floating health and chat
+/// orbs, speech bubble wired to `AgentConversationController`, voice/text
+/// input, and integrated Crew Hub sidebar.
 class ApoloHomeScreen extends ConsumerStatefulWidget {
-  const ApoloHomeScreen({
-    super.key,
-    this.onOpenClinicalDashboard,
-    this.onOpenClinicalModule,
-  });
-
-  /// Optional callback to open the legacy 5-tab clinical modules dashboard.
-  final VoidCallback? onOpenClinicalDashboard;
-
-  /// Optional callback to open the clinical modules dashboard at a specific tab.
-  final void Function(int initialIndex)? onOpenClinicalModule;
+  const ApoloHomeScreen({super.key});
 
   @override
   ConsumerState<ApoloHomeScreen> createState() => _ApoloHomeScreenState();
@@ -57,7 +50,15 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
   Offset _lookOffset = Offset.zero;
   bool _manualListening = false;
   bool _ttsSpeaking = false;
-  bool _componentsExpanded = true;
+
+  /// Assistant message indexes whose chat circle the astronaut hid.
+  final Set<int> _hiddenReplies = <int>{};
+
+  /// Components already seen, so interactive tests auto-open only once.
+  final Set<String> _seenComponentIds = <String>{};
+
+  /// Key of the open chat circle (`reply_<i>` / `component_<id>`).
+  String? _openChatKey;
   String? _voiceError;
   String? _localBubbleText;
   int _tipCursor = 0;
@@ -350,37 +351,18 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
   @override
   Widget build(BuildContext context) {
     ref.listen<String>(selectedAstronautIdProvider, (previous, nextId) {
-      if (previous != nextId) {
-        setState(() => _localBubbleText = null);
-      }
       final currentId = ref.read(agentOrchestratorProvider).astronautId;
       if (currentId != nextId) {
         ref.read(agentOrchestratorProvider.notifier).switchAstronaut(nextId);
       }
-    });
-
-    ref.listen<ClinicalNavigationRequest?>(clinicalNavigationRequestProvider, (
-      previous,
-      next,
-    ) {
-      if (next == null || next.nonce == previous?.nonce) return;
-      if (next.openManualVitals) {
-        ref.read(pendingManualVitalsDialogProvider.notifier).state = true;
+      if (mounted) {
+        setState(() {
+          _hiddenReplies.clear();
+          _seenComponentIds.clear();
+          _openChatKey = null;
+          _localBubbleText = null;
+        });
       }
-      if (next.procedureId != null && next.procedureId!.isNotEmpty) {
-        ref.read(pendingProcedureSelectionProvider.notifier).state =
-            next.procedureId;
-      }
-      if (widget.onOpenClinicalModule != null) {
-        widget.onOpenClinicalModule!(next.tabIndex);
-      } else {
-        widget.onOpenClinicalDashboard?.call();
-      }
-      Future.microtask(() {
-        if (mounted) {
-          ref.read(clinicalNavigationRequestProvider.notifier).state = null;
-        }
-      });
     });
 
     ref.listen<AgentSessionState>(agentOrchestratorProvider, (prev, next) {
@@ -389,6 +371,23 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
         if (mounted && _localBubbleText != null) {
           setState(() => _localBubbleText = null);
         }
+      }
+      final fresh = next.activeComponents
+          .where(
+            (vm) =>
+                !_seenComponentIds.contains(vm.componentId) &&
+                ApoloChatOrbData.interactiveComponents.contains(
+                  vm.componentId,
+                ) &&
+                vm.componentId != ComponentIds.confirmAction,
+          )
+          .toList(growable: false);
+      _seenComponentIds.addAll(next.activeComponents.map((c) => c.componentId));
+      _seenComponentIds.removeWhere(
+        (id) => !next.activeComponents.any((c) => c.componentId == id),
+      );
+      if (fresh.isNotEmpty && mounted && _openChatKey == null) {
+        setState(() => _openChatKey = 'component_${fresh.first.componentId}');
       }
     });
     ref.listen<ApoloGlobalAlertState>(apoloGlobalAlertStateProvider, (prev, next) {
@@ -407,6 +406,7 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
     final session = ref.watch(agentOrchestratorProvider);
     final handsFreeState = ref.watch(handsFreeControllerProvider);
     final widgetRegistry = ref.watch(componentWidgetRegistryProvider);
+    final criticalCrewCount = ref.watch(criticalCrewCountProvider);
 
     final disableAnimations = MediaQuery.disableAnimationsOf(context);
     _syncSamplePulse(
@@ -422,6 +422,23 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
         .toList(growable: false);
 
     final palette = ApoloPalette.of(apoloState.highContrast);
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final chatOrbs = ApoloChatOrbData.fromSession(
+      messages: session.messages,
+      components: visibleComponents,
+      hiddenReplyIndexes: _hiddenReplies,
+      maxReplies: screenWidth < 640 ? 2 : ApoloChatOrbData.maxReplyOrbs,
+    );
+    final openChat = _openChatKey == null
+        ? null
+        : chatOrbs.where((o) => o.key == _openChatKey).firstOrNull;
+    if (_openChatKey != null && openChat == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _openChatKey != null) {
+          setState(() => _openChatKey = null);
+        }
+      });
+    }
 
     final lastUserMessage = session.messages
         .where((m) => m.role == ChatRole.user && m.content.trim().isNotEmpty)
@@ -435,10 +452,11 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
         .lastOrNull
         ?.content;
 
-    final bubbleText =
+    final rawBubble =
         _localBubbleText ??
         lastAssistantMessage ??
         _initialGreeting(apoloState, alertState);
+    final bubbleText = _shortenForBubble(rawBubble);
 
     final isDogListening =
         _manualListening ||
@@ -456,11 +474,14 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
           const SingleActivator(LogicalKeyboardKey.escape): () {
             if (openModule != null) {
               actions.openDetail(null);
+            } else if (_openChatKey != null) {
+              setState(() => _openChatKey = null);
             }
           },
         },
         child: Scaffold(
           backgroundColor: palette.bg,
+          drawer: const CrewSidebarDrawer(),
           body: ApoloSkyBackground(
             highContrast: apoloState.highContrast,
             isRedAlert: alertState.isRedAlert,
@@ -473,7 +494,13 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
                   SafeArea(
                     child: Column(
                       children: [
-                        _buildTopBar(context, apoloState, actions, palette),
+                        _buildTopBar(
+                          context,
+                          apoloState,
+                          actions,
+                          palette,
+                          criticalCrewCount,
+                        ),
                         if (alertState.isRedAlert)
                           _buildRedAlertBanner(alertState, palette),
                         Expanded(
@@ -487,6 +514,8 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
                                   .map((id) => apoloState.modules[id])
                                   .whereType<ApoloModuleSnapshot>()
                                   .toList(growable: false);
+                              final totalOrbs =
+                                  visibleSnaps.length + chatOrbs.length;
 
                               final petSection = _buildPetColumn(
                                 context: context,
@@ -499,7 +528,6 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
                                 lastUserMessage: lastUserMessage,
                                 isDogListening: isDogListening,
                                 visibleComponents: visibleComponents,
-                                widgetRegistry: widgetRegistry,
                                 maxOrbs: maxOrbs,
                                 dogSize: _computeDogSize(
                                   width: width,
@@ -509,22 +537,36 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
                               );
 
                               if (isWide) {
-                                final leftOrbs = <ApoloModuleSnapshot>[];
-                                final rightOrbs = <ApoloModuleSnapshot>[];
-                                for (var i = 0; i < visibleSnaps.length; i++) {
-                                  if (i.isEven) {
-                                    leftOrbs.add(visibleSnaps[i]);
-                                  } else {
-                                    rightOrbs.add(visibleSnaps[i]);
-                                  }
-                                }
                                 final useTwoColumnsPerSide =
-                                    width >= 1000 && visibleSnaps.length > 4;
+                                    width >= 1000 && totalOrbs > 4;
                                 final orbScale = useTwoColumnsPerSide
-                                    ? 0.80
+                                    ? (totalOrbs > 10 ? 0.70 : 0.80)
                                     : (constraints.maxHeight < 680
                                           ? 0.80
                                           : 0.94);
+
+                                final leftOrbs = <Widget>[];
+                                final rightOrbs = <Widget>[
+                                  for (final c in chatOrbs)
+                                    _chatOrb(
+                                      c,
+                                      apoloState.highContrast,
+                                      orbScale,
+                                    ),
+                                ];
+                                for (final snap in visibleSnaps) {
+                                  final w = _healthOrb(
+                                    snap,
+                                    apoloState.highContrast,
+                                    orbScale,
+                                    actions,
+                                  );
+                                  if (leftOrbs.length <= rightOrbs.length) {
+                                    leftOrbs.add(w);
+                                  } else {
+                                    rightOrbs.add(w);
+                                  }
+                                }
 
                                 return Padding(
                                   padding: const EdgeInsets.fromLTRB(
@@ -542,9 +584,6 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
                                           orbs: leftOrbs,
                                           twoColumns: useTwoColumnsPerSide,
                                           mirrorZigzag: false,
-                                          orbScale: orbScale,
-                                          highContrast: apoloState.highContrast,
-                                          onTapOrb: actions.openDetail,
                                         ),
                                       ),
                                       const SizedBox(width: 12),
@@ -563,9 +602,6 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
                                           orbs: rightOrbs,
                                           twoColumns: useTwoColumnsPerSide,
                                           mirrorZigzag: true,
-                                          orbScale: orbScale,
-                                          highContrast: apoloState.highContrast,
-                                          onTapOrb: actions.openDetail,
                                         ),
                                       ),
                                     ],
@@ -584,13 +620,19 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
                                 child: Column(
                                   children: [
                                     petSection,
-                                    if (visibleSnaps.isNotEmpty) ...[
+                                    if (totalOrbs > 0) ...[
                                       const SizedBox(height: 12),
                                       Wrap(
                                         alignment: WrapAlignment.center,
                                         spacing: 10,
                                         runSpacing: 10,
                                         children: [
+                                          for (final c in chatOrbs)
+                                            _chatOrb(
+                                              c,
+                                              apoloState.highContrast,
+                                              width < 400 ? 0.72 : 0.78,
+                                            ),
                                           for (final snap in visibleSnaps)
                                             ApoloOrbWidget(
                                               snapshot: snap,
@@ -664,6 +706,14 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
                         actions.hideOrb(openModule.id);
                       },
                     ),
+                  if (openChat != null)
+                    _buildChatSheet(
+                      openChat,
+                      session: session,
+                      visibleComponents: visibleComponents,
+                      widgetRegistry: widgetRegistry,
+                      highContrast: apoloState.highContrast,
+                    ),
                 ],
               ),
             ),
@@ -677,9 +727,14 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
     unawaited(
       ApoloAssessmentLauncherSheet.show(
         context,
-        onLaunch: (descriptor) => unawaited(
-          _sendText('Guide me through the ${descriptor.title} assessment'),
-        ),
+        onLaunch: (descriptor) {
+          final speakReply = ref.read(agentVoiceRepliesEnabledProvider);
+          unawaited(
+            ref
+                .read(agentOrchestratorProvider.notifier)
+                .launchGuidedAssessment(descriptor, speakReply: speakReply),
+          );
+        },
       ),
     );
   }
@@ -765,6 +820,7 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
     ApoloAstronautState state,
     ApoloStateActions actions,
     ApoloPalette palette,
+    int criticalCrewCount,
   ) {
     final screenWidth = MediaQuery.sizeOf(context).width;
     final showMissionText = screenWidth >= 560;
@@ -782,6 +838,38 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
       ),
       child: Row(
         children: [
+          Builder(
+            builder: (drawerContext) => Tooltip(
+              message: 'Crew Hub & Simulator',
+              child: IconButton(
+                key: const ValueKey('apolo_sidebar_button'),
+                onPressed: () => Scaffold.of(drawerContext).openDrawer(),
+                style: IconButton.styleFrom(
+                  backgroundColor: hc ? palette.bg : const Color(0x991E2050),
+                  side: BorderSide(color: palette.border),
+                  fixedSize: Size(isCompactBar ? 38 : 42, isCompactBar ? 38 : 42),
+                ),
+                icon: Badge(
+                  isLabelVisible: criticalCrewCount > 0,
+                  backgroundColor: palette.crit,
+                  label: Text(
+                    '$criticalCrewCount',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.groups_outlined,
+                    size: isCompactBar ? 19 : 21,
+                    color: palette.text,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SizedBox(width: isCompactBar ? 6 : 10),
           Container(
             width: isCompactBar ? 36 : 40,
             height: isCompactBar ? 36 : 40,
@@ -823,52 +911,6 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
             ),
           ] else
             const Spacer(),
-          if (widget.onOpenClinicalDashboard != null ||
-              widget.onOpenClinicalModule != null) ...[
-            const SizedBox(width: 6),
-            Tooltip(
-              message: 'Clinical modules',
-              child: showPillLabel
-                  ? OutlinedButton.icon(
-                      key: const ValueKey('apolo_modules_button'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: palette.text,
-                        backgroundColor: hc
-                            ? palette.bg
-                            : const Color(0x991E2050),
-                        side: BorderSide(color: palette.border),
-                        minimumSize: const Size(44, 42),
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(22),
-                        ),
-                      ),
-                      onPressed:
-                          widget.onOpenClinicalDashboard ??
-                          () => widget.onOpenClinicalModule?.call(0),
-                      icon: const Icon(Icons.grid_view_rounded, size: 18),
-                      label: const Text(
-                        'Modules',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    )
-                  : IconButton.outlined(
-                      key: const ValueKey('apolo_modules_button'),
-                      style: IconButton.styleFrom(
-                        foregroundColor: palette.text,
-                        backgroundColor: hc
-                            ? palette.bg
-                            : const Color(0x991E2050),
-                        side: BorderSide(color: palette.border),
-                        fixedSize: const Size(42, 42),
-                      ),
-                      onPressed:
-                          widget.onOpenClinicalDashboard ??
-                          () => widget.onOpenClinicalModule?.call(0),
-                      icon: const Icon(Icons.grid_view_rounded, size: 18),
-                    ),
-            ),
-          ],
           const SizedBox(width: 6),
           AnimatedBuilder(
             animation: _samplePulseController,
@@ -1033,7 +1075,6 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
     required String? lastUserMessage,
     required bool isDogListening,
     required List<AgentViewModel> visibleComponents,
-    required dynamic widgetRegistry,
     required int maxOrbs,
     required double dogSize,
   }) {
@@ -1215,14 +1256,6 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
               (vm) => vm.componentId == ComponentIds.confirmAction,
             ))
           _buildPendingActionCard(session.pendingAction!, palette),
-        if (visibleComponents.isNotEmpty)
-          _buildDynamicComponentsTray(
-            context: context,
-            visibleComponents: visibleComponents,
-            widgetRegistry: widgetRegistry,
-            session: session,
-            palette: palette,
-          ),
       ],
     );
   }
@@ -1286,78 +1319,114 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
     );
   }
 
-  Widget _buildDynamicComponentsTray({
-    required BuildContext context,
-    required List<AgentViewModel> visibleComponents,
-    required dynamic widgetRegistry,
+  Widget _healthOrb(
+    ApoloModuleSnapshot snap,
+    bool highContrast,
+    double scale,
+    ApoloStateActions actions,
+  ) {
+    return ApoloOrbWidget(
+      key: ValueKey('apolo_health_orb_${snap.id.name}'),
+      snapshot: snap,
+      compactScale: scale,
+      highContrast: highContrast,
+      onTap: () => actions.openDetail(snap.id),
+    );
+  }
+
+  Widget _chatOrb(ApoloChatOrbData data, bool highContrast, double scale) {
+    return ApoloChatOrbWidget(
+      key: ValueKey('apolo_chat_orb_widget_${data.key}'),
+      data: data,
+      highContrast: highContrast,
+      compactScale: scale,
+      onTap: () {
+        _resetAutoTipTimer();
+        ref.read(apoloActionsProvider).openDetail(null);
+        setState(() => _openChatKey = data.key);
+      },
+    );
+  }
+
+  /// Long replies are summarized in the bubble; the full text lives in the
+  /// newest chat circle.
+  String _shortenForBubble(String text) {
+    const maxChars = 220;
+    final clean = text.trim();
+    if (clean.length <= maxChars) return clean;
+    final cut = clean.substring(0, maxChars);
+    final sentenceEnd = cut.lastIndexOf(RegExp(r'[.!?](\s|$)'));
+    final head = sentenceEnd > 80
+        ? cut.substring(0, sentenceEnd + 1)
+        : '${cut.substring(0, cut.lastIndexOf(' ').clamp(60, maxChars))}…';
+    return '$head\n(Tap the new circle to read it all.)';
+  }
+
+  Widget _buildChatSheet(
+    ApoloChatOrbData data, {
     required AgentSessionState session,
-    required ApoloPalette palette,
+    required List<AgentViewModel> visibleComponents,
+    required AgentComponentWidgetRegistry widgetRegistry,
+    required bool highContrast,
   }) {
-    return Container(
-      key: const ValueKey('apolo_components_tray'),
-      margin: const EdgeInsets.only(top: 10),
-      decoration: BoxDecoration(
-        color: palette.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: palette.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          InkWell(
-            borderRadius: BorderRadius.circular(20),
-            onTap: () =>
-                setState(() => _componentsExpanded = !_componentsExpanded),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.medical_services_outlined,
-                    size: 16,
-                    color: palette.lav2,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Clinical Tests & Tools (${visibleComponents.length})',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: palette.text,
-                      ),
-                    ),
-                  ),
-                  Icon(
-                    _componentsExpanded ? Icons.expand_less : Icons.expand_more,
-                    size: 18,
-                    color: palette.text2,
-                  ),
-                ],
-              ),
+    void close() => setState(() => _openChatKey = null);
+
+    if (data.kind == ApoloChatOrbKind.reply) {
+      final index = int.tryParse(data.key.substring('reply_'.length));
+      final text = data.message?.content ?? '';
+      return ApoloChatSheet(
+        key: ValueKey('apolo_chat_sheet_${data.key}'),
+        data: data,
+        highContrast: highContrast,
+        onClose: close,
+        onReadAloud: text.isEmpty
+            ? null
+            : () {
+                try {
+                  unawaited(ref.read(trackedTextToSpeechProvider).speak(text));
+                } catch (_) {
+                  // TTS may be unavailable (tests / unsupported platform).
+                }
+              },
+        onAskMore: () {
+          close();
+          unawaited(_sendText('Tell me more about that.'));
+        },
+        onHide: index == null
+            ? null
+            : () => setState(() {
+                _hiddenReplies.add(index);
+                _openChatKey = null;
+              }),
+      );
+    }
+
+    final vm = visibleComponents
+        .where((c) => c.componentId == data.componentId)
+        .firstOrNull;
+    return ApoloChatSheet(
+      key: ValueKey('apolo_chat_sheet_${data.key}'),
+      data: data,
+      highContrast: highContrast,
+      onClose: close,
+      componentBody: vm == null
+          ? null
+          : widgetRegistry.build(
+              context,
+              vm,
+              onSubmit: (Map<String, dynamic> result) =>
+                  _handleComponentSubmit(vm, result, session),
+              onDismiss: () => setState(() {
+                _dismissedComponents.add(vm);
+                _openChatKey = null;
+              }),
             ),
-          ),
-          if (_componentsExpanded)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (final vm in visibleComponents)
-                    widgetRegistry.build(
-                      context,
-                      vm,
-                      onSubmit: (Map<String, dynamic> result) =>
-                          _handleComponentSubmit(vm, result, session),
-                      onDismiss: () {
-                        setState(() => _dismissedComponents.add(vm));
-                      },
-                    ),
-                ],
-              ),
-            ),
-        ],
-      ),
+      onHide: vm == null
+          ? null
+          : () => setState(() {
+              _dismissedComponents.add(vm);
+              _openChatKey = null;
+            }),
     );
   }
 
@@ -1658,17 +1727,11 @@ class _OrbSideColumn extends StatelessWidget {
     required this.orbs,
     required this.twoColumns,
     required this.mirrorZigzag,
-    required this.orbScale,
-    required this.highContrast,
-    required this.onTapOrb,
   });
 
-  final List<ApoloModuleSnapshot> orbs;
+  final List<Widget> orbs;
   final bool twoColumns;
   final bool mirrorZigzag;
-  final double orbScale;
-  final bool highContrast;
-  final void Function(ApoloModuleId id) onTapOrb;
 
   @override
   Widget build(BuildContext context) {
@@ -1677,8 +1740,8 @@ class _OrbSideColumn extends StatelessWidget {
     }
 
     if (twoColumns) {
-      final colA = <ApoloModuleSnapshot>[];
-      final colB = <ApoloModuleSnapshot>[];
+      final colA = <Widget>[];
+      final colB = <Widget>[];
       for (var i = 0; i < orbs.length; i++) {
         if (i.isEven) {
           colA.add(orbs[i]);
@@ -1686,6 +1749,13 @@ class _OrbSideColumn extends StatelessWidget {
           colB.add(orbs[i]);
         }
       }
+      Widget column(List<Widget> items) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final w in items)
+            Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: w),
+        ],
+      );
       return Center(
         child: SingleChildScrollView(
           child: Row(
@@ -1694,40 +1764,12 @@ class _OrbSideColumn extends StatelessWidget {
             children: [
               Padding(
                 padding: EdgeInsets.only(top: mirrorZigzag ? 44 : 0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (final s in colA)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: ApoloOrbWidget(
-                          snapshot: s,
-                          compactScale: orbScale,
-                          highContrast: highContrast,
-                          onTap: () => onTapOrb(s.id),
-                        ),
-                      ),
-                  ],
-                ),
+                child: column(colA),
               ),
               const SizedBox(width: 8),
               Padding(
                 padding: EdgeInsets.only(top: mirrorZigzag ? 0 : 44),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (final s in colB)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: ApoloOrbWidget(
-                          snapshot: s,
-                          compactScale: orbScale,
-                          highContrast: highContrast,
-                          onTap: () => onTapOrb(s.id),
-                        ),
-                      ),
-                  ],
-                ),
+                child: column(colB),
               ),
             ],
           ),
@@ -1752,12 +1794,7 @@ class _OrbSideColumn extends StatelessWidget {
                       ? 22
                       : 0,
                 ),
-                child: ApoloOrbWidget(
-                  snapshot: orbs[i],
-                  compactScale: orbScale,
-                  highContrast: highContrast,
-                  onTap: () => onTapOrb(orbs[i].id),
-                ),
+                child: orbs[i],
               ),
           ],
         ),

@@ -2,9 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:astramed/core/theme/space_theme.dart';
+import 'package:astramed/features/01_general_health/presentation/cockpit_widgets/vitals_cockpit_cards.dart';
+import 'package:astramed/features/05_clinical_triage/presentation/cockpit_widgets/medical_procedures_card.dart';
+import 'package:astramed/features/agent/providers/agent_providers.dart';
+import 'package:astramed/features/apolo/presentation/apolo_assessment_launcher_sheet.dart';
+import 'package:astramed/features/apolo/presentation/apolo_theme.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
-import 'package:astramed/features/simulation/presentation/mission_simulator_view.dart';
+import 'package:astramed/features/simulation/presentation/mission_simulator_card.dart';
+import 'package:astramed/features/simulation/presentation/providers/mission_simulator_provider.dart';
 import 'package:astramed/features/telemetry/presentation/providers/telemetry_provider.dart';
 import 'package:astramed/features/telemetry/presentation/widgets/telemetry_config_modal.dart';
 
@@ -168,10 +174,12 @@ class CrewSidebarDrawer extends ConsumerWidget {
         ),
       ),
       child: InkWell(
+        key: ValueKey('crew_drawer_item_${astronaut.id}'),
         borderRadius: BorderRadius.circular(12),
         onTap: () {
-          // Cambia el astronauta activo
+          // Cambia el astronauta activo en crew y en el agente APOLO
           ref.read(selectedAstronautIdProvider.notifier).state = astronaut.id;
+          ref.read(agentOrchestratorProvider.notifier).switchAstronaut(astronaut.id);
           Navigator.of(context).pop(); // Cierra el Drawer
         },
         child: Padding(
@@ -318,35 +326,46 @@ class CrewSidebarDrawer extends ConsumerWidget {
 
               // ── PREVIEW DE TELEMETRÍA RÁPIDA (FC, SpO2, PA) ──
               Container(
+                width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 decoration: BoxDecoration(
                   color: Colors.black26,
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildMiniMetric(
-                      label: 'FC',
-                      value: '${astronaut.vitals.heartRate.toInt()} bpm',
-                      isWarning: astronaut.vitals.heartRate > 100 ||
-                          astronaut.vitals.heartRate < 50,
-                    ),
-                    const Text('|', style: TextStyle(color: Colors.white24, fontSize: 10)),
-                    _buildMiniMetric(
-                      label: 'SpO2',
-                      value: '${astronaut.vitals.spO2.toInt()}%',
-                      isWarning: astronaut.vitals.spO2 < 94,
-                    ),
-                    const Text('|', style: TextStyle(color: Colors.white24, fontSize: 10)),
-                    _buildMiniMetric(
-                      label: 'PA',
-                      value:
-                          '${astronaut.vitals.systolicBP.toInt()}/${astronaut.vitals.diastolicBP.toInt()}',
-                      isWarning: astronaut.vitals.systolicBP > 130 ||
-                          astronaut.vitals.systolicBP < 90,
-                    ),
-                  ],
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildMiniMetric(
+                        label: 'FC',
+                        value: '${astronaut.vitals.heartRate.toInt()} bpm',
+                        isWarning: astronaut.vitals.heartRate > 100 ||
+                            astronaut.vitals.heartRate < 50,
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 6),
+                        child: Text('|', style: TextStyle(color: Colors.white24, fontSize: 10)),
+                      ),
+                      _buildMiniMetric(
+                        label: 'SpO2',
+                        value: '${astronaut.vitals.spO2.toInt()}%',
+                        isWarning: astronaut.vitals.spO2 < 94,
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 6),
+                        child: Text('|', style: TextStyle(color: Colors.white24, fontSize: 10)),
+                      ),
+                      _buildMiniMetric(
+                        label: 'PA',
+                        value:
+                            '${astronaut.vitals.systolicBP.toInt()}/${astronaut.vitals.diastolicBP.toInt()}',
+                        isWarning: astronaut.vitals.systolicBP > 130 ||
+                            astronaut.vitals.systolicBP < 90,
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
@@ -511,36 +530,197 @@ class CrewSidebarDrawer extends ConsumerWidget {
     );
   }
 
-  /// Pie del drawer con controles de telemetría y simulación
+  /// Pie del drawer con accesos rápidos a todas las herramientas de cabina
   Widget _buildDrawerFooter(
     BuildContext context,
     WidgetRef ref,
     String selectedId,
   ) {
+    void openCockpitSheet(Widget Function(BuildContext sheetContext) builder) {
+      final rootContext = Navigator.of(context, rootNavigator: true).context;
+      Navigator.of(context).pop();
+      showModalBottomSheet<void>(
+        context: rootContext,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (sheetContext) => Theme(
+          data: buildApoloTheme(),
+          child: SafeArea(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.88,
+              ),
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+                decoration: BoxDecoration(
+                  color: ApoloPalette.standard.bg2,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: ApoloPalette.standard.border),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: builder(sheetContext),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.all(12.0),
       child: Column(
         children: [
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: SpaceTheme.neonPurple,
-              side: const BorderSide(color: SpaceTheme.neonPurple),
-              minimumSize: const Size(double.infinity, 38),
-            ),
-            icon: const Icon(Icons.rocket_launch_outlined, size: 16),
-            label: const Text('Simulación de misión', style: TextStyle(fontSize: 12)),
-            onPressed: () {
-              final rootContext = Navigator.of(context, rootNavigator: true).context;
-              Navigator.of(context).pop();
-              Navigator.of(rootContext).push(MaterialPageRoute(builder: (_) => const MissionSimulatorView()));
-            },
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  key: const ValueKey('sidebar_mission_simulator_button'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: SpaceTheme.neonPurple,
+                    side: const BorderSide(color: SpaceTheme.neonPurple),
+                    minimumSize: const Size(0, 36),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                  icon: const Icon(Icons.rocket_launch_outlined, size: 15),
+                  label: const Text(
+                    'Simulador',
+                    style: TextStyle(fontSize: 11.5),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onPressed: () => openCockpitSheet(
+                    (sheetCtx) => MissionSimulatorCard(
+                      onDismiss: () => Navigator.of(sheetCtx).pop(),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: OutlinedButton.icon(
+                  key: const ValueKey('sidebar_assessments_button'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: SpaceTheme.cyan,
+                    side: const BorderSide(color: SpaceTheme.cyan),
+                    minimumSize: const Size(0, 36),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                  icon: const Icon(Icons.fitness_center, size: 15),
+                  label: const Text(
+                    'Tests',
+                    style: TextStyle(fontSize: 11.5),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onPressed: () {
+                    final rootContext =
+                        Navigator.of(context, rootNavigator: true).context;
+                    Navigator.of(context).pop();
+                    ApoloAssessmentLauncherSheet.show(
+                      rootContext,
+                      onLaunch: (descriptor) {
+                        final speakReply =
+                            ref.read(agentVoiceRepliesEnabledProvider);
+                        ref
+                            .read(agentOrchestratorProvider.notifier)
+                            .launchGuidedAssessment(
+                              descriptor,
+                              speakReply: speakReply,
+                            );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  key: const ValueKey('sidebar_manual_vitals_button'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: SpaceTheme.green,
+                    side: const BorderSide(color: SpaceTheme.green),
+                    minimumSize: const Size(0, 36),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                  icon: const Icon(Icons.touch_app_outlined, size: 15),
+                  label: const Text(
+                    'Toma Manual',
+                    style: TextStyle(fontSize: 11.5),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onPressed: () => openCockpitSheet(
+                    (sheetCtx) => SingleChildScrollView(
+                      padding: const EdgeInsets.all(12),
+                      child: ManualVitalsTapCard(
+                        astronautId: selectedId,
+                        onSubmit: (_) => Navigator.of(sheetCtx).pop(),
+                        onDismiss: () => Navigator.of(sheetCtx).pop(),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: OutlinedButton.icon(
+                  key: const ValueKey('sidebar_procedures_button'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: SpaceTheme.warningYellow,
+                    side: const BorderSide(color: SpaceTheme.warningYellow),
+                    minimumSize: const Size(0, 36),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                  icon: const Icon(Icons.medical_services_outlined, size: 15),
+                  label: const Text(
+                    'Protocolos',
+                    style: TextStyle(fontSize: 11.5),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onPressed: () => openCockpitSheet(
+                    (sheetCtx) => SingleChildScrollView(
+                      padding: const EdgeInsets.all(12),
+                      child: MedicalProceduresCockpitCard(
+                        astronautId: selectedId,
+                        onDismiss: () => Navigator.of(sheetCtx).pop(),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          OutlinedButton.icon(
+            key: const ValueKey('sidebar_vitals_chart_button'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.white,
+              side: const BorderSide(color: Colors.white24),
+              minimumSize: const Size(double.infinity, 36),
+            ),
+            icon: const Icon(Icons.show_chart_rounded, size: 16),
+            label: const Text(
+              'Tendencias de Signos Vitales',
+              style: TextStyle(fontSize: 12),
+            ),
+            onPressed: () => openCockpitSheet(
+              (sheetCtx) => SingleChildScrollView(
+                padding: const EdgeInsets.all(12),
+                child: VitalsTrendCockpitCard(
+                  astronautId: selectedId,
+                  onDismiss: () => Navigator.of(sheetCtx).pop(),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
           ElevatedButton.icon(
+            key: const ValueKey('sidebar_telemetry_config_button'),
             style: ElevatedButton.styleFrom(
               backgroundColor: SpaceTheme.cyan,
               foregroundColor: Colors.black,
-              minimumSize: const Size(double.infinity, 38),
+              minimumSize: const Size(double.infinity, 36),
             ),
             icon: const Icon(Icons.settings_input_antenna, size: 16),
             label: const Text(
@@ -557,25 +737,26 @@ class CrewSidebarDrawer extends ConsumerWidget {
               );
             },
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           OutlinedButton.icon(
+            key: const ValueKey('sidebar_reset_nominal_button'),
             style: OutlinedButton.styleFrom(
               foregroundColor: SpaceTheme.cyan,
               side: const BorderSide(color: SpaceTheme.cyan),
-              minimumSize: const Size(double.infinity, 38),
+              minimumSize: const Size(double.infinity, 36),
             ),
             icon: const Icon(Icons.sync, size: 16),
             label: const Text(
-              'Restablecer Tripulación Base',
+              'Restablecer Tripulación Nominal',
               style: TextStyle(fontSize: 12),
             ),
             onPressed: () {
-              ref.read(crewMembersProvider.notifier).resetToInitial();
+              ref.read(missionSimulatorProvider.notifier).resetNominal();
               ref.read(telemetryProvider.notifier).resetToInitial();
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text(
-                    'Telemetría de la tripulación reiniciada a valores base',
+                    'Tripulación reiniciada a estado nominal (Día 1)',
                   ),
                   duration: Duration(seconds: 2),
                 ),
