@@ -19,7 +19,7 @@ Los valores fijos del simulador original se conservan como **respuesta de refere
 ## 2. Las cuatro etapas, por tripulante
 
 1. **Exposición.** Mide cuánto le llega el evento a cada persona.
-   - La tormenta solar llega a **toda la tripulación**, con la dosis escalada por el blindaje del módulo donde está cada uno. **[Fuente]** NASA OCHMO-TB-020 y SRAG describen dosis mayores en zonas poco blindadas y que la tripulación se refugia en los módulos más blindados durante un SPE. **[Estimación]** Factores usados: Cúpula ×1,35, esclusa/EVA ×1,25, Columbus/Kibo ×1,0, Destiny ×0,9, Harmony/bahía médica ×0,8, con una variación de ±10 %.
+   - La tormenta solar llega a **toda la tripulación**, con la dosis escalada por el blindaje del módulo donde está cada uno. Los valores de referencia (180 µSv/h y +1,5 mSv) corresponden al módulo menos blindado (Cúpula); ver `crew_adaptation.md`, sección 4. **[Fuente]** NASA OCHMO-TB-020 y SRAG describen dosis mayores en zonas poco blindadas y que la tripulación se refugia en los módulos más blindados durante un SPE. **[Estimación]** Factores usados: Cúpula ×1,35, esclusa/EVA ×1,25, Columbus/Kibo ×1,0, Destiny ×0,9, Harmony/bahía médica ×0,8, con una variación de ±10 %.
    - Si los otros eventos se aplican a un solo tripulante, la exposición es de 0,85–1,15. **[Estimación]**
    - Si se aplican a toda la tripulación, no a todos les llega igual. **[Estimación]** Rangos: sueño 0,2–1,2, sobrecarga 0,4–1,15 y ejercicio 0,5–1,1.
 2. **Susceptibilidad.** Combina un rasgo estable de la persona, sorteado una vez por misión con distribución log-normal (σ = 0,3) y **[Estimación]** en su magnitud, con su estado actual:

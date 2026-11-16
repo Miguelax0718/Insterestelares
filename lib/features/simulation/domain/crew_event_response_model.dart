@@ -271,9 +271,11 @@ abstract final class CrewEventResponseModel {
   /// Relative SPE dose by module shielding (team estimate; OCHMO-TB-020 and
   /// SRAG describe higher dose in thinly shielded areas and the crew
   /// sheltering in the most shielded modules).
+  static const double maxShieldingFactor = 1.35;
+
   static double shieldingFactor(String zone) {
     final z = zone.toLowerCase();
-    if (z.contains('cupola') || z.contains('cúpula')) return 1.35;
+    if (z.contains('cupola') || z.contains('cúpula')) return maxShieldingFactor;
     if (z.contains('airlock') || z.contains('esclusa') || z.contains('eva')) return 1.25;
     if (z.contains('columbus') || z.contains('kibo') || z.contains('lab')) return 1.0;
     if (z.contains('destiny') || z.contains('command')) return 0.9;
@@ -353,8 +355,11 @@ abstract final class CrewEventResponseModel {
       case SimulationEvent.sleepLoss:
         episodes.add(episode(AffectionKind.sleepDebt, exposure, {SimVar.sleepHours: -3.0}));
       case SimulationEvent.solarParticleEvent:
-        episodes.add(episode(AffectionKind.radiationExposure, exposure, {SimVar.doseRate: 140.0}));
-        cumulativeDose = 1.5 * exposure;
+        // The original 180 µSv/h (+140) and +1.5 mSv are the reading in the
+        // least-shielded module; sheltered modules receive proportionally less.
+        final relative = exposure / maxShieldingFactor;
+        episodes.add(episode(AffectionKind.radiationExposure, exposure, {SimVar.doseRate: 140.0 / maxShieldingFactor}));
+        cumulativeDose = 1.5 * relative;
       case SimulationEvent.workload:
         episodes.add(episode(AffectionKind.physicalStrain, (exposure * susceptibility).clamp(0.3, 1.2),
             {SimVar.heartRate: 48.0, SimVar.respiratoryRate: 11.0, SimVar.spO2: -6.0, SimVar.waterMl: -900.0}));

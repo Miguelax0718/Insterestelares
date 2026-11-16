@@ -5,9 +5,11 @@ import '../../../02_radiation/models/radiation_dose.dart';
 import '../../../02_radiation/providers/biomarker_providers.dart';
 import '../../../apolo/providers/apolo_providers.dart';
 import '../../../crew/presentation/providers/crew_provider.dart';
+import '../../domain/crew_adaptation_model.dart';
 import '../../domain/crew_event_response_model.dart';
 import '../../domain/mission_simulator_state.dart';
 
+export '../../domain/crew_adaptation_model.dart';
 export '../../domain/crew_event_response_model.dart';
 export '../../domain/mission_simulator_state.dart';
 
@@ -19,7 +21,8 @@ final missionSimulatorProvider =
     );
 
 /// Deterministic synthetic scenarios for exercising the existing clinical rules.
-/// Events reach each crew member differently (seeded individual-response model).
+/// Days advance through a bounded, individual adaptation model, and events
+/// reach each crew member differently (seeded individual-response model).
 class MissionSimulatorNotifier extends StateNotifier<MissionSimulatorState> {
   MissionSimulatorNotifier(this._ref) : super(const MissionSimulatorState());
   final Ref _ref;
@@ -43,6 +46,7 @@ class MissionSimulatorNotifier extends StateNotifier<MissionSimulatorState> {
       missionType: state.missionType,
       wholeCrew: state.wholeCrew,
       seed: state.seed,
+      baselines: _captureBaselines(),
     );
     _log('Nominal baseline restored');
     _ref.read(simulationResetCounterProvider.notifier).state++;
@@ -71,33 +75,56 @@ class MissionSimulatorNotifier extends StateNotifier<MissionSimulatorState> {
       throw ArgumentError.value(days, 'days', 'Expected 1–365 days');
     }
     for (var i = 0; i < days; i++) {
-      final factor = switch (state.missionType) {
-        MissionType.orbital => 0.6,
-        MissionType.lunar => 1.0,
-        MissionType.transit => 1.4,
-        MissionType.surface => 1.6,
-      };
       final day = state.missionDay + 1;
-      _ref.read(crewMembersProvider.notifier).applyProgressiveDay(
-        missionDay: day,
-        doseRateDeltaMicroSv: 4.0 * factor,
-        cumulativeDoseDeltaMsv: 0.15 * factor,
-        sleepDeltaHours: -0.12 * factor,
-        hrDelta: 1.6 * factor,
-        bpDelta: 0.7 * factor,
-        exerciseTargetMet: day < 12,
-      );
-      _ref.read(apoloStateNotifierProvider.notifier).applySimulationProgress(
-        missionDay: day,
-        extraDoseMsv: 0.15 * factor,
-        sleepDeltaHours: -0.12 * factor,
-        waterDeltaMl: -(60 * factor).round(),
-      );
-      _ref.read(selectedMissionDayProvider.notifier).state = day;
       state = state.copyWith(missionDay: day);
-      _log('Progressive ${state.missionType.name} drift');
+      _ref.read(selectedMissionDayProvider.notifier).state = day;
+      _applyAdaptationDay(day);
       _evolveEpisodes(day);
     }
+  }
+
+  Map<String, CrewBaseline> _captureBaselines() {
+    final apolo = _ref.read(apoloStateNotifierProvider);
+    return {
+      for (final p in _ref.read(crewMembersProvider))
+        p.id: CrewBaseline(
+          id: p.id,
+          heartRate: p.vitals.heartRate,
+          systolicBP: p.vitals.systolicBP,
+          diastolicBP: p.vitals.diastolicBP,
+          sleepHours: p.sleep.sleepHours,
+          doseRate: p.radiation.doseRateMicroSvPerHour,
+          waterGoalMl: apolo[p.id]?.waterGoalMl ?? 2500,
+        ),
+    };
+  }
+
+  /// Event-free day: each crew member adapts within bounded, individual ranges
+  /// (no unbounded drift), so serious cases only come from events.
+  void _applyAdaptationDay(int day) {
+    final baselines = {..._captureBaselines(), ...state.baselines};
+    final background = Map<String, CrewBackground>.of(state.background);
+    final missed = <String>[];
+    for (final b in baselines.values) {
+      final previous = background[b.id] ??
+          CrewAdaptationModel.on(b: b, missionDay: day - 1, type: state.missionType, seed: state.seed);
+      final today = CrewAdaptationModel.on(b: b, missionDay: day, type: state.missionType, seed: state.seed);
+      _applyDeltas(
+        b.id,
+        today.deltaFrom(previous),
+        label: 'Mission day $day',
+        extraDoseMsv: today.dailyDoseMsv,
+        exerciseTargetReached: today.exerciseTargetReached,
+      );
+      if (!today.exerciseTargetReached) missed.add(b.id);
+      background[b.id] = today;
+    }
+    // Keeps APOLO-only members (no crew profile) on the same mission day.
+    _ref.read(apoloStateNotifierProvider.notifier)
+        .applySimulationProgress(missionDay: day, extraDoseMsv: 0, sleepDeltaHours: 0);
+    state = state.copyWith(baselines: baselines, background: background);
+    _log('Routine ${state.missionType.name} day'
+        '${missed.isEmpty ? '' : ' (exercise session missed: ${missed.join(', ')})'}');
   }
 
   void setWholeCrew(bool value) {
@@ -152,7 +179,7 @@ class MissionSimulatorNotifier extends StateNotifier<MissionSimulatorState> {
         deltas,
         label: event.name,
         extraDoseMsv: r.cumulativeDoseMsv,
-        exerciseMissed: event == SimulationEvent.exerciseFailure ? true : null,
+        exerciseTargetReached: event == SimulationEvent.exerciseFailure ? false : null,
       );
       final pct = (r.probabilityAffected * 100).round();
       final outcome = r.affected
@@ -229,7 +256,7 @@ class MissionSimulatorNotifier extends StateNotifier<MissionSimulatorState> {
     Map<String, double> d, {
     required String label,
     double extraDoseMsv = 0,
-    bool? exerciseMissed,
+    bool? exerciseTargetReached,
   }) {
     final matches = _ref.read(crewMembersProvider).where((p) => p.id == astronautId);
     if (matches.isEmpty) return;
@@ -265,7 +292,7 @@ class MissionSimulatorNotifier extends StateNotifier<MissionSimulatorState> {
       ),
       exercise: p.exercise.copyWith(
         source: 'simulation',
-        targetReached: exerciseMissed == true ? false : p.exercise.targetReached,
+        targetReached: exerciseTargetReached ?? p.exercise.targetReached,
       ),
       eventLabel: label,
     );

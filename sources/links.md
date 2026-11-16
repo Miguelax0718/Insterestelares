@@ -126,5 +126,6 @@ Fuentes usadas para estimar los valores de referencia de los biomarcadores. El d
 - [`DB/scientific_criteria.json`](../DB/scientific_criteria.json) — Rangos operativos nominales, de advertencia y críticos parametrizados para la aplicación.
 - [`sources/medical/radiation_dosimetry.md`](./medical/radiation_dosimetry.md) — Marco clínico y operacional de dosimetría de radiación espacial.
 - [`sources/medical/event_variability.md`](./medical/event_variability.md) — Respuesta individual y evolutiva de cada tripulante a los eventos del simulador (fuentes y estimaciones). Fuentes nuevas: Van Dongen et al. 2004 (*Sleep* 27(3):423–433), Spiegel, Leproult & Van Cauter 1999 (*Lancet* 354:1435–1439), Banks et al. 2010 (*Sleep* 33(8):1013–1026) y Smith et al. 2012 (*J Bone Miner Res* 27(9):1896–1906).
+- [`sources/medical/crew_adaptation.md`](./medical/crew_adaptation.md) — Adaptación diaria acotada e individual de cada tripulante sin eventos (reemplaza el deterioro diario fijo del simulador). Usa Norsk 2015, Barger 2014 y NASA-STD-3001.
 - [`sources/nasa/challenge_brief.md`](./nasa/challenge_brief.md) — Resumen oficial del reto de NASA Space Apps Challenge.
 - [`sources/notes/final_product_concept_and_roadmap.md`](./notes/final_product_concept_and_roadmap.md) — Concepto de producto final, análisis de brechas y hoja de ruta del proyecto.

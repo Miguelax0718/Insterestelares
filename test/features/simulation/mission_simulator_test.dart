@@ -55,7 +55,7 @@ void main() {
     }
   });
 
-  test('batch progress equals individual days and becomes warning then critical', () {
+  test('batch progress equals individual days; routine days stay bounded without events', () {
     final a = create();
     final b = create();
     a.read(missionSimulatorProvider.notifier).advanceDays(5);
@@ -66,8 +66,9 @@ void main() {
     expect(a.read(crewMembersProvider).first.vitals.heartRate, b.read(crewMembersProvider).first.vitals.heartRate);
     expect(a.read(apoloStateNotifierProvider)['AST-01']!.samples.last.values, b.read(apoloStateNotifierProvider)['AST-01']!.samples.last.values);
     expect(a.read(crewMembersProvider).any((p) => p.riskLevel == CrewRiskLevel.warning), isTrue);
+    // Without events nobody becomes critical: serious cases come from events.
     a.read(missionSimulatorProvider.notifier).advanceDays(30);
-    expect(a.read(crewMembersProvider).any((p) => p.riskLevel == CrewRiskLevel.critical), isTrue);
+    expect(a.read(crewMembersProvider).any((p) => p.riskLevel == CrewRiskLevel.critical), isFalse);
   });
 
   test('mission environments produce different deterministic drift', () {
