@@ -212,25 +212,84 @@ class _ManualFormState extends ConsumerState<_ManualForm> {
       'body_temp': record.bodyTemp, 'source': 'manual'});
   }
   @override
-  Widget build(BuildContext context) => CockpitCard(
-    title: 'Manual Vitals (Tap-to-Count)', onDismiss: widget.onDismiss, children: [
-      Text('${widget.astronaut.callsign} • ${widget.astronaut.id}'),
-      const Text('Pulse: radial artery, 15s ×4. Respiration: chest rises, 30s ×2. '
-        'Capillary refill: press nail for 5s, release, then time color return.'),
-      OutlinedButton.icon(
-        key: const ValueKey('manual_vitals_ask_apolo_button'),
-        icon: const Icon(Icons.pets),
-        label: const Text('Ask Apolo how to measure manually'),
-        onPressed: () {
-          final orchestrator = ref.read(agentOrchestratorProvider.notifier);
-          final speakReply = ref.read(agentVoiceRepliesEnabledProvider);
-          widget.onDismiss();
-          unawaited(orchestrator.sendUserMessage(
-            'How do I measure vital signs manually without sensors?',
-            speakReply: speakReply,
-          ));
-        },
-      ),
+  Widget build(BuildContext context) {
+    const p = ApoloPalette.standard;
+    return CockpitCard(
+      title: 'Manual Vitals (Tap-to-Count)',
+      onDismiss: widget.onDismiss,
+      children: [
+        Text(
+          '${widget.astronaut.callsign} • ${widget.astronaut.id}',
+          style: TextStyle(color: p.text2),
+        ),
+        const SizedBox(height: 10),
+        FilledButton(
+          key: const ValueKey('manual_vitals_ask_apolo_button'),
+          style: FilledButton.styleFrom(
+            backgroundColor: p.lav.withValues(alpha: 0.28),
+            foregroundColor: p.text,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+              side: BorderSide(color: p.mint.withValues(alpha: 0.75), width: 1.5),
+            ),
+            alignment: Alignment.centerLeft,
+          ),
+          onPressed: () {
+            final orchestrator = ref.read(agentOrchestratorProvider.notifier);
+            final speakReply = ref.read(agentVoiceRepliesEnabledProvider);
+            widget.onDismiss();
+            unawaited(orchestrator.sendUserMessage(
+              'How do I measure vital signs manually without sensors?',
+              speakReply: speakReply,
+            ));
+          },
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: p.mint.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: p.mint.withValues(alpha: 0.5)),
+                ),
+                child: Icon(Icons.pets, color: p.mint, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Ask Apolo how to measure manually',
+                      style: TextStyle(
+                        color: p.mint,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Need guidance? Apolo explains pulse, breathing & capillary refill step by step.',
+                      style: TextStyle(
+                        color: p.text,
+                        fontWeight: FontWeight.w400,
+                        fontSize: 12,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(Icons.arrow_forward_ios_rounded, size: 15, color: p.lav2),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        const Text('Pulse: radial artery, 15s ×4. Respiration: chest rises, 30s ×2. '
+          'Capillary refill: press nail for 5s, release, then time color return.'),
       for (var i = 0; i < 2; i++) ...[
         Text('${i == 0 ? 'Pulse' : 'Respiration'}: ${_remaining[i]}s • ${_taps[i]} taps'),
         Wrap(spacing: 8, children: [
@@ -257,4 +316,5 @@ class _ManualFormState extends ConsumerState<_ManualForm> {
       FilledButton(onPressed: _remaining.any((r) => r > 0) || _capClock.isRunning
         ? null : _save, child: const Text('Save Manual Vitals')),
     ]);
+  }
 }

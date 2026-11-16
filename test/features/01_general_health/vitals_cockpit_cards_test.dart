@@ -21,7 +21,37 @@ class _OfflineChat implements AgentChatService {
 }
 
 void main() {
+  testWidgets('manual guidance is a full-width first action at 360px', (tester) async {
+    tester.view.physicalSize = const Size(360, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(ProviderScope(child: MaterialApp(home: Scaffold(
+      body: SingleChildScrollView(child: ManualVitalsTapCard(
+        onDismiss: () {}, onSubmit: (_) {},
+      )),
+    ))));
+    final button = find.byKey(const ValueKey('manual_vitals_ask_apolo_button'));
+    expect(tester.widget(button), isA<FilledButton>());
+    expect(find.descendant(of: button, matching: find.byIcon(Icons.pets)), findsOneWidget);
+    expect(find.text('Ask Apolo how to measure manually'), findsOneWidget);
+    expect(
+      find.text('Need guidance? Apolo explains pulse, breathing & capillary refill step by step.'),
+      findsOneWidget,
+    );
+    final buttonRect = tester.getRect(button);
+    final fieldRect = tester.getRect(find.byKey(const ValueKey('manual-heart-rate')));
+    expect(buttonRect.left, fieldRect.left);
+    expect(buttonRect.width, fieldRect.width);
+    expect(buttonRect.bottom, lessThan(tester.getTopLeft(find.textContaining('Pulse: radial artery')).dy));
+    expect(button.hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('Ask Apolo dismisses manual vitals and replies with all measurements', (tester) async {
+    tester.view.physicalSize = const Size(360, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     final container = ProviderContainer(overrides: [
       agentChatServiceProvider.overrideWithValue(_OfflineChat()),
     ]);
@@ -55,6 +85,7 @@ void main() {
     expect(state.activeComponents.map((c) => c.componentId),
       isNot(contains('manual_vitals')));
     expect(container.read(selectedAstronautProvider).vitals, same(before));
+    expect(tester.takeException(), isNull);
   });
   testWidgets('live trend reacts to packets and filters the selected astronaut', (tester) async {
     final container = ProviderContainer();
