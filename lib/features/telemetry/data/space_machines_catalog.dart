@@ -22,7 +22,7 @@ class SpaceMachinesCatalog {
         algorithm: 'NASA-HRP BioSignalKalman v3.2',
         criterionReference: 'NASA-STD-3001 Vol. 1 & Vol. 2 / MedicalThresholds',
         description:
-            'Continuous biometric vest with textile ECG, respiratory rate, tidal volume, triaxial acceleration and skin temperature sensors.',
+            'Smart wearable vest that tracks your heart rate, breathing, blood pressure, blood oxygen, and skin temperature.',
         supportedMetrics: [
           'heartRate',
           'respiratoryRate',
@@ -50,7 +50,7 @@ class SpaceMachinesCatalog {
         algorithm: 'SRAG-LET-Dosimetry v2.4',
         criterionReference: 'NASA-STD-3001 Permissible Exposure Limits (PEL)',
         description:
-            'Timepix active silicon personal and area dosimeter. Measures instantaneous dose rate in microSieverts per hour and cumulative heavy-particle and cosmic-ray dose.',
+            'Personal radiation badge that measures live cosmic radiation exposure and your total mission dose.',
         supportedMetrics: [
           'doseRateMicroSvPerHour',
           'cumulativeDoseMilliSv',
@@ -74,7 +74,7 @@ class SpaceMachinesCatalog {
         algorithm: 'ESA-EPM HemodynamicPulseWave v2.0',
         criterionReference: 'NASA-STD-3001 Cardiovascular Health Monitoring',
         description:
-            'Cardiovascular diagnostic module with peripheral vascular ultrasound and non-invasive central venous pressure and cardiac output measurements.',
+            'Finger and vascular cuff monitor that tracks your blood pressure, heart rate, and blood flow.',
         supportedMetrics: [
           'systolicBP',
           'diastolicBP',
@@ -100,7 +100,7 @@ class SpaceMachinesCatalog {
         criterionReference:
             'NASA-STD-3001 Musculoskeletal Countermeasure Protocol',
         description:
-            'Advanced resistive exercise device using vacuum cylinders to emulate loads up to 270 kg. Records repetitions, peak load force and energy expenditure.',
+            'Zero-G strength trainer that logs resistance workouts, effort, and calories to protect bone and muscle.',
         supportedMetrics: [
           'deviceName',
           'durationMinutes',
@@ -125,7 +125,7 @@ class SpaceMachinesCatalog {
         algorithm: 'NASA-CEVIS AerobicVO2Estimator v1.5',
         criterionReference: 'NASA-STD-3001 Aerobic Countermeasure Protocol',
         description:
-            'Vibration-isolated cycle ergometer for aerobic cardiovascular training in microgravity. Records power in watts, cadence and energy expenditure.',
+            'Space exercise bike that tracks cardio sessions, pedaling power, heart rate, and calories burned.',
         supportedMetrics: [
           'deviceName',
           'durationMinutes',
@@ -151,7 +151,7 @@ class SpaceMachinesCatalog {
         algorithm: 'PointOfCare-Chem8 CalibrationCurve v4.1',
         criterionReference: 'NASA-ISS CHeCS Clinical Blood Lab Standards',
         description:
-            'Portable clinical blood analyzer using micro-cartridges. Reports electrolytes, blood gases, lactate, hematocrit and capillary blood glucose in 2 minutes.',
+            'Portable blood analyzer that checks blood chemistry, hydration, and electrolytes from a tiny sample.',
         supportedMetrics: [
           'bloodGlucose',
           'spO2',
@@ -175,7 +175,7 @@ class SpaceMachinesCatalog {
         criterionReference:
             'NASA-STD-3001 Behavioral Health & Circadian Standard',
         description:
-            'Wrist light-spectrum and multiaxis actigraphy monitor for objective tracking of sleep/wake cycles, latency and awakening episodes in orbit.',
+            'Sleep & light wrist sensor that tracks how long you sleep, night wakeups, and daily light exposure.',
         supportedMetrics: [
           'sleepHours',
           'wakeEpisodes',

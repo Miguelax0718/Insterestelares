@@ -21,6 +21,63 @@ import 'package:astramed/features/telemetry/data/space_machines_catalog.dart';
 import 'package:astramed/features/telemetry/models/telemetry_machine.dart';
 
 void main() {
+  testWidgets('Machine details are optional and readings stay understandable',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        crewMembersProvider.overrideWith(
+          (ref) => CrewNotifier(null, MockCrewData.getNominalCrew()),
+        ),
+      ],
+      child: MaterialApp(
+        theme: buildApoloTheme(),
+        home: const Scaffold(body: TelemetryConfigModal()),
+      ),
+    ));
+    expect(find.textContaining('Algorithm:'), findsNothing);
+    expect(find.textContaining('Protocol:'), findsNothing);
+    expect(find.text(
+      'Smart wearable vest that tracks your heart rate, breathing, blood pressure, blood oxygen, and skin temperature.',
+    ), findsOneWidget);
+    expect(find.text('Heart Rate'), findsWidgets);
+    expect(find.text('heartRate'), findsNothing);
+    final card = find.ancestor(
+      of: find.text('Bio-Monitor Astroskin'),
+      matching: find.byType(Card),
+    );
+    await tester.tap(find.descendant(
+      of: card, matching: find.text('Capture Reading Now'),
+    ));
+    await tester.pump();
+    expect(find.descendant(
+      of: card, matching: find.textContaining('Last reading at '),
+    ), findsOneWidget);
+    expect(find.textContaining('astronautId='), findsNothing);
+    final toggle = find.byKey(
+      const ValueKey('machine_details_toggle_DEV-ASTROSKIN'),
+    );
+    await tester.tap(toggle);
+    await tester.pump();
+    expect(find.text('Hide details'), findsOneWidget);
+    expect(find.text('Algorithm: NASA-HRP BioSignalKalman v3.2'), findsOneWidget);
+    expect(find.text('Protocol: ANT+ / BLE SpaceBus v3.2'), findsOneWidget);
+    expect(find.textContaining('astronautId=AST-01'), findsOneWidget);
+    expect(find.textContaining('Raw metric keys: heartRate'), findsOneWidget);
+    await tester.tap(toggle);
+    await tester.pump();
+    expect(find.textContaining('Algorithm:'), findsNothing);
+    expect(find.textContaining('astronautId='), findsNothing);
+    expect(find.descendant(
+      of: card, matching: find.textContaining('Last reading at '),
+    ), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('English telemetry modal preserves profile selection and hides DB JSON inspection',
       (tester) async {
     await tester.pumpWidget(ProviderScope(
