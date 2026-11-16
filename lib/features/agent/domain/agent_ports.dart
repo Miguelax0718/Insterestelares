@@ -41,6 +41,18 @@ abstract interface class TextToSpeechService {
   Future<void> dispose();
 }
 
+/// Optional TTS capability that separates synthesis latency from playback so
+/// callers can synchronize UI/speaking state with actual audio readiness.
+abstract interface class SynchronizedTextToSpeechService
+    implements TextToSpeechService {
+  Future<void> speakSynchronized(
+    String text, {
+    String? voice,
+    String language = 'en-US',
+    required void Function() onAudioReady,
+  });
+}
+
 /// Optional speaking-state signal exposed by TTS wrappers/services so
 /// hands-free capture can avoid self-transcription while the agent speaks.
 abstract interface class TtsSpeakingSignal {

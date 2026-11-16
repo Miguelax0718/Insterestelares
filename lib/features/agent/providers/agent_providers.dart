@@ -8,6 +8,8 @@ import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 
 import '../../01_general_health/agent/general_health_skills.dart';
+import '../../01_general_health/agent/scientific_telemetry_agent_skill.dart';
+import '../../01_general_health/domain/telemetry_view_contracts.dart';
 import '../../02_radiation/agent/donki_space_weather_service.dart';
 import '../../02_radiation/agent/radiation_agent_skills.dart';
 import '../../02_radiation/agent/radiation_health_skills.dart';
@@ -16,15 +18,20 @@ import '../../03_microgravity/agent/graybiel_engine.dart';
 import '../../03_microgravity/agent/microgravity_skills.dart';
 import '../../03_microgravity/agent/procedures_engine.dart';
 import '../../03_microgravity/agent/sans_engine.dart';
+import '../../03_microgravity/presentation/cockpit_widgets/apolo_cockpit_overrides.dart';
 import '../../04_mental_health/agent/mental_health_skills.dart';
+import '../../05_clinical_triage/agent/clinical_navigation_and_procedures_skill.dart';
 import '../../05_clinical_triage/agent/proactive_monitor.dart';
 import '../../05_clinical_triage/agent/triage_agent_skills.dart';
+import '../../05_clinical_triage/domain/hybrid_llm_triage_service.dart';
+import '../../apolo/providers/apolo_providers.dart';
 import '../../crew/presentation/providers/crew_provider.dart';
 import '../../pharmacy/data/asset_pharmacy_inventory_repository.dart';
 import '../../pharmacy/domain/deterministic_medication_safety.dart';
 import '../../pharmacy/domain/pharmacy_inventory_repository.dart';
 import '../application/agent_conversation_controller.dart';
 import '../application/component_registry.dart';
+import '../application/component_submission_coordinator.dart';
 import '../application/core_tools.dart';
 import '../application/hands_free_controller.dart';
 import '../application/skill_registry.dart';
@@ -43,6 +50,7 @@ import '../domain/agent_config.dart';
 import '../domain/agent_contracts.dart';
 import '../domain/agent_models.dart';
 import '../domain/agent_ports.dart';
+import '../domain/guided_assessment_catalog.dart';
 import '../presentation/component_widget_registry.dart';
 
 class MissionContextMetadata {
@@ -253,18 +261,66 @@ final medicationSafetyProvider = Provider<MedicationSafety>((ref) {
   );
 });
 
-final extraAgentSkillsProvider = Provider<List<AgentSkill>>((ref) => const []);
+final operationalEnvironmentProvider = StateProvider<SpaceOperationalEnvironment>(
+  (ref) => SpaceOperationalEnvironment.spaceStation,
+);
+
+class ClinicalNavigationRequest {
+  const ClinicalNavigationRequest({
+    this.tabIndex = 0,
+    this.openManualVitals = false,
+    this.procedureId,
+    required this.nonce,
+  });
+
+  /// 0=Salud, 1=Radiación, 2=Microgravedad, 3=Descanso, 4=Triage.
+  final int tabIndex;
+  final bool openManualVitals;
+  final String? procedureId;
+  final int nonce;
+}
+
+final clinicalNavigationRequestProvider =
+    StateProvider<ClinicalNavigationRequest?>((ref) => null);
+
+final pendingManualVitalsDialogProvider = StateProvider<bool>((ref) => false);
+
+final pendingProcedureSelectionProvider = StateProvider<String?>((ref) => null);
+
+final hybridAiConfigProvider = StateProvider<HybridAiConfig>(
+  (ref) => const HybridAiConfig(),
+);
+
+final hybridLlmTriageServiceProvider = Provider<HybridLlmTriageService>(
+  (ref) => HybridLlmTriageService(httpClient: ref.watch(httpClientProvider)),
+);
+
+final extraAgentSkillsProvider = Provider<List<AgentSkill>>(
+  (ref) => [
+    ...scientificTelemetryAgentSkills(),
+    clinicalNavigationAndProceduresSkill(),
+  ],
+);
 
 final extraComponentSpecsProvider =
     Provider<Map<String, ComponentSpec<AgentViewModel>>>((ref) => const {});
 
 final componentWidgetOverridesProvider =
-    Provider<Map<String, AgentComponentWidgetBuilder>>((ref) => const {});
+    Provider<Map<String, AgentComponentWidgetBuilder>>((ref) => buildApoloCockpitComponentOverrides());
+
+final microgravitySkillStateProvider = Provider<MicrogravitySkillState>(
+  (ref) => MicrogravitySkillState(),
+);
+
+final componentSubmissionCoordinatorProvider = Provider<ComponentSubmissionCoordinator>(
+  (ref) => ComponentSubmissionCoordinator(ref.watch(microgravitySkillStateProvider)),
+);
 
 final skillRegistryProvider = Provider<SkillRegistry>((ref) {
   final weather = ref.watch(donkiSpaceWeatherServiceProvider);
   final pharmacyRepo = ref.watch(pharmacyInventoryRepositoryProvider);
   final extraSkills = ref.watch(extraAgentSkillsProvider);
+  final apoloSkill = ref.watch(apoloUrineSkillProvider);
 
   return SkillRegistry([
     coreSkill(),
@@ -274,9 +330,10 @@ final skillRegistryProvider = Provider<SkillRegistry>((ref) {
       pharmacyRepository: pharmacyRepo,
     ),
     radiationHealthSkill(),
-    ...microgravitySkills(),
+    ...microgravitySkills(ref.watch(microgravitySkillStateProvider)),
     ...mentalHealthSkills(),
     ...triageAgentSkills(),
+    apoloSkill,
     ...extraSkills,
   ]);
 });
@@ -284,6 +341,14 @@ final skillRegistryProvider = Provider<SkillRegistry>((ref) {
 final componentRegistryProvider = Provider<ComponentRegistry>((ref) {
   final extraSpecs = ref.watch(extraComponentSpecsProvider);
   final registry = ComponentRegistry();
+  for (final id in MicrogravityCockpitIds.all) {
+    registry.register(ComponentSpec<GenericComponentViewModel>(
+      id: id,
+      fromProps: (props) => GenericComponentViewModel(
+        componentId: id, title: props['title'] as String? ?? id, props: props,
+      ),
+    ));
+  }
 
   // Module 01: General Health
   registry.register(
@@ -474,6 +539,8 @@ final agentOrchestratorProvider =
         componentRegistry: componentRegistry,
         initialAstronautId: initialAstronautId,
         alertStore: alertStore,
+        submissionCoordinator: ref.watch(componentSubmissionCoordinatorProvider),
+        missionDay: ref.watch(missionContextProvider).missionDay,
         contextFactory: (astronautId, ui) {
           delegatingSink.delegate = ui;
           return ToolContext(

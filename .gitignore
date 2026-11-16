@@ -116,3 +116,9 @@ logs/
 # Real and generated biomarker data stay local (not pushed)
 DB/real/inspiration4/
 DB/samples/biomarkers/
+
+# Local AI agent tooling metadata (regenerated per machine)
+.atl/
+
+# Vercel CLI link metadata
+.vercel/

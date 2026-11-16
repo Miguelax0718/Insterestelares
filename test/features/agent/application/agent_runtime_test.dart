@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:astramed/features/agent/application/agent_conversation_controller.dart';
@@ -252,6 +253,51 @@ class _FakeTtsService implements TextToSpeechService {
   }
 }
 
+class _ControllableSynchronizedTts implements SynchronizedTextToSpeechService {
+  Completer<void> synthGate = Completer<void>();
+  Completer<void> playGate = Completer<void>();
+  Object? errorToThrow;
+  final List<String> spoken = [];
+  int syncCalls = 0;
+
+  void resetGates() {
+    synthGate = Completer<void>();
+    playGate = Completer<void>();
+  }
+
+  @override
+  Future<void> speakSynchronized(
+    String text, {
+    String? voice,
+    String language = 'en-US',
+    required void Function() onAudioReady,
+  }) async {
+    syncCalls++;
+    if (errorToThrow != null) {
+      throw errorToThrow!;
+    }
+    await synthGate.future;
+    spoken.add(text);
+    onAudioReady();
+    await playGate.future;
+  }
+
+  @override
+  Future<void> speak(String text, {String? voice, String language = 'en-US'}) =>
+      speakSynchronized(
+        text,
+        voice: voice,
+        language: language,
+        onAudioReady: () {},
+      );
+
+  @override
+  Future<void> stop() async {}
+
+  @override
+  Future<void> dispose() async {}
+}
+
 class _FakeGraybielFlow implements DeterministicFlow {
   int step = 0;
 
@@ -458,7 +504,11 @@ void main() {
       expect(skill.id, 'core');
       expect(skill.alwaysOn, isTrue);
       tools = {for (final t in skill.tools) t.name: t};
-      expect(tools.keys, hasLength(7));
+      expect(tools.keys, hasLength(9));
+      expect(
+        tools.keys,
+        containsAll(['get_available_assessments', 'launch_assessment']),
+      );
     });
 
     tearDown(() => container.dispose());
@@ -1179,5 +1229,131 @@ void main() {
         );
       },
     );
+
+    test('S4: SynchronizedTextToSpeechService holds busy=true and withholds assistant reply until onAudioReady, commits on error, and commits immediately when speakReply=false', () async {
+      final chat = _FakeChatService((messages, _, _, _) async {
+        return const AgentReply(
+          reply: 'Hydration looks low, Commander.',
+          model: 'm1',
+        );
+      });
+      final tts = _ControllableSynchronizedTts();
+      final orchestrator = AgentConversationOrchestrator(
+        chat: chat,
+        tts: tts,
+        skillRegistry: skillRegistry,
+        componentRegistry: componentRegistry,
+        contextFactory: buildCtx,
+      );
+
+      // 1) speakReply: true holds busy=true until onAudioReady fires.
+      final turnFuture = orchestrator.sendUserMessage(
+        'How is hydration?',
+        speakReply: true,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(orchestrator.state.busy, isTrue);
+      expect(
+        orchestrator.state.messages.where((m) => m.role == ChatRole.assistant),
+        isEmpty,
+      );
+
+      // Synthesis finishes -> onAudioReady fires -> busy flips false & reply commits.
+      tts.synthGate.complete();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(orchestrator.state.busy, isFalse);
+      expect(orchestrator.state.messages.last.role, ChatRole.assistant);
+      expect(
+        orchestrator.state.messages.last.content,
+        'Hydration looks low, Commander.',
+      );
+
+      tts.playGate.complete();
+      await turnFuture;
+
+      // 2) speakReply: false commits immediately without calling speakSynchronized.
+      final syncCallsBefore = tts.syncCalls;
+      final silentState = await orchestrator.sendUserMessage(
+        'Silent follow-up',
+        speakReply: false,
+      );
+      expect(tts.syncCalls, syncCallsBefore);
+      expect(silentState.busy, isFalse);
+      expect(
+        silentState.messages.last.content,
+        'Hydration looks low, Commander.',
+      );
+
+      // 3) If synthesis throws, finally guard still commits message and clears busy.
+      tts.errorToThrow = StateError('Audio synthesis failed');
+      final errorTtsState = await orchestrator.sendUserMessage(
+        'Retry with voice',
+        speakReply: true,
+      );
+      expect(errorTtsState.busy, isFalse);
+      expect(
+        errorTtsState.messages.last.content,
+        'Hydration looks low, Commander.',
+      );
+    });
+
+    test('S4: offline fallback with SynchronizedTextToSpeechService holds busy=true until onAudioReady when speakReply=true', () async {
+      final chat = _FakeChatService((_, _, _, _) async {
+        throw const AgentUnavailableException();
+      });
+      final tts = _ControllableSynchronizedTts();
+      final orchestrator = AgentConversationOrchestrator(
+        chat: chat,
+        tts: tts,
+        skillRegistry: skillRegistry,
+        componentRegistry: componentRegistry,
+        contextFactory: buildCtx,
+      );
+
+      final turnFuture = orchestrator.sendUserMessage(
+        'I have nausea',
+        speakReply: true,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(orchestrator.state.busy, isTrue);
+      expect(
+        orchestrator.state.messages.where((m) => m.role == ChatRole.assistant),
+        isEmpty,
+      );
+
+      tts.synthGate.complete();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(orchestrator.state.busy, isFalse);
+      expect(orchestrator.state.offlineMode, isTrue);
+      expect(orchestrator.state.messages.last.content, contains('Step 1'));
+
+      tts.playGate.complete();
+      await turnFuture;
+    });
+
+    test('S4: whitespace-only reply with speakReply=true clears busy without calling speakSynchronized', () async {
+      final chat = _FakeChatService((_, _, _, _) async {
+        return const AgentReply(reply: '   ', model: 'm1');
+      });
+      final tts = _ControllableSynchronizedTts();
+      final orchestrator = AgentConversationOrchestrator(
+        chat: chat,
+        tts: tts,
+        skillRegistry: skillRegistry,
+        componentRegistry: componentRegistry,
+        contextFactory: buildCtx,
+      );
+
+      final state = await orchestrator.sendUserMessage(
+        'ping',
+        speakReply: true,
+      );
+      expect(state.busy, isFalse);
+      expect(tts.syncCalls, 0);
+    });
   });
 }

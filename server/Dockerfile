@@ -2,6 +2,7 @@
 FROM python:3.12-slim AS base
 
 ARG PIPER_VOICE=en_US-lessac-medium
+ARG WHISPER_MODEL=base
 ARG KOKORO_RELEASE_URL=https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1
 ARG KOKORO_MODEL_FILE=kokoro-v1.0.onnx
 ARG KOKORO_VOICES_FILE=voices-v1.0.bin
@@ -16,9 +17,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIPER_VOICES_DIR=/app/voices \
     KOKORO_MODEL_PATH=/app/models/kokoro/${KOKORO_MODEL_FILE} \
     KOKORO_VOICES_PATH=/app/models/kokoro/${KOKORO_VOICES_FILE} \
-    KOKORO_VOICE=af_heart \
+    KOKORO_VOICE=am_puck \
     KOKORO_SPEED=1.0 \
     KOKORO_LANG=en-us \
+    WHISPER_MODEL=${WHISPER_MODEL} \
     WHISPER_DOWNLOAD_ROOT=/app/models
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -42,7 +44,9 @@ RUN mkdir -p "${PIPER_VOICES_DIR}" "${WHISPER_DOWNLOAD_ROOT}/kokoro" \
     && python -m piper.download_voices "${PIPER_VOICE}" --data-dir "${PIPER_VOICES_DIR}" \
     && python -c "import sys, urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2]); urllib.request.urlretrieve(sys.argv[3], sys.argv[4])" \
        "${KOKORO_RELEASE_URL}/${KOKORO_MODEL_FILE}" "${KOKORO_MODEL_PATH}" \
-       "${KOKORO_RELEASE_URL}/${KOKORO_VOICES_FILE}" "${KOKORO_VOICES_PATH}"
+       "${KOKORO_RELEASE_URL}/${KOKORO_VOICES_FILE}" "${KOKORO_VOICES_PATH}" \
+    && python -c "import sys; from faster_whisper.utils import download_model; download_model(sys.argv[1], cache_dir=sys.argv[2])" \
+       "${WHISPER_MODEL}" "${WHISPER_DOWNLOAD_ROOT}"
 
 COPY app ./app
 

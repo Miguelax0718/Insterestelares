@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'dart:math' as math;
+
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +9,7 @@ import 'package:astramed/core/constants/medical_thresholds.dart';
 import 'package:astramed/core/theme/space_theme.dart';
 import 'package:astramed/features/01_general_health/models/vitals_record.dart';
 import 'package:astramed/features/01_general_health/presentation/vitals_trend_card.dart';
+import 'package:astramed/features/agent/providers/agent_providers.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 import 'package:astramed/features/telemetry/models/telemetry_machine.dart';
@@ -12,11 +17,40 @@ import 'package:astramed/features/telemetry/presentation/providers/telemetry_pro
 import 'package:astramed/features/telemetry/presentation/widgets/telemetry_config_modal.dart';
 
 /// Pantalla principal de Salud General conectada al astronauta seleccionado individualmente
-class GeneralHealthView extends ConsumerWidget {
+class GeneralHealthView extends ConsumerStatefulWidget {
   const GeneralHealthView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<GeneralHealthView> createState() => _GeneralHealthViewState();
+}
+
+class _GeneralHealthViewState extends ConsumerState<GeneralHealthView> {
+  String _selectedChartMetric = 'heartRate';
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(_consumePendingManualVitals);
+  }
+
+  void _consumePendingManualVitals() {
+    if (!mounted) return;
+    final shouldOpen = ref.read(pendingManualVitalsDialogProvider);
+    if (!shouldOpen) return;
+    ref.read(pendingManualVitalsDialogProvider.notifier).state = false;
+    final astronaut = ref.read(selectedAstronautProvider);
+    _showManualInputDialog(context, ref, astronaut);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen<bool>(pendingManualVitalsDialogProvider, (_, shouldOpen) {
+      if (!shouldOpen) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _consumePendingManualVitals();
+      });
+    });
+
     final astronaut = ref.watch(selectedAstronautProvider);
     final vitals = astronaut.vitals;
     final connectedMachines = ref.watch(connectedMachinesForSelectedProvider);
@@ -82,6 +116,10 @@ class GeneralHealthView extends ConsumerWidget {
             ),
           ],
         ),
+        const SizedBox(height: 12),
+
+        // ── GRÁFICO HISTÓRICO DE TENDENCIAS CON FL_CHART ──
+        _buildVitalsHistoryChartCard(astronaut, telemetryState),
         const SizedBox(height: 12),
 
         // ── TARJETAS DE SIGNOS VITALES ──
@@ -635,6 +673,278 @@ class GeneralHealthView extends ConsumerWidget {
     );
   }
 
+  Widget _buildVitalsHistoryChartCard(
+    AstronautProfile astronaut,
+    TelemetryState telemetryState,
+  ) {
+    final specs = _vitalsChartSpecs;
+    final spec = specs.firstWhere(
+      (s) => s.metricKey == _selectedChartMetric,
+      orElse: () => specs.first,
+    );
+
+    final matchingPackets = telemetryState.recentLogs
+        .where(
+          (packet) =>
+              packet.astronautId == astronaut.id &&
+              packet.metrics[spec.metricKey] is num,
+        )
+        .toList()
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+    final recentValues = matchingPackets
+        .map((p) => (p.metrics[spec.metricKey] as num).toDouble())
+        .toList();
+    final recentPoints = recentValues.length > 12
+        ? recentValues.sublist(recentValues.length - 12)
+        : recentValues;
+
+    final currentValue = spec.currentValueOf(astronaut.vitals);
+    final hasLiveHistory = recentPoints.length >= 2;
+    final values = hasLiveHistory
+        ? [...recentPoints, currentValue]
+        : [
+            for (final delta in spec.fallbackOffsets) currentValue + delta,
+            currentValue,
+          ];
+
+    final minSample = values.reduce(math.min);
+    final maxSample = values.reduce(math.max);
+    final minY = math.min(spec.chartMinY, minSample - spec.yPadding);
+    final maxY = math.max(spec.chartMaxY, maxSample + spec.yPadding);
+    final spots = [
+      for (var i = 0; i < values.length; i++)
+        FlSpot(i.toDouble(), values[i]),
+    ];
+
+    final isCurrentHealthy =
+        currentValue >= spec.minNormal && currentValue <= spec.maxNormal;
+
+    return Card(
+      color: SpaceTheme.card,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(
+          color: spec.color.withValues(alpha: 0.38),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.show_chart, color: spec.color, size: 20),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Tendencia Histórica de Signos Vitales',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: (hasLiveHistory ? SpaceTheme.cyan : Colors.white24)
+                        .withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    hasLiveHistory ? 'Telemetría en vivo' : 'Base local',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: hasLiveHistory ? SpaceTheme.cyan : Colors.white70,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: specs.map((item) {
+                final selected = item.metricKey == spec.metricKey;
+                return ChoiceChip(
+                  selected: selected,
+                  selectedColor: item.color.withValues(alpha: 0.22),
+                  backgroundColor: SpaceTheme.background,
+                  side: BorderSide(
+                    color: selected ? item.color : Colors.white12,
+                  ),
+                  label: Text(
+                    item.label,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: selected ? item.color : Colors.white70,
+                      fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                  onSelected: (_) {
+                    setState(() => _selectedChartMetric = item.metricKey);
+                  },
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 155,
+              child: LineChart(
+                LineChartData(
+                  minX: 0,
+                  maxX: math.max(1, spots.length - 1).toDouble(),
+                  minY: minY,
+                  maxY: maxY,
+                  clipData: const FlClipData.all(),
+                  rangeAnnotations: RangeAnnotations(
+                    horizontalRangeAnnotations: [
+                      HorizontalRangeAnnotation(
+                        y1: spec.minNormal,
+                        y2: spec.maxNormal,
+                        color: SpaceTheme.green.withValues(alpha: 0.08),
+                      ),
+                    ],
+                  ),
+                  gridData: FlGridData(
+                    drawVerticalLine: false,
+                    horizontalInterval: spec.yInterval,
+                    getDrawingHorizontalLine: (_) =>
+                        const FlLine(color: Colors.white10, strokeWidth: 1),
+                  ),
+                  borderData: FlBorderData(show: false),
+                  titlesData: FlTitlesData(
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 40,
+                        interval: spec.yInterval,
+                        getTitlesWidget: (v, _) => Text(
+                          spec.formatAxisValue(v),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Colors.white54,
+                          ),
+                        ),
+                      ),
+                    ),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        interval: 1,
+                        getTitlesWidget: (v, _) {
+                          final idx = v.toInt();
+                          if (idx == 0 || idx == spots.length - 1) {
+                            return Text(
+                              idx == spots.length - 1 ? 'Actual' : 't0',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Colors.white54,
+                              ),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
+                    ),
+                  ),
+                  extraLinesData: ExtraLinesData(
+                    horizontalLines: [
+                      HorizontalLine(
+                        y: spec.minNormal,
+                        color: SpaceTheme.green.withValues(alpha: 0.45),
+                        strokeWidth: 1,
+                        dashArray: [5, 4],
+                      ),
+                      HorizontalLine(
+                        y: spec.maxNormal,
+                        color: SpaceTheme.warningYellow.withValues(alpha: 0.45),
+                        strokeWidth: 1,
+                        dashArray: [5, 4],
+                      ),
+                    ],
+                  ),
+                  lineTouchData: LineTouchData(
+                    touchTooltipData: LineTouchTooltipData(
+                      getTooltipColor: (_) => SpaceTheme.surface,
+                      fitInsideHorizontally: true,
+                      fitInsideVertically: true,
+                      getTooltipItems: (touched) => [
+                        for (final t in touched)
+                          LineTooltipItem(
+                            '${spec.formatReading(t.y)} ${spec.unit}',
+                            TextStyle(
+                              color: spec.color,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: spots,
+                      isCurved: true,
+                      color: spec.color,
+                      barWidth: 2.4,
+                      belowBarData: BarAreaData(
+                        show: true,
+                        color: spec.color.withValues(alpha: 0.14),
+                      ),
+                      dotData: FlDotData(
+                        getDotPainter: (spot, _, _, _) => FlDotCirclePainter(
+                          radius: 3.2,
+                          color: (spot.y >= spec.minNormal &&
+                                  spot.y <= spec.maxNormal)
+                              ? SpaceTheme.green
+                              : SpaceTheme.dangerRed,
+                          strokeWidth: 1,
+                          strokeColor: SpaceTheme.background,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    'Actual: ${spec.formatReading(currentValue)} ${spec.unit} • Rango NASA: ${spec.formatAxisValue(spec.minNormal)}–${spec.formatAxisValue(spec.maxNormal)} ${spec.unit}',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: isCurrentHealthy
+                          ? Colors.white70
+                          : SpaceTheme.warningYellow,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${spots.length} pts',
+                  style: const TextStyle(fontSize: 11, color: Colors.white54),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showManualInputDialog(
     BuildContext context,
     WidgetRef ref,
@@ -670,62 +980,92 @@ class GeneralHealthView extends ConsumerWidget {
               ),
             ],
           ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '• Pulso: Coloca tus dedos índice y medio en carótida o muñeca 15s y multiplica por 4.\n'
-                  '• Respiración: Cuenta elevaciones del tórax en 30s y multiplica por 2.\n'
-                  '• Llenado Capilar: Presiona una uña 5s y mide cuánto tarda en recuperar el color (< 2.0s normal).',
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: hrController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Frecuencia Cardíaca (bpm)',
-                    border: OutlineInputBorder(),
-                    isDense: true,
+          content: SizedBox(
+            width: 440,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _TapCounterPanel(
+                    title: 'Pulso Manual (Carótida o Muñeca · 15s)',
+                    instruction:
+                        'Coloca dedos índice y medio sobre arteria radial o carótida y toca el botón en cada latido durante 15s (multiplica ×4 automáticamente).',
+                    windowSeconds: 15,
+                    multiplier: 4,
+                    unit: 'bpm',
+                    accentColor: Colors.redAccent,
+                    icon: Icons.favorite,
+                    onApplied: (value) {
+                      hrController.text = value.toString();
+                    },
                   ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: respController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Frecuencia Respiratoria (rpm)',
-                    border: OutlineInputBorder(),
-                    isDense: true,
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: hrController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Frecuencia Cardíaca (bpm)',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: capController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
+                  const SizedBox(height: 14),
+                  _TapCounterPanel(
+                    title: 'Frecuencia Respiratoria (Tórax · 30s)',
+                    instruction:
+                        'Observa cada elevación del pecho y toca el botón durante 30s (multiplica ×2 automáticamente).',
+                    windowSeconds: 30,
+                    multiplier: 2,
+                    unit: 'rpm',
+                    accentColor: Colors.tealAccent,
+                    icon: Icons.air,
+                    onApplied: (value) {
+                      respController.text = value.toString();
+                    },
                   ),
-                  decoration: const InputDecoration(
-                    labelText: 'Tiempo de Llenado Capilar (s)',
-                    border: OutlineInputBorder(),
-                    isDense: true,
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: respController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Frecuencia Respiratoria (rpm)',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: tempController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
+                  const SizedBox(height: 14),
+                  _CapillaryStopwatchPanel(
+                    onMeasured: (seconds) {
+                      capController.text = seconds.toStringAsFixed(1);
+                    },
                   ),
-                  decoration: const InputDecoration(
-                    labelText: 'Temperatura Corporal (°C)',
-                    border: OutlineInputBorder(),
-                    isDense: true,
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: capController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Tiempo de Llenado Capilar (s)',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: tempController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Temperatura Corporal (°C)',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [
@@ -801,6 +1141,434 @@ class GeneralHealthView extends ConsumerWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _VitalsChartSpec {
+  final String metricKey;
+  final String label;
+  final String unit;
+  final double minNormal;
+  final double maxNormal;
+  final double chartMinY;
+  final double chartMaxY;
+  final double yInterval;
+  final double yPadding;
+  final List<double> fallbackOffsets;
+  final Color color;
+  final bool decimal;
+  final double Function(VitalsRecord) currentValueOf;
+
+  const _VitalsChartSpec({
+    required this.metricKey,
+    required this.label,
+    required this.unit,
+    required this.minNormal,
+    required this.maxNormal,
+    required this.chartMinY,
+    required this.chartMaxY,
+    required this.yInterval,
+    required this.yPadding,
+    required this.fallbackOffsets,
+    required this.color,
+    required this.currentValueOf,
+    this.decimal = false,
+  });
+
+  String formatAxisValue(double value) =>
+      decimal ? value.toStringAsFixed(1) : value.round().toString();
+
+  String formatReading(double value) =>
+      decimal ? value.toStringAsFixed(1) : value.round().toString();
+}
+
+final List<_VitalsChartSpec> _vitalsChartSpecs = [
+  _VitalsChartSpec(
+    metricKey: 'heartRate',
+    label: 'Pulso (bpm)',
+    unit: 'bpm',
+    minNormal: MedicalThresholds.minHeartRate,
+    maxNormal: MedicalThresholds.maxHeartRate,
+    chartMinY: 45,
+    chartMaxY: 145,
+    yInterval: 20,
+    yPadding: 8,
+    fallbackOffsets: const [-4, -2, 1, -1, 2],
+    color: Colors.redAccent,
+    currentValueOf: (v) => v.heartRate,
+  ),
+  _VitalsChartSpec(
+    metricKey: 'spO2',
+    label: 'SpO₂ (%)',
+    unit: '%',
+    minNormal: MedicalThresholds.minSpO2,
+    maxNormal: 100,
+    chartMinY: 85,
+    chartMaxY: 101,
+    yInterval: 5,
+    yPadding: 2,
+    fallbackOffsets: const [1, 0, -1, 0, 1],
+    color: SpaceTheme.cyan,
+    currentValueOf: (v) => v.spO2,
+  ),
+  _VitalsChartSpec(
+    metricKey: 'systolicBP',
+    label: 'PA Sistólica',
+    unit: 'mmHg',
+    minNormal: MedicalThresholds.minSystolicBP,
+    maxNormal: MedicalThresholds.maxSystolicBP,
+    chartMinY: 75,
+    chartMaxY: 165,
+    yInterval: 20,
+    yPadding: 10,
+    fallbackOffsets: const [-3, 2, -1, 4, 1],
+    color: Colors.blueAccent,
+    currentValueOf: (v) => v.systolicBP,
+  ),
+  _VitalsChartSpec(
+    metricKey: 'bodyTemp',
+    label: 'Temp (°C)',
+    unit: '°C',
+    minNormal: 36.0,
+    maxNormal: 37.2,
+    chartMinY: 35.0,
+    chartMaxY: 39.0,
+    yInterval: 1.0,
+    yPadding: 0.4,
+    fallbackOffsets: const [-0.2, -0.1, 0.1, 0.0, 0.2],
+    color: Colors.orangeAccent,
+    decimal: true,
+    currentValueOf: (v) => v.bodyTemp,
+  ),
+];
+
+/// Widget reutilizable "Tap-to-Count" con temporizador regresivo para pulso (15s ×4)
+/// o frecuencia respiratoria (30s ×2).
+class _TapCounterPanel extends StatefulWidget {
+  final String title;
+  final String instruction;
+  final int windowSeconds;
+  final int multiplier;
+  final String unit;
+  final Color accentColor;
+  final IconData icon;
+  final ValueChanged<int> onApplied;
+
+  const _TapCounterPanel({
+    required this.title,
+    required this.instruction,
+    required this.windowSeconds,
+    required this.multiplier,
+    required this.unit,
+    required this.accentColor,
+    required this.icon,
+    required this.onApplied,
+  });
+
+  @override
+  State<_TapCounterPanel> createState() => _TapCounterPanelState();
+}
+
+class _TapCounterPanelState extends State<_TapCounterPanel> {
+  Timer? _timer;
+  bool _running = false;
+  bool _completed = false;
+  int _remainingSeconds = 0;
+  int _taps = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _remainingSeconds = widget.windowSeconds;
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _startTimer({bool countFirstTap = false}) {
+    _timer?.cancel();
+    setState(() {
+      _running = true;
+      _completed = false;
+      _remainingSeconds = widget.windowSeconds;
+      _taps = countFirstTap ? 1 : 0;
+    });
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_remainingSeconds <= 1) {
+        timer.cancel();
+        final calculated = _taps * widget.multiplier;
+        setState(() {
+          _remainingSeconds = 0;
+          _running = false;
+          _completed = true;
+        });
+        if (calculated > 0) {
+          widget.onApplied(calculated);
+        }
+      } else {
+        setState(() => _remainingSeconds -= 1);
+      }
+    });
+  }
+
+  void _handleTap() {
+    if (!_running && !_completed && _taps == 0) {
+      _startTimer(countFirstTap: true);
+      return;
+    }
+    if (_completed) {
+      _startTimer(countFirstTap: true);
+      return;
+    }
+    setState(() => _taps += 1);
+  }
+
+  void _reset() {
+    _timer?.cancel();
+    setState(() {
+      _running = false;
+      _completed = false;
+      _remainingSeconds = widget.windowSeconds;
+      _taps = 0;
+    });
+  }
+
+  int get _estimatedRate {
+    if (_completed) return _taps * widget.multiplier;
+    final elapsed = widget.windowSeconds - _remainingSeconds;
+    if (elapsed <= 0 || _taps == 0) return 0;
+    return ((_taps * 60) / elapsed).round();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final estimate = _estimatedRate;
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: SpaceTheme.background,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: widget.accentColor.withValues(alpha: 0.45),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(widget.icon, color: widget.accentColor, size: 16),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  widget.title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: widget.accentColor,
+                  ),
+                ),
+              ),
+              Text(
+                '${_remainingSeconds}s',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: SpaceTheme.cyan,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            widget.instruction,
+            style: const TextStyle(fontSize: 11, color: Colors.white70),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: widget.accentColor.withValues(alpha: 0.2),
+                    foregroundColor: Colors.white,
+                    side: BorderSide(color: widget.accentColor),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                  icon: Icon(widget.icon, size: 16),
+                  label: Text(
+                    _running
+                        ? 'Tocar aquí ($_taps · ~$estimate ${widget.unit})'
+                        : (_completed
+                            ? 'Listo: $_taps × ${widget.multiplier} = $estimate ${widget.unit}'
+                            : 'Tocar para Contar (${widget.windowSeconds}s)'),
+                    style: const TextStyle(fontSize: 11.5),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onPressed: _handleTap,
+                ),
+              ),
+              if (_taps > 0 && !_completed) ...[
+                const SizedBox(width: 6),
+                IconButton(
+                  tooltip: 'Aplicar valor estimado',
+                  icon: const Icon(Icons.check_circle, color: SpaceTheme.green),
+                  onPressed: () {
+                    _timer?.cancel();
+                    final value = estimate > 0
+                        ? estimate
+                        : _taps * widget.multiplier;
+                    setState(() {
+                      _running = false;
+                      _completed = true;
+                    });
+                    widget.onApplied(value);
+                  },
+                ),
+              ],
+              if (_running || _completed || _taps > 0)
+                IconButton(
+                  tooltip: 'Reiniciar contador',
+                  icon: const Icon(Icons.refresh, color: Colors.white60),
+                  onPressed: _reset,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Cronómetro interactivo de llenado capilar (presión 5s + medición de retorno).
+class _CapillaryStopwatchPanel extends StatefulWidget {
+  final ValueChanged<double> onMeasured;
+
+  const _CapillaryStopwatchPanel({required this.onMeasured});
+
+  @override
+  State<_CapillaryStopwatchPanel> createState() =>
+      _CapillaryStopwatchPanelState();
+}
+
+class _CapillaryStopwatchPanelState extends State<_CapillaryStopwatchPanel> {
+  final Stopwatch _stopwatch = Stopwatch();
+  Timer? _ticker;
+  double? _lastMeasuredSeconds;
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    _stopwatch.stop();
+    super.dispose();
+  }
+
+  void _toggleStopwatch() {
+    if (_stopwatch.isRunning) {
+      _ticker?.cancel();
+      _stopwatch.stop();
+      final measured = double.parse(
+        (_stopwatch.elapsedMilliseconds / 1000.0).toStringAsFixed(1),
+      );
+      setState(() => _lastMeasuredSeconds = measured);
+      widget.onMeasured(measured);
+    } else {
+      _stopwatch
+        ..reset()
+        ..start();
+      _ticker?.cancel();
+      _ticker = Timer.periodic(const Duration(milliseconds: 100), (_) {
+        if (!mounted) return;
+        setState(() {});
+      });
+      setState(() {});
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final liveSeconds = _stopwatch.elapsedMilliseconds / 1000.0;
+    final display = _stopwatch.isRunning
+        ? liveSeconds
+        : (_lastMeasuredSeconds ?? 0.0);
+    final isNormal = display > 0 && display <= 2.0;
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: SpaceTheme.background,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.purpleAccent.withValues(alpha: 0.45)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.timer, color: Colors.purpleAccent, size: 16),
+              const SizedBox(width: 6),
+              const Expanded(
+                child: Text(
+                  'Cronómetro de Llenado Capilar',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.purpleAccent,
+                  ),
+                ),
+              ),
+              Text(
+                '${display.toStringAsFixed(1)}s',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: display == 0
+                      ? Colors.white54
+                      : (isNormal ? SpaceTheme.green : SpaceTheme.warningYellow),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Presiona una uña 5s hasta que blanquee. Suelta y presiona Iniciar; detén apenas recupere su color rosado (< 2.0s normal).',
+            style: TextStyle(fontSize: 11, color: Colors.white70),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _stopwatch.isRunning
+                    ? SpaceTheme.warningYellow.withValues(alpha: 0.25)
+                    : Colors.purpleAccent.withValues(alpha: 0.18),
+                foregroundColor: Colors.white,
+                side: BorderSide(
+                  color: _stopwatch.isRunning
+                      ? SpaceTheme.warningYellow
+                      : Colors.purpleAccent,
+                ),
+              ),
+              icon: Icon(_stopwatch.isRunning ? Icons.stop : Icons.play_arrow),
+              label: Text(
+                _stopwatch.isRunning
+                    ? 'Color Recuperado — Detener (${display.toStringAsFixed(1)}s)'
+                    : 'Soltar Uña e Iniciar Retorno',
+                style: const TextStyle(fontSize: 11.5),
+              ),
+              onPressed: _toggleStopwatch,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

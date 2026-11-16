@@ -30,5 +30,7 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSCameraUsageDescription</key>
+	<string>AstraMed utiliza la cámara frontal localmente para medir cromaticidad facial (SMS), estabilidad de mirada (1 Hz) y distancia interpupilar (SANS) 100% offline.</string>
 </dict>
 </plist>

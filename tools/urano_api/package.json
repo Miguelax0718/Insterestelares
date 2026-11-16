@@ -1,0 +1,8 @@
+{
+  "name": "urano-api",
+  "version": "1.0.0",
+  "description": "API REST de referencia para URANO (NASA Space Apps 2026)",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "dependencies": { "pg": "^8.11.0" }
+}

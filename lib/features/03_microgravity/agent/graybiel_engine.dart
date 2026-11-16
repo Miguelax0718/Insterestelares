@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:astramed/features/agent/domain/agent_contracts.dart';
 
 enum GraybielSymptom {
@@ -255,6 +256,101 @@ class GraybielEngine {
       recommendedAction: action,
     );
   }
+}
+
+/// Experimental relative chromaticity screening, not a perfusion diagnosis.
+enum ChromaticityStatus { nominal, elevated, critical }
+
+/// Pure symptom assessment adapter; the established clinical scale stays authoritative.
+class GraybielSymptomAssessment {
+  const GraybielSymptomAssessment({this.responses = const {}, this.emesis = false});
+  final Map<GraybielSymptom, GraybielLevel> responses;
+  final bool emesis;
+  GraybielEvaluation get evaluation => GraybielEngine.evaluate(responses, emesis: emesis);
+  int get totalScore => evaluation.totalScore;
+  bool get triggersEvaRestriction => evaluation.evaBlockedRecommended;
+}
+
+class FacialGreennessResult {
+  const FacialGreennessResult(this.deltaGR, this.status);
+  final double deltaGR;
+  final ChromaticityStatus status;
+}
+
+abstract final class FacialGreennessAnalyzer {
+  static FacialGreennessResult analyze({
+    required double baselineGR,
+    required double currentGR,
+  }) {
+    if (!baselineGR.isFinite || baselineGR <= 0 ||
+        !currentGR.isFinite || currentGR < 0) {
+      throw ArgumentError('Green/red ratios must be finite with a positive baseline.');
+    }
+    final delta = currentGR - baselineGR;
+    return FacialGreennessResult(delta,
+        delta >= .06 ? ChromaticityStatus.critical :
+        delta >= .03 ? ChromaticityStatus.elevated : ChromaticityStatus.nominal);
+  }
+}
+
+class GazeStabilityResult {
+  const GazeStabilityResult(this.optotypeAccuracy, this.compositeScore, this.isStable);
+  final double optotypeAccuracy;
+  final double compositeScore;
+  final bool isStable;
+}
+
+/// Touch answers and self-reported fixation only; does not measure clinical VOR.
+abstract final class GazeStabilityAnalyzer {
+  static GazeStabilityResult analyze({
+    required int correctCount,
+    required int total,
+    required double fixationRatio,
+    double rhythmHz = 1,
+  }) {
+    if (total < 0 || correctCount < 0 || correctCount > total ||
+        !fixationRatio.isFinite || fixationRatio < 0 || fixationRatio > 1 ||
+        !rhythmHz.isFinite || rhythmHz < 0) {
+      throw ArgumentError('Invalid DVA counts, fixation, or rhythm.');
+    }
+    if (total == 0) return const GazeStabilityResult(0, 0, false);
+    final accuracy = correctCount / total;
+    final rhythm = (1 - (rhythmHz - 1).abs() / .8).clamp(0.0, 1.0);
+    final score = .6 * fixationRatio + .25 * accuracy + .15 * rhythm;
+    return GazeStabilityResult(accuracy, score, score >= .8 && fixationRatio >= .8);
+  }
+}
+
+class ZeroGHorizonResult {
+  const ZeroGHorizonResult(this.rmsErrorDeg, this.alignmentPct);
+  final double rmsErrorDeg;
+  final double alignmentPct;
+  bool get severeDrift => alignmentPct < 70;
+  String get driftRating => severeDrift ? 'Severe drift' : 'Aligned';
+}
+
+abstract final class ZeroGHorizonScorer {
+  static ZeroGHorizonResult evaluate({
+    required double pitch, required double roll, required double yaw,
+  }) {
+    if (![pitch, roll, yaw].every((v) => v.isFinite)) {
+      throw ArgumentError('Axis errors must be finite.');
+    }
+    double wrap(double v) => ((v + 180) % 360 - 180).abs();
+    final errors = [pitch, roll, yaw].map(wrap);
+    final rms = math.sqrt(errors.fold<double>(0, (sum, v) => sum + v * v) / 3);
+    return ZeroGHorizonResult(rms, ((1 - rms / 30) * 100).clamp(0.0, 100.0));
+  }
+}
+
+class EvaSafetyAdvisory {
+  const EvaSafetyAdvisory(this.evaNoGoRecommended);
+  final bool evaNoGoRecommended;
+  static EvaSafetyAdvisory evaluate({
+    required int graybielScore, ZeroGHorizonResult? horizon,
+  }) => EvaSafetyAdvisory(
+    graybielScore >= GraybielEngine.evaBlockScoreThreshold ||
+      (horizon?.severeDrift ?? false));
 }
 
 class GraybielSession {

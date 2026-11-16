@@ -69,7 +69,8 @@ class SkillRegistry {
       final uniqueTools = <AgentTool>[];
       var changed = false;
       for (final tool in skill.tools) {
-        if (seenTools.add(tool.name)) {
+        if (!seenTools.contains(tool.name) && seenTools.length < 32) {
+          seenTools.add(tool.name);
           uniqueTools.add(tool);
         } else {
           changed = true;

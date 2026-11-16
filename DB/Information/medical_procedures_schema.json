@@ -1,0 +1,160 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://astramed.space/schemas/medical_procedures_schema.json",
+  "title": "MedicalProceduresCatalog",
+  "description": "Esquema formal de validación para el catálogo maestro de procedimientos médicos y respuesta clínica de AstraMed",
+  "type": "object",
+  "required": [
+    "version",
+    "catalogTitle",
+    "updatedAt",
+    "offlineReady",
+    "totalProcedures",
+    "procedures"
+  ],
+  "properties": {
+    "version": {
+      "type": "string"
+    },
+    "catalogTitle": {
+      "type": "string"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "offlineReady": {
+      "type": "boolean"
+    },
+    "totalProcedures": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "procedures": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "title",
+          "category",
+          "priority",
+          "nasaHazard",
+          "summary",
+          "whenToActivate",
+          "vitalTriggers",
+          "steps",
+          "requiredSupplies",
+          "warnings",
+          "criterionReference"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^PROC-[A-Z0-9-]+$"
+          },
+          "code": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["green", "yellow", "red"]
+          },
+          "nasaHazard": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "whenToActivate": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "vitalTriggers": {
+            "type": "object",
+            "properties": {
+              "minHeartRate": { "type": "number" },
+              "maxHeartRate": { "type": "number" },
+              "minSpO2": { "type": "number" },
+              "minSystolicBP": { "type": "number" },
+              "maxSystolicBP": { "type": "number" },
+              "maxTemp": { "type": "number" },
+              "maxRespiratoryRate": { "type": "number" },
+              "maxDoseRateMicroSvPerHour": { "type": "number" },
+              "maxSleepHours": { "type": "number" },
+              "keywords": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          },
+          "steps": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "step",
+                "title",
+                "action",
+                "clinicalTip",
+                "durationSeconds"
+              ],
+              "properties": {
+                "step": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "title": { "type": "string" },
+                "action": { "type": "string" },
+                "clinicalTip": { "type": "string" },
+                "durationSeconds": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          "requiredSupplies": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "itemId",
+                "name",
+                "usage",
+                "location"
+              ],
+              "properties": {
+                "itemId": { "type": "string" },
+                "name": { "type": "string" },
+                "usage": { "type": "string" },
+                "location": { "type": "string" }
+              }
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string" }
+          },
+          "criterionReference": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

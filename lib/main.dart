@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 
+import 'package:astramed/core/storage/hive_bootstrap.dart';
 import 'package:astramed/core/theme/space_theme.dart';
 import 'package:astramed/features/01_general_health/presentation/general_health_view.dart';
 import 'package:astramed/features/02_radiation/presentation/radiation_view.dart';
+
 import 'features/02_radiation/providers/radiation_integration_provider.dart';
+
 import 'package:astramed/features/03_microgravity/presentation/microgravity_view.dart';
 import 'package:astramed/features/04_mental_health/presentation/mental_health_view.dart';
 import 'package:astramed/features/05_clinical_triage/presentation/triage_view.dart';
@@ -13,6 +15,8 @@ import 'package:astramed/features/agent/data/persistence/agent_hive_boxes.dart';
 import 'package:astramed/features/agent/presentation/agent_canvas_view.dart';
 import 'package:astramed/features/agent/presentation/agent_test_screen.dart';
 import 'package:astramed/features/agent/providers/agent_providers.dart';
+import 'package:astramed/features/apolo/presentation/apolo_home_screen.dart';
+import 'package:astramed/features/apolo/providers/apolo_providers.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 import 'package:astramed/features/crew/presentation/widgets/crew_sidebar_drawer.dart';
@@ -21,38 +25,83 @@ import 'package:astramed/features/telemetry/presentation/widgets/telemetry_confi
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Hive.initFlutter();
+  await HiveBootstrap.initFlutterStorage();
   await AgentHiveBoxes.open();
-  runApp(const AstraMedApp());
+  runApp(const ApoloApp());
 }
 
-class AstraMedApp extends StatelessWidget {
-  const AstraMedApp({super.key});
+class ApoloApp extends StatelessWidget {
+  const ApoloApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return ProviderScope(
-      overrides: radiationIntegrationOverrides,
+      overrides: [...radiationIntegrationOverrides, ...apoloProviderOverrides],
       child: MaterialApp(
-        title: 'AstraMed | Space Health Engine',
+        title: 'APOLO',
         debugShowCheckedModeBanner: false,
         themeMode: ThemeMode.dark,
         darkTheme: SpaceTheme.darkTheme,
-        home: const AstraMedDashboard(),
+        home: const ApoloHomeShell(),
       ),
     );
   }
 }
 
+/// Hosts the APOLO home screen as the app entry point and keeps the legacy
+/// clinical modules dashboard reachable from the top bar.
+class ApoloHomeShell extends ConsumerStatefulWidget {
+  const ApoloHomeShell({super.key});
+
+  @override
+  ConsumerState<ApoloHomeShell> createState() => _ApoloHomeShellState();
+}
+
+class _ApoloHomeShellState extends ConsumerState<ApoloHomeShell> {
+  void _openDashboard(BuildContext context, {int initialIndex = 0}) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AstraMedDashboard(initialIndex: initialIndex),
+      ),
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() async {
+      if (!mounted) return;
+      await ref.read(crewMembersProvider.notifier).initializeFromDatabase();
+      if (!mounted) return;
+      final crew = ref.read(crewMembersProvider);
+      ref.read(telemetryProvider.notifier).syncWithCrewData(crew);
+      ref.read(proactiveMonitorProvider).start();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.watch(proactiveMonitorProvider);
+    ref.watch(agentNotifierProvider);
+    return ApoloHomeScreen(
+      onOpenClinicalDashboard: () => _openDashboard(context),
+      onOpenClinicalModule: (index) =>
+          _openDashboard(context, initialIndex: index),
+    );
+  }
+}
+
 class AstraMedDashboard extends ConsumerStatefulWidget {
-  const AstraMedDashboard({super.key});
+  const AstraMedDashboard({super.key, this.initialIndex = 0});
+
+  final int initialIndex;
 
   @override
   ConsumerState<AstraMedDashboard> createState() => _AstraMedDashboardState();
 }
 
 class _AstraMedDashboardState extends ConsumerState<AstraMedDashboard> {
-  int _currentIndex = 0;
+  late int _currentIndex = widget.initialIndex.clamp(0, _views.length - 1);
 
   final List<Widget> _views = const [
     GeneralHealthView(),
@@ -86,14 +135,16 @@ class _AstraMedDashboardState extends ConsumerState<AstraMedDashboard> {
     ref.watch(agentNotifierProvider);
     final activeAstronaut = ref.watch(selectedAstronautProvider);
     final criticalCount = ref.watch(criticalCrewCountProvider);
-    final connectedCount = ref.watch(connectedMachinesForSelectedProvider).length;
+    final connectedCount = ref
+        .watch(connectedMachinesForSelectedProvider)
+        .length;
     final isStreaming = ref.watch(isTelemetryStreamingProvider);
 
     final statusColor = activeAstronaut.riskLevel == CrewRiskLevel.critical
         ? SpaceTheme.dangerRed
         : (activeAstronaut.riskLevel == CrewRiskLevel.warning
-            ? SpaceTheme.warningYellow
-            : SpaceTheme.green);
+              ? SpaceTheme.warningYellow
+              : SpaceTheme.green);
 
     return Scaffold(
       // ── SIDEBAR IZQUIERDO PARA GESTIÓN DE LOS 5 PERFILES ──
@@ -168,7 +219,10 @@ class _AstraMedDashboardState extends ConsumerState<AstraMedDashboard> {
                         ),
                         Text(
                           _titles[_currentIndex],
-                          style: const TextStyle(fontSize: 10, color: Colors.white70),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Colors.white70,
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
@@ -183,16 +237,16 @@ class _AstraMedDashboardState extends ConsumerState<AstraMedDashboard> {
           IconButton(
             tooltip: 'Autonomous Clinical Agent',
             icon: const Icon(Icons.smart_toy_outlined, color: SpaceTheme.cyan),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AgentCanvasView()),
-            ),
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const AgentCanvasView())),
           ),
           IconButton(
             tooltip: 'Agent console',
             icon: const Icon(Icons.graphic_eq),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AgentTestScreen()),
-            ),
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const AgentTestScreen())),
           ),
           // Badge rápido de estado de riesgo del astronauta activo
           Container(
@@ -210,8 +264,8 @@ class _AstraMedDashboardState extends ConsumerState<AstraMedDashboard> {
                   activeAstronaut.riskLevel == CrewRiskLevel.critical
                       ? Icons.emergency
                       : (activeAstronaut.riskLevel == CrewRiskLevel.warning
-                          ? Icons.warning_amber
-                          : Icons.check_circle),
+                            ? Icons.warning_amber
+                            : Icons.check_circle),
                   size: 12,
                   color: statusColor,
                 ),
@@ -220,8 +274,8 @@ class _AstraMedDashboardState extends ConsumerState<AstraMedDashboard> {
                   activeAstronaut.riskLevel == CrewRiskLevel.critical
                       ? 'CRÍTICO'
                       : (activeAstronaut.riskLevel == CrewRiskLevel.warning
-                          ? 'ATENCIÓN'
-                          : 'NOMINAL'),
+                            ? 'ATENCIÓN'
+                            : 'NOMINAL'),
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
@@ -234,7 +288,8 @@ class _AstraMedDashboardState extends ConsumerState<AstraMedDashboard> {
 
           // Botón de configuración de máquinas de telemetría por tripulante
           IconButton(
-            tooltip: 'Configurar Máquinas de Telemetría (${activeAstronaut.callsign})',
+            tooltip:
+                'Configurar Máquinas de Telemetría (${activeAstronaut.callsign})',
             icon: Badge(
               isLabelVisible: true,
               backgroundColor: isStreaming ? SpaceTheme.green : SpaceTheme.cyan,
@@ -257,14 +312,29 @@ class _AstraMedDashboardState extends ConsumerState<AstraMedDashboard> {
             },
           ),
 
+          // Volver a APOLO (pantalla principal) cuando el dashboard se abrió
+          // como una ruta secundaria desde la barra superior.
+          if (Navigator.of(context).canPop())
+            IconButton(
+              tooltip: 'Volver a APOLO',
+              icon: const Icon(Icons.pets, color: SpaceTheme.cyan, size: 20),
+              onPressed: () => Navigator.of(context).maybePop(),
+            ),
+
           // Indicador de modo 100% Offline
           IconButton(
             tooltip: 'Estado de Conectividad (100% Offline)',
-            icon: const Icon(Icons.wifi_off, color: Colors.amberAccent, size: 20),
+            icon: const Icon(
+              Icons.wifi_off,
+              color: Colors.amberAccent,
+              size: 20,
+            ),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('AstraMed opera 100% Offline en Espacio Profundo'),
+                  content: Text(
+                    'AstraMed opera 100% Offline en Espacio Profundo',
+                  ),
                   duration: Duration(seconds: 2),
                 ),
               );

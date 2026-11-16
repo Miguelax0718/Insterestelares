@@ -1,0 +1,187 @@
+{
+  "version": "1.0.0",
+  "title": "Inventario del Botiquín Médico Espacial (ISS CHeCS / Artemis Medical Kit)",
+  "updatedAt": "2026-11-14T21:55:00Z",
+  "totalItems": 13,
+  "items": [
+    {
+      "itemId": "AED-SPACE",
+      "name": "Desfibrilador Externo Automático Espacial (AED)",
+      "category": "reanimación",
+      "purpose": "Analiza el ritmo cardíaco y administra descarga bifásica en fibrilación ventricular o taquicardia sin pulso.",
+      "usage": "Encender equipo, colocar parches en tórax seco y seguir indicaciones de voz sin tocar al paciente durante análisis/descarga.",
+      "location": "Módulo Harmony / Kit Emergencia A1",
+      "quantityAvailable": 1,
+      "status": "ready",
+      "usedInProcedures": [
+        "PROC-CARDIAC-ARREST",
+        "PROC-HEMODYNAMIC-SYNCOPE"
+      ]
+    },
+    {
+      "itemId": "CMRS-BOARD",
+      "name": "Crew Medical Restraint System (Camilla CMRS)",
+      "category": "reanimación",
+      "purpose": "Inmoviliza al paciente y permite anclar al reanimador en microgravedad para realizar RCP efectiva.",
+      "usage": "Desplegar camilla rígida, abrochar correas de pecho/pelvis/piernas y asegurar al reanimador.",
+      "location": "Bahía Médica / Rack CHeCS",
+      "quantityAvailable": 1,
+      "status": "ready",
+      "usedInProcedures": [
+        "PROC-CARDIAC-ARREST"
+      ]
+    },
+    {
+      "itemId": "BVM-O2-100",
+      "name": "Bolsa-Válvula-Mascarilla + Toma O2 100%",
+      "category": "vía_aérea",
+      "purpose": "Suministra oxígeno al 100% o ventilación asistida con presión positiva en paro cardíaco, hipoxia o alto CO2.",
+      "usage": "Sellar mascarilla sobre nariz y boca. En RCP aplicar 2 ventilaciones cada 30 compresiones; en hipoxia flujo continuo 10-15 L/min.",
+      "location": "Módulo Harmony / Esclusa Quest / Kit Vía Aérea",
+      "quantityAvailable": 2,
+      "status": "ready",
+      "usedInProcedures": [
+        "PROC-CARDIAC-ARREST",
+        "PROC-HYPOXIA-DECOMP",
+        "PROC-HYPERCAPNIA-CO2"
+      ]
+    },
+    {
+      "itemId": "MED-EPINEPHRINE",
+      "name": "Epinefrina 1 mg/10 mL (Jeringa precargada)",
+      "category": "medicamento_acls",
+      "purpose": "Vasopresor de soporte vital avanzado para paro cardíaco y shock anafiláctico severo.",
+      "usage": "1 mg IV/IO cada 3-5 minutos durante paro cardíaco siguiendo algoritmo ACLS.",
+      "location": "Botiquín ACLS / Cajón Rojo 1",
+      "quantityAvailable": 6,
+      "status": "ready",
+      "usedInProcedures": [
+        "PROC-CARDIAC-ARREST"
+      ]
+    },
+    {
+      "itemId": "MED-ONDANSETRON",
+      "name": "Ondansetrón 4 mg (Tabletas dispersables)",
+      "category": "medicamento",
+      "purpose": "Antiemético sin sedación para náuseas y vómitos por radiación, cólico renal o mareo espacial.",
+      "usage": "Colocar 1 tableta de 4 mg sobre la lengua cada 8 horas según necesidad.",
+      "location": "Botiquín Principal / Cajón Amarillo 1",
+      "quantityAvailable": 24,
+      "status": "ready",
+      "usedInProcedures": [
+        "PROC-RADIATION-ARS",
+        "PROC-RENAL-DEHYDRATION",
+        "PROC-VESTIBULAR-SAS"
+      ]
+    },
+    {
+      "itemId": "MED-IBUPROFEN",
+      "name": "Ibuprofeno 400 mg (Tabletas)",
+      "category": "medicamento",
+      "purpose": "Analgésico y antiinflamatorio para cefalea espacial (SANS) y dolor musculoesquelético.",
+      "usage": "1 tableta cada 8 horas con agua o alimento. Evitar en deshidratación severa o sospecha de alteración plaquetaria por ARS.",
+      "location": "Botiquín Principal / Cajón Verde 1",
+      "quantityAvailable": 40,
+      "status": "ready",
+      "usedInProcedures": [
+        "PROC-SANS-CEPHALEA"
+      ]
+    },
+    {
+      "itemId": "MED-ACETAMINOPHEN",
+      "name": "Paracetamol (Acetaminofén) 500 mg (Tabletas)",
+      "category": "medicamento",
+      "purpose": "Control de fiebre y dolor moderado con perfil seguro ante riesgo renal o cefalea post-CO2.",
+      "usage": "1 tableta cada 6-8 horas (máximo 3,000 mg en 24 horas).",
+      "location": "Botiquín Principal / Cajón Verde 1",
+      "quantityAvailable": 50,
+      "status": "ready",
+      "usedInProcedures": [
+        "PROC-HYPERCAPNIA-CO2",
+        "PROC-SANS-CEPHALEA",
+        "PROC-RENAL-DEHYDRATION"
+      ]
+    },
+    {
+      "itemId": "MED-PROMETHAZINE",
+      "name": "Prometazina 25 mg (Tabletas / Inyectable)",
+      "category": "medicamento",
+      "purpose": "Antiemético potente de segunda línea para Síndrome de Adaptación Espacial (SAS) severo.",
+      "usage": "12.5-25 mg cada 6-8 h únicamente cuando el tripulante pueda guardar reposo (produce sedación).",
+      "location": "Botiquín Principal / Cajón Amarillo 1",
+      "quantityAvailable": 12,
+      "status": "ready",
+      "usedInProcedures": [
+        "PROC-VESTIBULAR-SAS"
+      ]
+    },
+    {
+      "itemId": "MED-MELATONIN",
+      "name": "Melatonina 3 mg (Tabletas)",
+      "category": "medicamento",
+      "purpose": "Regulador del ciclo circadiano para insomnio y desfase horario en órbita.",
+      "usage": "1 tableta (3 mg) de 30 a 60 minutos antes del periodo de sueño programado.",
+      "location": "Botiquín Principal / Cajón Verde 3",
+      "quantityAvailable": 60,
+      "status": "ready",
+      "usedInProcedures": [
+        "PROC-CIRCADIAN-FATIGUE"
+      ]
+    },
+    {
+      "itemId": "MED-ORAL-REHYDRATION",
+      "name": "Solución de Rehidratación Oral con Electrolitos",
+      "category": "hidratación",
+      "purpose": "Restablece volumen intravascular y electrolitos en hipotensión, fiebre, post-EVA o riesgo renal.",
+      "usage": "Mezclar sobre en 500 mL de agua potable en bolsa con boquilla y beber en sorbos frecuentes.",
+      "location": "Bahía Médica / Cajón Verde 2 / Storm Shelter",
+      "quantityAvailable": 30,
+      "status": "ready",
+      "usedInProcedures": [
+        "PROC-HYPOXIA-DECOMP",
+        "PROC-RADIATION-ARS",
+        "PROC-HEMODYNAMIC-SYNCOPE",
+        "PROC-RENAL-DEHYDRATION"
+      ]
+    },
+    {
+      "itemId": "SUP-HEMOSTATIC-GAUZE",
+      "name": "Gasa Hemostática y Apósitos Sellados",
+      "category": "trauma",
+      "purpose": "Detiene sangrados activos y evita dispersión de sangre en microgravedad.",
+      "usage": "Aplicar directamente sobre el punto de sangrado con presión firme continua de 3 a 5 minutos.",
+      "location": "Kit Trauma / Cajón Rojo 2",
+      "quantityAvailable": 12,
+      "status": "ready",
+      "usedInProcedures": [
+        "PROC-TRAUMA-HEMORRHAGE"
+      ]
+    },
+    {
+      "itemId": "SUP-TOURNIQUET",
+      "name": "Torniquete Táctico de Extremidad",
+      "category": "trauma",
+      "purpose": "Control de hemorragia arterial severa en extremidades refractaria a presión directa.",
+      "usage": "Colocar 5-7 cm arriba de la herida, ajustar hasta detener sangrado y anotar hora exacta.",
+      "location": "Kit Trauma / Cajón Rojo 2",
+      "quantityAvailable": 3,
+      "status": "ready",
+      "usedInProcedures": [
+        "PROC-TRAUMA-HEMORRHAGE"
+      ]
+    },
+    {
+      "itemId": "SUP-BURN-GEL",
+      "name": "Gel y Apósitos Estériles para Quemaduras",
+      "category": "trauma",
+      "purpose": "Enfría y protege quemaduras térmicas o eléctricas evitando contaminación en cabina cerrada.",
+      "usage": "Aplicar sobre la lesión tras enfriar con compresa húmeda estéril y fijar sin apretar.",
+      "location": "Kit Trauma / Cajón Amarillo 2",
+      "quantityAvailable": 8,
+      "status": "ready",
+      "usedInProcedures": [
+        "PROC-TRAUMA-HEMORRHAGE"
+      ]
+    }
+  ]
+}

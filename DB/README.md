@@ -11,7 +11,11 @@ La arquitectura implementada sigue un principio **100% Offline-First**, garantiz
 ```text
 DB/
 ├── Information/
-│   └── telemetry_machines_catalog.json  # Catálogo técnico de las 7 máquinas y biosensores espaciales
+│   ├── telemetry_machines_catalog.json  # Catálogo técnico de las 7 máquinas y biosensores espaciales
+│   ├── medical_procedures_catalog.json  # Catálogo maestro de 10 protocolos médicos y procedimientos paso a paso
+│   ├── clinical_situations_triage.json  # Árbol de evaluación rápida de situaciones clínicas y emergencias
+│   ├── medical_kit_inventory.json       # Inventario del botiquín espacial (CHeCS / Artemis Medical Kit)
+│   └── medical_procedures_schema.json   # JSON Schema Draft-07 para validar medical_procedures_catalog.json
 ├── Users/
 │   ├── AST-01_alex_vance.json           # Registro clínico y telemetría: Cmdte. Alex Vance
 │   ├── AST-02_elena_ramos.json          # Registro clínico y telemetría: Dra. Elena Ramos (CMO)
@@ -92,6 +96,28 @@ Define las especificaciones técnicas, protocolos de comunicación local de cabi
 | `DEV-ISTAT` | Abbott i-STAT 1 Analyzer | `bloodLab` | Infrared Data / USB Secure Bus (`instrumental`) | Electroquímica capilar; `NASA-ISS CHeCS Clinical Blood Lab Standards` |
 | `DEV-ACTIWATCH` | Actiwatch Plus Circadian Sensor | `circadian` | NFC / Optical Sync (`instrumental`) | Actigrafía triaxial y fotometría; `NASA-STD-3001 Behavioral Health & Circadian Standard` |
 
+### `medical_procedures_catalog.json` y `medical_procedures_schema.json`
+Catálogo maestro de **10 protocolos médicos espaciales** listos para consulta y sugerencia 100% offline en situaciones de emergencia o atención primaria (`NASA-STD-3001`, `ISS Integrated Medical Group`):
+
+| ID Protocolo | Situación / Emergencia | Prioridad | Enfoque Principal en Microgravedad |
+| :--- | :--- | :---: | :--- |
+| `PROC-CARDIAC-ARREST` | Paro Cardíaco y RCP en Microgravedad (ACLS) | `red` | Inmovilización en camilla `CMRS`, RCP *Handstand* / *Evetts-Russomano*, DEA (`AED`), BVM $O_2$ 100% y Epinefrina |
+| `PROC-HYPOXIA-DECOMP` | Hipoxia Aguda y Descompresión Post-EVA | `red` | Oxigenoterapia al 100%, sello de escotilla/EVA, monitoreo $SpO_2$ e hidratación |
+| `PROC-RADIATION-ARS` | Síndrome Agudo por Radiación (ARS) y SPE | `red` | Evacuación a *Storm Shelter*, Ondansetrón, control dosimétrico HERA e i-STAT |
+| `PROC-HEMODYNAMIC-SYNCOPE` | Arritmia, Hipotensión Severa o Crisis Hipertensiva | `red` | Anclaje en reposo, descarte de hipoxia/hipoglucemia, carga oral y monitor DEA |
+| `PROC-HYPERCAPNIA-CO2` | Exposición a Alto $CO_2$ (Hipercapnia) | `red` | Evacuación a módulo ventilado, mezcla de aire y verificación de depuradores ECLSS |
+| `PROC-TRAUMA-HEMORRHAGE` | Hemorragia, Quemaduras y Traumatismo | `red` | Contención de fluidos en ingravidez, gasa hemostática, torniquete y gel estéril |
+| `PROC-SANS-CEPHALEA` | Cefalea Espacial y Congestión Neuro-Ocular (SANS) | `yellow` | Descarte de $CO_2$, prueba visual rápida y analgesia estándar |
+| `PROC-RENAL-DEHYDRATION` | Deshidratación Severa y Cólico Renal | `yellow` | Rehidratación oral fraccionada, control térmico y prevención de nefrolitiasis |
+| `PROC-VESTIBULAR-SAS` | Síndrome de Adaptación Espacial (Mareo/Vértigo) | `yellow` | Referencia visual fija, antiemético sin sedación (Ondansetrón) y reposo |
+| `PROC-CIRCADIAN-FATIGUE` | Déficit Crítico de Sueño y Fatiga Cognitiva | `green` | Bloque de descanso protegido, control de luz azul, respiración guiada y Melatonina |
+
+### `clinical_situations_triage.json`
+Árbol de evaluación rápida que conecta síntomas y escenarios críticos (*"Paro Cardíaco (RCP)"*, *"Hipoxia / Falta de Aire"*, *"Radiación / Tormenta Solar"*, etc.) con su `recommendedProcedureId`, acciones críticas de los primeros 60 segundos, preguntas de verificación e insumos requeridos.
+
+### `medical_kit_inventory.json`
+Inventario del botiquín médico de a bordo (*ISS CHeCS / Artemis Medical Kit*): equipos de reanimación (`AED-SPACE`, `CMRS-BOARD`, `BVM-O2-100`), fármacos (`MED-EPINEPHRINE`, `MED-ONDANSETRON`, `MED-IBUPROFEN`, `MED-ACETAMINOPHEN`, `MED-PROMETHAZINE`, `MED-MELATONIN`, `MED-ORAL-REHYDRATION`) e insumos de trauma (`SUP-HEMOSTATIC-GAUZE`, `SUP-TOURNIQUET`, `SUP-BURN-GEL`).
+
 ---
 
 ## 🧪 Validación de Integridad de Datos
@@ -104,3 +130,16 @@ Get-ChildItem DB -Recurse -Filter *.json | ForEach-Object {
     Write-Host "OK: $($_.Name)" -ForegroundColor Green
 }
 ```
+> [!NOTE]
+> Toda nueva información, archivo de soporte o dataset usable para el proyecto se debe documentar en esta sección para mantener la trazabilidad.
+
+---
+
+## 🐾 APOLO / URANO (análisis de orina)
+
+Datos que consume la página `web/apolo/` (APOLO, antes URANO) cuando se conecta a una base de datos (por defecto usa datos demo internos y no necesita nada de esto):
+
+- `schemas/urano_schema.sql`: tablas PostgreSQL/Supabase (`crew`, `mission`, `solar_events`, `biomarkers`, `personal_ranges`, `samples`, `sample_values`, `recommendations`, `alerts`, `water_log`, `sample_requests`).
+- `samples/urano_seed.sql`: 5 tripulantes demo con 40 muestras cada uno (26 biomarcadores por muestra). Cada tripulante tiene un problema distinto: hidratación/riesgo renal, hueso, estrés y sueño, radiación e infección urinaria.
+
+Los valores son simulados y los rangos por defecto deben validarse con el equipo biomédico (Grupo 1). Más detalle en `web/apolo/README.md`.
