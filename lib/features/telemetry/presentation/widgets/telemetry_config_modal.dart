@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:astramed/features/apolo/presentation/apolo_theme.dart';
@@ -397,18 +396,6 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                         );
                       },
               ),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  side: const BorderSide(color: Colors.white24),
-                ),
-                icon: const Icon(Icons.data_object, size: 16),
-                label: const Text(
-                  'Inspect DB JSON',
-                  style: TextStyle(fontSize: 12),
-                ),
-                onPressed: () => _showJsonPreviewDialog(context, targetAstronaut),
-              ),
             ],
           ),
         ],
@@ -798,69 +785,6 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                 );
               }
             },
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showJsonPreviewDialog(
-    BuildContext context,
-    AstronautProfile astronaut,
-  ) {
-    final jsonString =
-        ref.read(crewMembersProvider.notifier).exportProfileToDbJson(astronaut.id);
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: _palette.bg2,
-        title: Row(
-          children: [
-            Icon(Icons.data_object, color: _palette.mint),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'DB/Users/${astronaut.id}.json',
-                style: const TextStyle(fontSize: 16),
-              ),
-            ),
-          ],
-        ),
-        content: SizedBox(
-          width: 520,
-          height: 360,
-          child: SingleChildScrollView(
-            child: SelectableText(
-              jsonString,
-              style: const TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 11,
-                color: Colors.greenAccent,
-              ),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton.icon(
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: jsonString));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('JSON copied to clipboard'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            },
-            icon: Icon(Icons.copy, size: 16, color: _palette.mint),
-            label: Text(
-              'Copy JSON',
-              style: TextStyle(color: _palette.mint),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Close', style: TextStyle(color: Colors.white70)),
           ),
         ],
       ),

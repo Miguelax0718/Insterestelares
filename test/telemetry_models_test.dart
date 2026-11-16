@@ -21,7 +21,7 @@ import 'package:astramed/features/telemetry/data/space_machines_catalog.dart';
 import 'package:astramed/features/telemetry/models/telemetry_machine.dart';
 
 void main() {
-  testWidgets('English telemetry modal preserves profile selection and JSON inspection',
+  testWidgets('English telemetry modal preserves profile selection and hides DB JSON inspection',
       (tester) async {
     await tester.pumpWidget(ProviderScope(
       overrides: [
@@ -39,6 +39,7 @@ void main() {
     expect(find.text('Scan Space Bus'), findsOneWidget);
     expect(find.text('Read All (4)'), findsOneWidget);
     expect(find.text('Sync DB/Users'), findsOneWidget);
+    expect(find.text('Inspect DB JSON'), findsNothing);
     await tester.tap(find.text('ATHENA (4)'));
     await tester.pump();
     expect(find.textContaining('Profile: Dra. Elena Ramos (AST-02)'), findsOneWidget);
@@ -47,13 +48,6 @@ void main() {
     final container = ProviderScope.containerOf(
         tester.element(find.byType(TelemetryConfigModal)));
     expect(container.read(telemetryProvider).recentLogs, hasLength(4));
-    await tester.tap(find.text('Inspect DB JSON'));
-    await tester.pumpAndSettle();
-    expect(find.text('DB/Users/AST-02.json'), findsOneWidget);
-    expect(find.text('Copy JSON'), findsOneWidget);
-    await tester.tap(find.text('Close'));
-    await tester.pumpAndSettle();
-    expect(find.text('Inspect DB JSON'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
   });
