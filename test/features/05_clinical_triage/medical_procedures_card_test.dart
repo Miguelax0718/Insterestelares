@@ -17,18 +17,24 @@ void main() {
       body: SingleChildScrollView(child: MedicalProceduresCockpitCard(onDismiss: () {})),
     ))));
     final situation = MedicalProceduresData.getScenarios().last;
+    final situationToggle = find.byKey(const ValueKey('procedures_situation_toggle'));
+    await tester.ensureVisible(situationToggle);
+    await tester.tap(situationToggle);
+    await tester.pump();
+    await tester.ensureVisible(find.text(situation.label));
     await tester.tap(find.text(situation.label));
     await tester.pump();
     expect(find.text(situation.symptomSummary), findsOneWidget);
     final procedure = MedicalProceduresData.findById(situation.recommendedProcedureId)!;
     expect(find.text(procedure.summary), findsOneWidget);
-    expect(find.text(procedure.steps.last.action), findsOneWidget);
+    expect(find.text(procedure.steps.first.action), findsOneWidget);
+    await tester.ensureVisible(find.text('Live Telemetry'));
     await tester.tap(find.text('Live Telemetry'));
     await tester.pump();
     expect(find.text(situation.symptomSummary), findsNothing);
     expect(tester.takeException(), isNull);
   });
-  testWidgets('offline card exposes full selected protocol and all scenarios', (tester) async {
+  testWidgets('compact guide navigates steps and expands references on demand', (tester) async {
     final procedure = MedicalProceduresData.findById('PROC-RADIATION-ARS')!;
     await tester.pumpWidget(ProviderScope(child: MaterialApp(home: Scaffold(
       body: SingleChildScrollView(child: MedicalProceduresCockpitCard(
@@ -36,13 +42,48 @@ void main() {
       )),
     ))));
     expect(find.text(procedure.title), findsWidgets);
-    expect(find.text('CRITICAL · RED'), findsOneWidget);
-    expect(find.text('Live Telemetry'), findsOneWidget);
-    expect(find.byType(ChoiceChip), findsNWidgets(
-      MedicalProceduresData.getScenarios().length + 1));
+    expect(find.text('CRITICAL'), findsOneWidget);
+    expect(find.text('Step 1 of ${procedure.steps.length}'), findsOneWidget);
+    expect(find.byType(ChoiceChip), findsNothing);
+    expect(find.text(procedure.steps.last.action), findsNothing);
+    for (final text in [...procedure.warnings, ...procedure.whenToActivate]) {
+      expect(find.text(text), findsNothing);
+    }
+    for (final supply in procedure.requiredSupplies) {
+      expect(find.byKey(ValueKey('procedure-supply-${supply.itemId}')), findsNothing);
+    }
+    final previous = find.byKey(const ValueKey('procedure_prev_step'));
+    final next = find.byKey(const ValueKey('procedure_next_step'));
+    expect(tester.widget<OutlinedButton>(previous).onPressed, isNull);
+    for (var i = 1; i < procedure.steps.length; i++) {
+      await tester.ensureVisible(next);
+      await tester.tap(next);
+      await tester.pump();
+      expect(find.text('Step ${i + 1} of ${procedure.steps.length}'), findsOneWidget);
+      expect(find.text(procedure.steps[i].action), findsOneWidget);
+      expect(find.text(procedure.steps[i - 1].action), findsNothing);
+    }
+    expect(tester.widget<FilledButton>(next).onPressed, isNull);
+    await tester.tap(previous);
+    await tester.pump();
+    expect(find.text(procedure.steps[procedure.steps.length - 2].action), findsOneWidget);
+    final all = find.byKey(const ValueKey('procedure_all_steps_toggle'));
+    await tester.ensureVisible(all);
+    await tester.tap(all);
+    await tester.pump();
     for (final step in procedure.steps) {
       expect(find.text(step.action), findsOneWidget);
       expect(find.text(step.clinicalTip), findsWidgets);
+    }
+    await tester.ensureVisible(all);
+    await tester.tap(all);
+    await tester.pump();
+    expect(find.text(procedure.steps.first.action), findsNothing);
+    for (final section in ['warnings', 'supplies', 'activate', 'reference']) {
+      final toggle = find.byKey(ValueKey('procedures_${section}_toggle'));
+      await tester.ensureVisible(toggle);
+      await tester.tap(toggle);
+      await tester.pump();
     }
     for (final warning in procedure.warnings) {
       expect(find.text(warning), findsOneWidget);
@@ -50,6 +91,10 @@ void main() {
     for (final supply in procedure.requiredSupplies) {
       expect(find.textContaining(supply.name), findsWidgets);
     }
+    for (final trigger in procedure.whenToActivate) {
+      expect(find.text(trigger), findsOneWidget);
+    }
+    expect(find.text(procedure.criterionReference), findsOneWidget);
     expect(tester.widget<DropdownButton<String>>(find.byType(DropdownButton<String>))
       .items, hasLength(10));
   });
@@ -63,9 +108,19 @@ void main() {
             initialProcedureId: procedure.id, onDismiss: () {},
           )),
         ))));
-        expect(find.text('Offline Protocol Guide'), findsOneWidget);
-        expect(find.text("What's happening?"), findsOneWidget);
+        expect(find.textContaining('• Offline Guide'), findsOneWidget);
+        expect(find.text('Situation triage: Live Telemetry'), findsOneWidget);
         expect(find.text(procedure.code), findsOneWidget);
+        expect(find.text('Step 1 of ${procedure.steps.length}'), findsOneWidget);
+        for (final section in ['all_steps', 'warnings', 'supplies', 'activate', 'reference', 'situation']) {
+          final key = section == 'all_steps'
+            ? 'procedure_all_steps_toggle' : 'procedures_${section}_toggle';
+          final toggle = find.byKey(ValueKey(key));
+          await tester.ensureVisible(toggle);
+          await tester.tap(toggle);
+          await tester.pump();
+          expect(tester.takeException(), isNull);
+        }
         for (final step in procedure.steps) {
           expect(find.byKey(ValueKey('procedure-step-${step.step}')), findsOneWidget);
           expect(find.text('${step.step}'), findsOneWidget);
@@ -99,6 +154,8 @@ void main() {
       await tester.pumpWidget(ProviderScope(child: MaterialApp(home: Scaffold(
         body: SingleChildScrollView(child: MedicalProceduresCockpitCard(onDismiss: () {})),
       ))));
+      await tester.tap(find.byKey(const ValueKey('procedures_situation_toggle')));
+      await tester.pump();
       for (final scenario in MedicalProceduresData.getScenarios()) {
         await tester.ensureVisible(find.text(scenario.label));
         await tester.tap(find.text(scenario.label));
@@ -113,6 +170,11 @@ void main() {
         }
         final procedure = MedicalProceduresData.findById(scenario.recommendedProcedureId)!;
         expect(find.text(procedure.summary), findsOneWidget);
+        expect(find.text('Step 1 of ${procedure.steps.length}'), findsOneWidget);
+        final next = find.byKey(const ValueKey('procedure_next_step'));
+        await tester.ensureVisible(next);
+        await tester.tap(next);
+        await tester.pump();
         expect(tester.takeException(), isNull);
       }
       await tester.ensureVisible(find.text('Live Telemetry'));
@@ -143,6 +205,11 @@ void main() {
         await tester.pumpAndSettle();
         expect(tester.widget<DropdownButton<String>>(picker).value, procedure.id);
         expect(find.text(procedure.summary), findsOneWidget);
+        expect(find.text('Step 1 of ${procedure.steps.length}'), findsOneWidget);
+        final next = find.byKey(const ValueKey('procedure_next_step'));
+        await tester.ensureVisible(next);
+        await tester.tap(next);
+        await tester.pump();
         expect(find.text('Matched to live telemetry'), findsNothing);
         expect(tester.takeException(), isNull);
       }
