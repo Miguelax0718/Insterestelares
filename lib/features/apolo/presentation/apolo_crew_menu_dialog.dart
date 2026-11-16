@@ -7,6 +7,7 @@ import 'package:astramed/features/crew/presentation/providers/crew_provider.dart
 
 import '../domain/apolo_models.dart';
 import '../providers/apolo_contract_providers.dart';
+import '../providers/apolo_alert_state_provider.dart';
 import 'apolo_theme.dart';
 
 /// Crew selector & cockpit preference menu opened from the top bar crew button.
@@ -142,18 +143,16 @@ class ApoloCrewMenuDialog extends ConsumerWidget {
     required bool highContrast,
   }) {
     final isSelected = member.id == selectedId;
-    ApoloSeverity severity;
+    final severity = ref.watch(crewEffectiveStatusesProvider)[member.id]?.severity
+        ?? _fallbackSeverity(member.riskLevel);
     int avatarColorHex = 0xFFB3E9C7;
     try {
       final s = actions.stateFor(member.id);
       if (s.astronautId == member.id) {
-        severity = s.overallSeverity;
         avatarColorHex = s.colorHex;
-      } else {
-        severity = _fallbackSeverity(member.riskLevel);
       }
     } catch (_) {
-      severity = _fallbackSeverity(member.riskLevel);
+      // Keep the profile avatar color when an isolated controller is unavailable.
     }
 
     return Padding(

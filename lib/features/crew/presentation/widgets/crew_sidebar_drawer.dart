@@ -8,6 +8,7 @@ import 'package:astramed/features/apolo/presentation/apolo_assessment_launcher_s
 import 'package:astramed/features/apolo/presentation/apolo_theme.dart';
 import 'package:astramed/features/apolo/domain/apolo_models.dart';
 import 'package:astramed/features/apolo/providers/apolo_contract_providers.dart';
+import 'package:astramed/features/apolo/providers/apolo_alert_state_provider.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 import 'package:astramed/features/simulation/presentation/mission_simulator_card.dart';
@@ -25,9 +26,9 @@ class CrewSidebarDrawer extends ConsumerWidget {
     final selectedId = ref.watch(selectedAstronautIdProvider);
     final telemetryState = ref.watch(telemetryProvider);
 
-    final criticalCount = ref.watch(criticalCrewCountProvider);
-    final warningCount = ref.watch(warningCrewCountProvider);
-    final nominalCount = ref.watch(nominalCrewCountProvider);
+    final criticalCount = ref.watch(effectiveCriticalCrewCountProvider);
+    final warningCount = ref.watch(effectiveWarningCrewCountProvider);
+    final nominalCount = ref.watch(effectiveNominalCrewCountProvider);
     final apoloState = ref.watch(apoloActiveStateProvider);
     final palette = ApoloPalette.of(apoloState.highContrast);
 
@@ -58,12 +59,10 @@ class CrewSidebarDrawer extends ConsumerWidget {
                   final connectedCount = telemetryState.machines
                       .where((m) => m.isConnectedFor(astronaut.id))
                       .length;
-                  return _buildAstronautCard(
-                    context,
-                    ref,
-                    astronaut,
-                    isSelected,
-                    connectedCount,
+                  return _CrewAstronautCard(
+                    astronaut: astronaut,
+                    isSelected: isSelected,
+                    connectedMachinesCount: connectedCount,
                   );
                 },
               ),
@@ -159,351 +158,8 @@ class CrewSidebarDrawer extends ConsumerWidget {
     );
   }
 
-  /// Tarjeta de cada astronauta en el sidebar
-  Widget _buildAstronautCard(
-    BuildContext context,
-    WidgetRef ref,
-    AstronautProfile astronaut,
-    bool isSelected,
-    int connectedMachinesCount,
-  ) {
-    final highContrast = ref.watch(apoloActiveStateProvider).highContrast;
-    final palette = ApoloPalette.of(highContrast);
-    final severity = switch (astronaut.riskLevel) {
-      CrewRiskLevel.critical => ApoloSeverity.crit,
-      CrewRiskLevel.warning => ApoloSeverity.warn,
-      CrewRiskLevel.nominal => ApoloSeverity.ok,
-    };
-    final statusColor = palette.forSeverity(severity);
-
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      elevation: isSelected ? 4 : 1,
-      color: isSelected
-          ? palette.elev
-          : palette.surface.withValues(alpha: highContrast ? 1 : 0.78),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(
-          color: isSelected
-              ? palette.lav2
-              : (astronaut.riskLevel == CrewRiskLevel.critical
-                   ? palette.crit
-                   : palette.border),
-          width: isSelected ? 2.0 : (astronaut.riskLevel == CrewRiskLevel.critical ? 1.5 : 1.0),
-        ),
-      ),
-      child: InkWell(
-        key: ValueKey('crew_drawer_item_${astronaut.id}'),
-        borderRadius: BorderRadius.circular(20),
-        onTap: () {
-          // Cambia el astronauta activo en crew y en el agente APOLO
-          ref.read(selectedAstronautIdProvider.notifier).state = astronaut.id;
-          ref.read(agentOrchestratorProvider.notifier).switchAstronaut(astronaut.id);
-          Navigator.of(context).pop(); // Cierra el Drawer
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Fila superior: Avatar, Nombre, Rol y Badge de Selección
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Avatar con aro del color de riesgo
-                  Stack(
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: statusColor, width: 1.5),
-                          boxShadow: highContrast ? null : [
-                            BoxShadow(color: statusColor.withValues(alpha: 0.25),
-                                blurRadius: 18),
-                          ],
-                        ),
-                        child: CircleAvatar(
-                        radius: 22,
-                        backgroundColor: statusColor.withValues(alpha: 0.2),
-                        child: Text(
-                          astronaut.avatarInitials,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: statusColor,
-                          ),
-                        ),
-                      )),
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: statusColor,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: palette.surface, width: 2),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 10),
-
-                  // Nombre, Callsign y Rol
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                astronaut.name,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  color: Colors.white,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                              decoration: BoxDecoration(
-                                color: Colors.white10,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                astronaut.callsign,
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.bold,
-                                  color: palette.lav2,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          astronaut.role,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Colors.white70,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Indicador de "ACTIVO" si está seleccionado
-                  if (isSelected)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: palette.mint,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Text(
-                        'ACTIVE',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-
-              const SizedBox(height: 10),
-
-              ApoloStatusChip(
-                severity: severity, highContrast: highContrast, compact: true,
-              ),
-              const SizedBox(height: 6),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: statusColor.withValues(alpha: 0.4)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(_getRiskIcon(astronaut.riskLevel), size: 14, color: statusColor),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        astronaut.riskTitle,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: statusColor,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              // ── PREVIEW DE TELEMETRÍA RÁPIDA (FC, SpO2, PA) ──
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                decoration: BoxDecoration(
-                  color: palette.bg2,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildMiniMetric(
-                        label: 'HR',
-                        value: '${astronaut.vitals.heartRate.toInt()} bpm',
-                        isWarning: astronaut.vitals.heartRate > 100 ||
-                            astronaut.vitals.heartRate < 50,
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 6),
-                        child: Text('|', style: TextStyle(color: Colors.white24, fontSize: 10)),
-                      ),
-                      _buildMiniMetric(
-                        label: 'SpO2',
-                        value: '${astronaut.vitals.spO2.toInt()}%',
-                        isWarning: astronaut.vitals.spO2 < 94,
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 6),
-                        child: Text('|', style: TextStyle(color: Colors.white24, fontSize: 10)),
-                      ),
-                      _buildMiniMetric(
-                        label: 'BP',
-                        value:
-                            '${astronaut.vitals.systolicBP.toInt()}/${astronaut.vitals.diastolicBP.toInt()}',
-                        isWarning: astronaut.vitals.systolicBP > 130 ||
-                            astronaut.vitals.systolicBP < 90,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Alerta principal si existe riesgo
-              if (astronaut.activeAlerts.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    const Icon(Icons.bolt, color: Colors.amberAccent, size: 12),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        astronaut.activeAlerts.first,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: Colors.amberAccent,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-
-              const SizedBox(height: 6),
-
-              // ── FILA DE TELEMETRÍA Y ACCESO RÁPIDO A CONFIGURACIÓN ──
-              Row(
-                children: [
-                  Icon(
-                    Icons.sensors,
-                    size: 13,
-                    color: connectedMachinesCount > 0
-                        ? palette.mint
-                        : Colors.white38,
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      '$connectedMachinesCount active • ${astronaut.vitals.source.toUpperCase()}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: connectedMachinesCount > 0
-                            ? palette.mint
-                            : Colors.white54,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  InkWell(
-                    borderRadius: BorderRadius.circular(6),
-                    onTap: () {
-                      final rootContext =
-                          Navigator.of(context, rootNavigator: true).context;
-                      Navigator.of(context).pop();
-                      TelemetryConfigModal.show(
-                        rootContext,
-                        initialAstronautId: astronaut.id,
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: palette.elev,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: palette.border,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.settings_input_antenna,
-                            size: 11,
-                            color: palette.lav2,
-                          ),
-                          SizedBox(width: 3),
-                          Text(
-                            'Config',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                              color: palette.lav2,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   /// Muestra una métrica compacta en el preview de cada tarjeta
-  Widget _buildMiniMetric({
+  static Widget _buildMiniMetric({
     required String label,
     required String value,
     required bool isWarning,
@@ -800,14 +456,460 @@ class CrewSidebarDrawer extends ConsumerWidget {
     );
   }
 
-  IconData _getRiskIcon(CrewRiskLevel level) {
-    switch (level) {
-      case CrewRiskLevel.critical:
-        return Icons.emergency;
-      case CrewRiskLevel.warning:
-        return Icons.warning_amber_rounded;
-      case CrewRiskLevel.nominal:
-        return Icons.verified;
+}
+
+class _CrewAstronautCard extends ConsumerStatefulWidget {
+  const _CrewAstronautCard({
+    required this.astronaut,
+    required this.isSelected,
+    required this.connectedMachinesCount,
+  });
+
+  final AstronautProfile astronaut;
+  final bool isSelected;
+  final int connectedMachinesCount;
+
+  @override
+  ConsumerState<_CrewAstronautCard> createState() => _CrewAstronautCardState();
+}
+
+class _CrewAstronautCardState extends ConsumerState<_CrewAstronautCard> {
+  bool _showAllAlerts = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final astronaut = widget.astronaut;
+    final isSelected = widget.isSelected;
+    final connectedMachinesCount = widget.connectedMachinesCount;
+    final highContrast = ref.watch(apoloActiveStateProvider).highContrast;
+    final palette = ApoloPalette.of(highContrast);
+    final status = ref.watch(crewEffectiveStatusesProvider)[astronaut.id];
+    final alerts = status?.alerts ?? astronaut.activeAlerts;
+    final extraCount =
+        status?.extraIssueCount ?? (alerts.length > 1 ? alerts.length - 1 : 0);
+    if (extraCount == 0 && _showAllAlerts) {
+      _showAllAlerts = false;
     }
+    final severity = status?.severity ??
+        switch (astronaut.riskLevel) {
+          CrewRiskLevel.critical => ApoloSeverity.crit,
+          CrewRiskLevel.warning => ApoloSeverity.warn,
+          CrewRiskLevel.nominal => ApoloSeverity.ok,
+        };
+    final statusColor = palette.forSeverity(severity);
+
+    return Card(
+      key: ValueKey('crew_status_${astronaut.id}'),
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      elevation: isSelected ? 4 : 1,
+      color: isSelected
+          ? palette.elev
+          : palette.surface.withValues(alpha: highContrast ? 1 : 0.78),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: isSelected
+              ? palette.lav2
+              : (severity != ApoloSeverity.ok ? statusColor : palette.border),
+          width: isSelected ? 2.0 : (severity != ApoloSeverity.ok ? 1.5 : 1.0),
+        ),
+      ),
+      child: InkWell(
+        key: ValueKey('crew_drawer_item_${astronaut.id}'),
+        borderRadius: BorderRadius.circular(20),
+        onTap: () {
+          // Cambia el astronauta activo en crew y en el agente APOLO
+          ref.read(selectedAstronautIdProvider.notifier).state = astronaut.id;
+          ref
+              .read(agentOrchestratorProvider.notifier)
+              .switchAstronaut(astronaut.id);
+          Navigator.of(context).pop(); // Cierra el Drawer
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Fila superior: Avatar, Nombre, Rol y Badge de Selección
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Avatar con aro del color de riesgo
+                  Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: statusColor, width: 1.5),
+                          boxShadow: highContrast
+                              ? null
+                              : [
+                                  BoxShadow(
+                                    color: statusColor.withValues(alpha: 0.25),
+                                    blurRadius: 18,
+                                  ),
+                                ],
+                        ),
+                        child: CircleAvatar(
+                          radius: 22,
+                          backgroundColor: statusColor.withValues(alpha: 0.2),
+                          child: Text(
+                            astronaut.avatarInitials,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: statusColor,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: statusColor,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: palette.surface,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 10),
+
+                  // Nombre, Callsign y Rol
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                astronaut.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: Colors.white,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 1,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white10,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                astronaut.callsign,
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: palette.lav2,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          astronaut.role,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.white70,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Indicador de "ACTIVO" si está seleccionado
+                  if (isSelected)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: palette.mint,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Text(
+                        'ACTIVE',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+
+              const SizedBox(height: 10),
+
+              ApoloStatusChip(
+                severity: severity,
+                highContrast: highContrast,
+                compact: true,
+              ),
+              const SizedBox(height: 6),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: statusColor.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      apoloSeverityIcon(severity),
+                      size: 14,
+                      color: statusColor,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        status?.title ?? astronaut.riskTitle,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: statusColor,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (extraCount > 0) ...[
+                      const SizedBox(width: 6),
+                      Tooltip(
+                        message: alerts.join('\n'),
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => setState(
+                            () => _showAllAlerts = !_showAllAlerts,
+                          ),
+                          child: Container(
+                            key: ValueKey(
+                              'crew_extra_alerts_badge_${astronaut.id}',
+                            ),
+                            width: 22,
+                            height: 22,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: statusColor,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(2),
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  '+$extraCount',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    color: severity == ApoloSeverity.crit
+                                        ? Colors.white
+                                        : const Color(0xFF0B0C1E),
+                                    height: 1.0,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              // ── PREVIEW DE TELEMETRÍA RÁPIDA (FC, SpO2, PA) ──
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: palette.bg2,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CrewSidebarDrawer._buildMiniMetric(
+                        label: 'HR',
+                        value: '${astronaut.vitals.heartRate.toInt()} bpm',
+                        isWarning: astronaut.vitals.heartRate > 100 ||
+                            astronaut.vitals.heartRate < 50,
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 6),
+                        child: Text(
+                          '|',
+                          style: TextStyle(color: Colors.white24, fontSize: 10),
+                        ),
+                      ),
+                      CrewSidebarDrawer._buildMiniMetric(
+                        label: 'SpO2',
+                        value: '${astronaut.vitals.spO2.toInt()}%',
+                        isWarning: astronaut.vitals.spO2 < 94,
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 6),
+                        child: Text(
+                          '|',
+                          style: TextStyle(color: Colors.white24, fontSize: 10),
+                        ),
+                      ),
+                      CrewSidebarDrawer._buildMiniMetric(
+                        label: 'BP',
+                        value:
+                            '${astronaut.vitals.systolicBP.toInt()}/${astronaut.vitals.diastolicBP.toInt()}',
+                        isWarning: astronaut.vitals.systolicBP > 130 ||
+                            astronaut.vitals.systolicBP < 90,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Alerta principal si existe riesgo
+              if (alerts.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(Icons.bolt, color: Colors.amberAccent, size: 12),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        alerts.first,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.amberAccent,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                if (_showAllAlerts && alerts.length > 1)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, left: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final extra in alerts.skip(1))
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 2),
+                            child: Text(
+                              '• $extra',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Colors.amberAccent,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+              ],
+
+              const SizedBox(height: 6),
+
+              // ── FILA DE TELEMETRÍA Y ACCESO RÁPIDO A CONFIGURACIÓN ──
+              Row(
+                children: [
+                  Icon(
+                    Icons.sensors,
+                    size: 13,
+                    color: connectedMachinesCount > 0
+                        ? palette.mint
+                        : Colors.white38,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      '$connectedMachinesCount active • ${astronaut.vitals.source.toUpperCase()}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: connectedMachinesCount > 0
+                            ? palette.mint
+                            : Colors.white54,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(6),
+                    onTap: () {
+                      final rootContext =
+                          Navigator.of(context, rootNavigator: true).context;
+                      Navigator.of(context).pop();
+                      TelemetryConfigModal.show(
+                        rootContext,
+                        initialAstronautId: astronaut.id,
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: palette.elev,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: palette.border,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.settings_input_antenna,
+                            size: 11,
+                            color: palette.lav2,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            'Config',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: palette.lav2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

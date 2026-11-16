@@ -22,7 +22,8 @@ AgentSkill clinicalNavigationAndProceduresSkill() {
         '(General Health, Radiation, Microgravity/SMS/SANS, Mental Health/Sleep, Triage/Procedures), '
         'or asks to open manual measurement mode, ALWAYS call `open_clinical_terminal` instead of `show_component(crew_status)`. '
         'When the user asks how to manually measure vital signs (pulse, respiratory rate, capillary refill, temperature, blood pressure) '
-        'call `get_manual_vitals_guide`. '
+        'call `get_manual_vitals_guide(open_manual_tool: false)` and clearly explain the anatomical measurement steps. '
+        'Do not reopen the manual vitals form for how-to questions; only open it when explicitly requested. '
         'When the user asks for emergency or clinical procedures, radiation sickness (ARS), SAS/SMS space motion sickness, SANS neuro-ocular syndrome, '
         'hypoxia, hypercapnia, CPR, or first-aid kit items, call `search_medical_procedures`.',
     tools: [
@@ -76,6 +77,8 @@ AgentSkill clinicalNavigationAndProceduresSkill() {
       'tomar pulso',
       'como tomar',
       'cómo tomar',
+      'como medir',
+      'cómo medir',
       'signos vitales manualmente',
       'sin sensores',
       'llenado capilar',
@@ -99,6 +102,9 @@ AgentSkill clinicalNavigationAndProceduresSkill() {
       'medical kit',
       'cpr',
       'how to measure',
+      'how do i measure',
+      'measure vital signs manually',
+      'without sensors',
     ],
     offlineFlow: ClinicalNavigationOfflineFlow(),
   );
@@ -564,24 +570,25 @@ class ClinicalNavigationOfflineFlow implements QueryAwareDeterministicFlow {
     // 1. Guías de medición manual de signos vitales
     if (norm.contains('manual') ||
         norm.contains('como tomar') ||
+        norm.contains('como medir') ||
         norm.contains('medir pulso') ||
         norm.contains('tomar pulso') ||
         norm.contains('llenado capilar') ||
         norm.contains('sin sensor') ||
         norm.contains('take pulse') ||
         norm.contains('how to measure') ||
+        norm.contains('how do i measure') ||
+        norm.contains('measure vital signs manually') ||
+        norm.contains('without sensors') ||
         norm.contains('measure pulse')) {
+      final explicitOpen = norm.contains('open') || norm.contains('abre') ||
+          norm.contains('abrir');
+      final asksHow = norm.contains('how to') || norm.contains('how do i') ||
+          norm.contains('explain') || norm.contains('como tomar') ||
+          norm.contains('como medir');
       final wantsDialogOpen =
-          norm.contains('abre') ||
-          norm.contains('abrir') ||
-          norm.contains('inicia') ||
-           norm.contains('toma manual') ||
-           norm.contains('medir') ||
-           norm.contains('tomar pulso') ||
-           norm.contains('take pulse') ||
-           norm.contains('measure') ||
-           norm.contains('record') ||
-          norm.contains('open');
+          explicitOpen || (!asksHow && (norm.contains('inicia') ||
+              norm.contains('start') || norm.contains('record')));
       final res = await const _GetManualVitalsGuideTool().call({
         'metric': norm,
         'open_manual_tool': wantsDialogOpen,

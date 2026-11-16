@@ -8,6 +8,7 @@ import 'package:astramed/features/agent/domain/agent_models.dart';
 
 import '../domain/apolo_models.dart';
 import 'apolo_theme.dart';
+import 'apolo_orb_widget.dart' show ApoloOrbHoverWindow;
 
 /// Kind of chat circle shown next to Apolo.
 enum ApoloChatOrbKind {
@@ -29,6 +30,7 @@ class ApoloChatOrbData {
     required this.title,
     required this.preview,
     required this.icon,
+    this.summary,
     this.severity,
     this.message,
     this.componentId,
@@ -41,6 +43,7 @@ class ApoloChatOrbData {
   final ApoloChatOrbKind kind;
   final String title;
   final String preview;
+  final String? summary;
   final IconData icon;
 
   /// Severity color for alert-like components; `null` uses lavender.
@@ -133,6 +136,7 @@ class ApoloChatOrbData {
           : (interactiveComponents.contains(vm.componentId)
                 ? 'Tap to start'
                 : 'Tap to open'),
+      summary: summary?.trim(),
       icon: componentIcon(vm.componentId),
       severity: severityFromProps(props),
       componentId: vm.componentId,
@@ -308,24 +312,28 @@ class _ApoloChatOrbWidgetState extends State<ApoloChatOrbWidget>
     final pulse = data.interactive || data.severity == ApoloSeverity.crit;
     final seed = _seed;
 
-    final body = AnimatedSize(
+    final expanded = _hovered;
+
+    final body = AnimatedScale(
+      scale: expanded ? 1.14 : 1.0,
       duration: disable ? Duration.zero : const Duration(milliseconds: 220),
       curve: Curves.easeOutCubic,
       child: Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(_hovered ? 26 : diameter),
+      borderRadius: BorderRadius.circular(diameter),
       child: InkWell(
         key: ValueKey('apolo_chat_orb_${data.key}'),
-        borderRadius: BorderRadius.circular(_hovered ? 26 : diameter),
-        onTap: widget.onTap,
+        borderRadius: BorderRadius.circular(diameter),
+        onTap: () {
+          setState(() => _hovered = false);
+          widget.onTap();
+        },
         child: Container(
-          // Preserve the width of non-flex side-rail columns; bounded Wrap
-          // layouts can also expand horizontally.
-          width: _hovered && constraints.hasBoundedWidth ? 300 : diameter,
-          height: _hovered ? 250 : diameter,
+          width: diameter,
+          height: diameter,
           padding: EdgeInsets.all(diameter * 0.1),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(_hovered ? 26 : diameter),
+            borderRadius: BorderRadius.circular(diameter),
             color: widget.highContrast
                 ? const Color(0xFF000000)
                 : const Color(0xE61A1C46),
@@ -344,8 +352,8 @@ class _ApoloChatOrbWidgetState extends State<ApoloChatOrbWidget>
             border: Border.all(
               color: widget.highContrast
                   ? accent
-                  : accent.withValues(alpha: 0.8),
-              width: widget.highContrast ? 3 : 2,
+                  : accent.withValues(alpha: expanded ? 1.0 : 0.8),
+              width: widget.highContrast || expanded ? 3 : 2,
               // Replies use a dashed-looking thinner ring through opacity;
               // components use the solid accent ring.
             ),
@@ -353,43 +361,16 @@ class _ApoloChatOrbWidgetState extends State<ApoloChatOrbWidget>
                 ? null
                 : [
                     BoxShadow(
-                      color: accent.withValues(alpha: 0.12),
-                      spreadRadius: 4,
+                      color: accent.withValues(alpha: expanded ? 0.24 : 0.12),
+                      spreadRadius: expanded ? 7 : 4,
                     ),
                     BoxShadow(
-                      color: accent.withValues(alpha: 0.22),
-                      blurRadius: 22,
+                      color: accent.withValues(alpha: expanded ? 0.40 : 0.22),
+                      blurRadius: expanded ? 34 : 22,
                     ),
                   ],
           ),
-          child: _hovered ? SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(data.icon, color: accent),
-                const SizedBox(height: 8),
-                Text(data.title.isNotEmpty ? data.title : 'Apolo reply',
-                  style: TextStyle(color: palette.text, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 6),
-                if (data.severity != null)
-                  FittedBox(fit: BoxFit.scaleDown,
-                    child: ApoloStatusChip(severity: data.severity!,
-                      highContrast: widget.highContrast, compact: true))
-                else Text(data.kind == ApoloChatOrbKind.reply ? 'Apolo reply'
-                  : data.interactive ? 'Needs input' : 'Ready',
-                  style: TextStyle(color: accent, fontSize: 11)),
-                const SizedBox(height: 12),
-                Text(data.kind == ApoloChatOrbKind.reply
-                  ? _expandedReply(data.message?.content ?? data.preview)
-                  : data.preview,
-                  maxLines: 4, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: palette.text2)),
-                const SizedBox(height: 12),
-                Text(data.interactive ? 'Needs input · Click to open' : 'Click to open',
-                  style: TextStyle(color: accent, fontSize: 11)),
-              ],
-            ),
-          ) : Column(
+          child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
@@ -496,18 +477,137 @@ class _ApoloChatOrbWidgetState extends State<ApoloChatOrbWidget>
             ),
           );
         },
-        child: MouseRegion(
+        child: ApoloOrbHoverWindow(
+          visible: _hovered,
+          windowKey: ValueKey('apolo_chat_orb_hover_window_${data.key}'),
+          accent: accent,
+          highContrast: widget.highContrast,
+          content: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 14,
+                runSpacing: 10,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: accent.withValues(alpha: 0.18),
+                      border: Border.all(color: accent.withValues(alpha: 0.5)),
+                    ),
+                    child: Icon(data.icon, color: accent, size: 28),
+                  ),
+                  Text(
+                    data.title.isNotEmpty ? data.title : 'Apolo reply',
+                    style: TextStyle(
+                      color: palette.text,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
+                    ),
+                  ),
+                  if (data.severity != null)
+                    ApoloStatusChip(
+                      severity: data.severity!,
+                      highContrast: widget.highContrast,
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: accent.withValues(alpha: 0.55),
+                        ),
+                      ),
+                      child: Text(
+                        data.kind == ApoloChatOrbKind.reply
+                            ? 'Apolo reply'
+                            : data.interactive
+                                ? 'Needs input'
+                                : 'Ready',
+                        style: TextStyle(
+                          color: accent,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          height: 1.15,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              if (data.kind == ApoloChatOrbKind.reply)
+                Text(
+                  data.message?.content.trim().isNotEmpty == true
+                      ? data.message!.content.trim()
+                      : data.preview,
+                  style: TextStyle(
+                    color: palette.text,
+                    fontSize: 18,
+                    height: 1.55,
+                  ),
+                )
+              else ...[
+                Text(
+                  (data.summary != null && data.summary!.isNotEmpty)
+                      ? data.summary!
+                      : (data.message?.content.trim().isNotEmpty == true
+                            ? data.message!.content.trim()
+                            : data.preview),
+                  style: TextStyle(
+                    color: palette.text,
+                    fontSize: 17,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  data.interactive
+                      ? 'Interactive module · requires astronaut input'
+                      : 'Clinical readout · informational view',
+                  style: TextStyle(
+                    color: palette.text2,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 24),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.touch_app_outlined, color: accent, size: 16),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'Click orb to interact',
+                      style: TextStyle(
+                        color: accent,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          child: MouseRegion(
           onEnter: (_) => setState(() => _hovered = true),
           onExit: (_) => setState(() => _hovered = false),
           child: body,
         ),
+        ),
       ),
     );
-  }
-
-  String _expandedReply(String content) {
-    final text = content.trim();
-    return text.length > 150 ? '${text.substring(0, 150)}…' : text;
   }
 }
 

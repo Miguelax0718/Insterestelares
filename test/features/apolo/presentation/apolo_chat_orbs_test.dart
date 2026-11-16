@@ -16,8 +16,8 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   for (final highContrast in [false, true]) {
     for (final kind in ['health', 'reply', 'component']) {
-      testWidgets('$kind hover expands and collapses (contrast=$highContrast)', (tester) async {
-        const reply = 'Drink water regularly and keep tracking your hydration throughout the mission.';
+      testWidgets('$kind hover floats without resizing (contrast=$highContrast)', (tester) async {
+        const reply = 'Drink water regularly and keep tracking your hydration throughout the mission. Continue recording each measurement in your local log and review the complete history before the next scheduled check-in.';
         const snapshot = ApoloModuleSnapshot(
           id: ApoloModuleId.renal, title: 'Kidney health', shortLabel: 'Renal',
           measures: 'Tracks kidney function and hydration.',
@@ -53,28 +53,57 @@ void main() {
         await tester.pump(const Duration(milliseconds: 100));
         expect(tester.takeException(), isNull);
         await tester.pump(const Duration(milliseconds: 400));
-        expect(tester.getSize(target).width, greaterThan(before.width));
+        final window = find.byKey(ValueKey(kind == 'health'
+          ? 'apolo_orb_hover_window_renal' : 'apolo_chat_orb_hover_window_$kind'));
+        expect(window, findsOneWidget);
+        final screen = tester.view.physicalSize / tester.view.devicePixelRatio;
+        expect(tester.getSize(window).width, greaterThanOrEqualTo(screen.width - 60));
+        expect(tester.getSize(window).height, greaterThanOrEqualTo(screen.height - 60));
+        final ignored = find.ancestor(of: window, matching: find.byType(IgnorePointer));
+        expect(ignored, findsWidgets);
+        expect(tester.widget<IgnorePointer>(ignored.first).ignoring, isTrue);
+        final scale = tester.widget<AnimatedScale>(
+          find.ancestor(of: target, matching: find.byType(AnimatedScale)).first);
+        expect(scale.scale, 1.14);
+        expect(tester.getSize(target), before);
+        expect(before, Size.square(kind == 'health' ? 144 : kind == 'reply' ? 112 : 136));
+        final bounds = tester.getRect(window);
+        expect(bounds.left, greaterThanOrEqualTo(16));
+        expect(bounds.top, greaterThanOrEqualTo(16));
+        expect(bounds.right, lessThanOrEqualTo(784));
+        expect(bounds.bottom, lessThanOrEqualTo(584));
         expect(find.text(kind == 'health' ? snapshot.measures : kind == 'reply'
-          ? reply : 'Needs input · Click to open'), findsOneWidget);
+          ? reply : 'Click orb to interact'), findsOneWidget);
         if (kind == 'health') {
           expect(find.text(snapshot.subMetric), findsOneWidget);
-          expect(find.text('Click for details'), findsOneWidget);
+          expect(find.text('Click orb for interactive actions'), findsOneWidget);
         }
         expect(tester.takeException(), isNull);
+        await mouse.moveTo(Offset.zero);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+        expect(window, findsNothing);
+        expect(tester.getSize(target), before);
+        await mouse.moveTo(tester.getCenter(target));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+        expect(window, findsOneWidget);
         await tester.tap(target);
         expect(taps, 1);
+        await tester.pump();
+        await tester.pump();
+        expect(window, findsNothing);
         await mouse.moveTo(Offset.zero);
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 500));
         expect(tester.getSize(target), before);
-        expect(find.text(kind == 'health' ? 'Click for details'
-          : kind == 'reply' ? reply : 'Needs input · Click to open'), findsNothing);
+        expect(window, findsNothing);
         expect(tester.takeException(), isNull);
         await mouse.removePointer();
       });
     }
   }
-  testWidgets('hover grows vertically inside a narrow two-column orb rail', (tester) async {
+  testWidgets('hover preserves both columns of a narrow orb rail', (tester) async {
     final data = ApoloChatOrbData.fromSession(messages: const [],
       components: [GenericComponentViewModel(
         componentId: ComponentIds.pvtTest, title: 'Reaction time assessment',
@@ -92,17 +121,162 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     final orb = find.byKey(const ValueKey(0));
     final before = tester.getSize(orb);
+    final siblingBefore = tester.getRect(find.byKey(const ValueKey(1)));
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await mouse.addPointer(location: Offset.zero);
     await mouse.moveTo(tester.getCenter(orb));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(tester.getSize(orb).height, greaterThan(before.height));
-    expect(tester.getSize(orb).width, before.width);
-    expect(find.text('Needs input · Click to open'), findsOneWidget);
+    expect(tester.getSize(orb), before);
+    expect(tester.getRect(find.byKey(const ValueKey(1))).size, siblingBefore.size);
+    expect(find.text('Click orb to interact'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await mouse.removePointer();
   });
+  for (final alignment in [Alignment.topLeft, Alignment.bottomRight]) {
+    testWidgets('highlighted health preview stays within a small screen at $alignment', (tester) async {
+      tester.view.physicalSize = const Size(320, 360);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      const snapshot = ApoloModuleSnapshot(
+        id: ApoloModuleId.renal, title: 'Kidney health', shortLabel: 'Renal',
+        measures: 'Tracks kidney function and hydration.',
+        whyItMatters: '', severity: ApoloSeverity.warn,
+        keyMetric: 'Normal', subMetric: 'Latest kidney reading',
+        primaryBiomarkerId: '', primaryBiomarkerName: '',
+        biomarkers: [], trendValues: [], recommendations: [], relatedModules: [],
+      );
+      await tester.pumpWidget(MaterialApp(home: Scaffold(
+        body: Align(alignment: alignment, child: ApoloOrbWidget(
+          snapshot: snapshot, highlighted: true, onTap: () {},
+        )),
+      )));
+      await tester.pump();
+      final window = find.byKey(const ValueKey('apolo_orb_hover_window_renal'));
+      expect(window, findsOneWidget);
+      final rect = tester.getRect(window);
+      expect(rect.size, const Size(272, 312));
+      expect(rect.left, greaterThanOrEqualTo(16));
+      expect(rect.top, greaterThanOrEqualTo(16));
+      expect(rect.right, lessThanOrEqualTo(304));
+      expect(rect.bottom, lessThanOrEqualTo(344));
+      expect(find.ancestor(of: window, matching: find.byType(IgnorePointer)), findsWidgets);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump();
+      expect(window, findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
+  testWidgets('hover gracefully works without an Overlay', (tester) async {
+    const data = ApoloChatOrbData(
+      key: 'standalone', kind: ApoloChatOrbKind.reply,
+      title: 'Reply', preview: 'Drink water', icon: Icons.chat,
+    );
+    await tester.pumpWidget(Directionality(
+      textDirection: TextDirection.ltr,
+      child: MediaQuery(data: const MediaQueryData(disableAnimations: true),
+        child: Theme(data: ThemeData.dark(), child: Material(
+          child: Center(child: ApoloChatOrbWidget(data: data, onTap: () {})),
+        )),
+      ),
+    ));
+    final target = find.byKey(const ValueKey('apolo_chat_orb_standalone'));
+    final before = tester.getSize(target);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(target));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(tester.getSize(target), before);
+    expect(tester.takeException(), isNull);
+    await mouse.removePointer();
+  });
+
+  testWidgets('health hover window renders whyItMatters and caps pending recommendations at 3', (tester) async {
+    const snapshot = ApoloModuleSnapshot(
+      id: ApoloModuleId.hidratacion,
+      title: 'Hydration',
+      shortLabel: 'Water',
+      measures: 'Fluid intake vs daily target.',
+      whyItMatters: 'Microgravity shifts body fluids upward and blunts thirst.',
+      severity: ApoloSeverity.warn,
+      keyMetric: '1.2 L',
+      subMetric: 'of 2.5 L today',
+      primaryBiomarkerId: 'vol',
+      primaryBiomarkerName: 'Urine volume',
+      biomarkers: [],
+      trendValues: [],
+      recommendations: [
+        ApoloRecommendation(
+          id: 'r0',
+          moduleId: ApoloModuleId.hidratacion,
+          priority: 'High',
+          text: 'Completed step should be hidden',
+          why: 'Already done.',
+          done: true,
+        ),
+        ApoloRecommendation(
+          id: 'r1',
+          moduleId: ApoloModuleId.hidratacion,
+          priority: 'High',
+          text: 'Drink 500 ml of water now',
+          why: 'Restores plasma volume.',
+        ),
+        ApoloRecommendation(
+          id: 'r2',
+          moduleId: ApoloModuleId.hidratacion,
+          priority: 'Medium',
+          text: 'Add electrolyte tablet',
+          why: 'Supports sodium retention.',
+        ),
+        ApoloRecommendation(
+          id: 'r3',
+          moduleId: ApoloModuleId.hidratacion,
+          priority: 'Low',
+          text: 'Log next urine sample',
+          why: 'Confirms hydration trend.',
+        ),
+        ApoloRecommendation(
+          id: 'r4',
+          moduleId: ApoloModuleId.hidratacion,
+          priority: 'Low',
+          text: 'Fourth pending action stays hidden',
+          why: 'Only top 3 pending items fit.',
+        ),
+      ],
+      relatedModules: [],
+    );
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: ApoloOrbWidget(snapshot: snapshot, onTap: () {}),
+        ),
+      ),
+    ));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    final target = find.byKey(const ValueKey('apolo_orb_hidratacion'));
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(target));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.byKey(const ValueKey('apolo_orb_hover_window_hidratacion')), findsOneWidget);
+    expect(find.text(snapshot.whyItMatters), findsOneWidget);
+    expect(find.text('Drink 500 ml of water now'), findsOneWidget);
+    expect(find.text('Add electrolyte tablet'), findsOneWidget);
+    expect(find.text('Log next urine sample'), findsOneWidget);
+    expect(find.text('Completed step should be hidden'), findsNothing);
+    expect(find.text('Fourth pending action stays hidden'), findsNothing);
+    expect(find.text('Click orb for interactive actions'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await mouse.removePointer();
+  });
+
   group('ApoloChatOrbData.fromSession', () {
     const messages = [
       ChatMessage(role: ChatRole.user, content: 'How am I?'),

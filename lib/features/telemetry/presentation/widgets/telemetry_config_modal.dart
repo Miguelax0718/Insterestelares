@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:astramed/features/apolo/presentation/apolo_theme.dart';
@@ -42,6 +41,7 @@ class TelemetryConfigModal extends ConsumerStatefulWidget {
 class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
   static const _palette = ApoloPalette.standard;
   late String _targetAstronautId;
+  final Set<String> _expandedMachines = {};
 
   @override
   void initState() {
@@ -397,18 +397,6 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                         );
                       },
               ),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  side: const BorderSide(color: Colors.white24),
-                ),
-                icon: const Icon(Icons.data_object, size: 16),
-                label: const Text(
-                  'Inspect DB JSON',
-                  style: TextStyle(fontSize: 12),
-                ),
-                onPressed: () => _showJsonPreviewDialog(context, targetAstronaut),
-              ),
             ],
           ),
         ],
@@ -425,8 +413,12 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: _palette.border),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Material(
+        type: MaterialType.transparency,
+        child: ExpansionTile(
+        key: const ValueKey('telemetry_traceability_toggle'),
+        initiallyExpanded: false,
+        title: const Text('Technical Traceability Details'),
         children: [
           Row(
             children: [
@@ -463,6 +455,7 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
             ],
           ),
         ],
+        ),
       ),
     );
   }
@@ -504,6 +497,7 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
     final isConnected = machine.isConnectedFor(astronaut.id);
     final lastPacket = machine.lastPacketFor(astronaut.id);
     final catColor = _getCategoryColor(machine.category);
+    final expanded = _expandedMachines.contains(machine.id);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -578,26 +572,10 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        '${machine.id} • ${machine.protocol} • ${machine.defaultRecordType}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: _palette.mint,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
                         machine.description,
                         style: const TextStyle(
                           fontSize: 11,
                           color: Colors.white70,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Method: ${machine.measurementMethod} | State: ${machine.defaultActivityState} | Algorithm: ${machine.algorithm} | Criterion: ${machine.criterionReference}',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: Colors.white54,
                         ),
                       ),
                     ],
@@ -632,7 +610,7 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                     ),
                     const SizedBox(width: 3),
                     Text(
-                      'Battery ${machine.batteryPercent}%',
+                      'Bat ${machine.batteryPercent}%',
                       style: const TextStyle(
                         fontSize: 11,
                         color: Colors.white70,
@@ -697,7 +675,7 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                     border: Border.all(color: Colors.white10),
                   ),
                   child: Text(
-                    metric,
+                    _metricLabel(metric),
                     style: const TextStyle(fontSize: 10, color: Colors.white70),
                   ),
                 );
@@ -719,16 +697,9 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Latest packet: astronautId=${lastPacket.astronautId} | source=${lastPacket.source} | device=${lastPacket.device.isNotEmpty ? lastPacket.device : lastPacket.machineId} | recordType=${lastPacket.recordType} | activityState=${lastPacket.activityState} | signalQuality=${lastPacket.signalQuality} | method=${lastPacket.measurementMethod} | algorithm=${lastPacket.algorithm} | criterion=${lastPacket.criterionReference}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: _palette.ok,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${_formatTime(lastPacket.timestamp)} • ${_formatPacketMetrics(lastPacket.metrics)}',
+                      'Last reading at ${_formatTime(lastPacket.timestamp)} • ${_formatPacketMetrics(lastPacket.metrics)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 11,
                         color: Colors.white70,
@@ -737,6 +708,32 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                   ],
                 ),
               ),
+            ],
+            TextButton.icon(
+              key: ValueKey('machine_details_toggle_${machine.id}'),
+              icon: Icon(expanded ? Icons.expand_less : Icons.expand_more),
+              label: Text(expanded ? 'Hide details' : 'More details'),
+              onPressed: () => setState(() {
+                if (expanded) {
+                  _expandedMachines.remove(machine.id);
+                } else {
+                  _expandedMachines.add(machine.id);
+                }
+              }),
+            ),
+            if (expanded) ...[
+              Text('Device ID: ${machine.id}'),
+              Text('Protocol: ${machine.protocol}'),
+              Text('Record Type: ${machine.defaultRecordType}'),
+              Text('Measurement Method: ${machine.measurementMethod}'),
+              Text('Activity State: ${machine.defaultActivityState}'),
+              Text('Algorithm: ${machine.algorithm}'),
+              Text('Criterion Reference: ${machine.criterionReference}'),
+              Text('Raw metric keys: ${machine.supportedMetrics.join(', ')}'),
+              if (lastPacket != null)
+                Text(
+                  'Latest packet: astronautId=${lastPacket.astronautId} | source=${lastPacket.source} | deviceId=${lastPacket.machineId} | device=${lastPacket.device} | protocol=${lastPacket.protocol} | recordType=${lastPacket.recordType} | activityState=${lastPacket.activityState} | signalQuality=${lastPacket.signalQuality} | measurementMethod=${lastPacket.measurementMethod} | algorithm=${lastPacket.algorithm} | criterionReference=${lastPacket.criterionReference} | timestamp=${lastPacket.timestamp.toIso8601String()} | metrics=${lastPacket.metrics}',
+                ),
             ],
           ],
         ),
@@ -804,69 +801,6 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
     );
   }
 
-  void _showJsonPreviewDialog(
-    BuildContext context,
-    AstronautProfile astronaut,
-  ) {
-    final jsonString =
-        ref.read(crewMembersProvider.notifier).exportProfileToDbJson(astronaut.id);
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: _palette.bg2,
-        title: Row(
-          children: [
-            Icon(Icons.data_object, color: _palette.mint),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'DB/Users/${astronaut.id}.json',
-                style: const TextStyle(fontSize: 16),
-              ),
-            ),
-          ],
-        ),
-        content: SizedBox(
-          width: 520,
-          height: 360,
-          child: SingleChildScrollView(
-            child: SelectableText(
-              jsonString,
-              style: const TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 11,
-                color: Colors.greenAccent,
-              ),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton.icon(
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: jsonString));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('JSON copied to clipboard'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            },
-            icon: Icon(Icons.copy, size: 16, color: _palette.mint),
-            label: Text(
-              'Copy JSON',
-              style: TextStyle(color: _palette.mint),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Close', style: TextStyle(color: Colors.white70)),
-          ),
-        ],
-      ),
-    );
-  }
-
   String _formatTime(DateTime dt) {
     final h = dt.hour.toString().padLeft(2, '0');
     final m = dt.minute.toString().padLeft(2, '0');
@@ -875,7 +809,34 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
   }
 
   String _formatPacketMetrics(Map<String, dynamic> metrics) {
-    return metrics.entries.map((e) => '${e.key}: ${e.value}').join(' • ');
+    return metrics.entries
+        .take(3)
+        .map((e) => '${_metricLabel(e.key)}: ${e.value}')
+        .join(' • ');
+  }
+
+  String _metricLabel(String metric) {
+    const labels = {
+      'heartRate': 'Heart Rate',
+      'spO2': 'SpO2',
+      'systolicBP': 'Systolic BP',
+      'diastolicBP': 'Diastolic BP',
+      'bodyTemp': 'Temperature',
+      'respiratoryRate': 'Breathing Rate',
+      'capillaryRefillSeconds': 'Capillary Refill (seconds)',
+      'doseRateMicroSvPerHour': 'Radiation Rate (µSv/h)',
+      'cumulativeDoseMilliSv': 'Total Mission Dose (mSv)',
+      'severity': 'Alert Level',
+      'deviceName': 'Exercise Equipment',
+      'durationMinutes': 'Duration (minutes)',
+      'caloriesBurned': 'Calories Burned',
+      'targetReached': 'Workout Goal Reached',
+      'bloodGlucose': 'Blood Sugar',
+      'sleepHours': 'Sleep (hours)',
+      'wakeEpisodes': 'Night Wakeups',
+      'morningMood': 'Morning Mood',
+    };
+    return labels[metric] ?? metric;
   }
 
   Color _getRiskColor(CrewRiskLevel level) {
