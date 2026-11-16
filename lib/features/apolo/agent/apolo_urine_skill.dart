@@ -31,6 +31,10 @@ class ApoloUrineSkill extends AgentSkill {
         ],
         triggers: const [
           'apolo',
+          'checkup',
+          'status',
+          'alerts',
+          'critical',
           'water',
           'agua',
           'hydration',
@@ -715,7 +719,7 @@ class ApoloUrineOfflineFlow implements QueryAwareDeterministicFlow {
       final updated = actions.stateFor(ctx.astronautId);
       final left = math.max(0, updated.waterGoalMl - updated.waterMlToday);
       final leftMsg = left > 0
-          ? '${(left / 1000).toStringAsFixed(1)} L remaining for today\'s goal—yes, I am keeping count.'
+          ? '${(left / 1000).toStringAsFixed(1)} L remaining for today\'s goal${updated.overallSeverity == ApoloSeverity.crit ? '.' : '—yes, I am keeping count.'}'
           : 'You reached today\'s hydration goal! Nicely done.';
       return DeterministicStep(
         prompt: 'Logged +$ml ml of water. $leftMsg',
@@ -742,8 +746,9 @@ class ApoloUrineOfflineFlow implements QueryAwareDeterministicFlow {
       }
       final updated = actions.stateFor(ctx.astronautId);
       return DeterministicStep(
-        prompt:
-            'Nice work! Logged $minutes min of exercise. You are at ${updated.exerciseMinToday} of ${updated.exerciseGoalMin} min today—your bones owe you one.',
+        prompt: updated.overallSeverity == ApoloSeverity.crit
+            ? 'Logged $minutes min of exercise. You are at ${updated.exerciseMinToday} of ${updated.exerciseGoalMin} min today. Critical alerts still require attention.'
+            : 'Nice work! Logged $minutes min of exercise. You are at ${updated.exerciseMinToday} of ${updated.exerciseGoalMin} min today—your bones owe you one.',
         options: const ['How are my bones?', 'How am I?'],
       );
     }
@@ -769,8 +774,9 @@ class ApoloUrineOfflineFlow implements QueryAwareDeterministicFlow {
         .hasMatch(t)) {
       final state = actions.stateFor(ctx.astronautId);
       return DeterministicStep(
-        prompt:
-            'Woof! Anytime, ${state.firstName}. Just trying to keep you in one piece up here.',
+        prompt: state.overallSeverity == ApoloSeverity.crit
+            ? 'You are welcome, ${state.firstName}. Critical alerts still require attention.'
+            : 'Woof! Anytime, ${state.firstName}. Just trying to keep you in one piece up here.',
         options: const ['How am I?', 'Show all'],
       );
     }

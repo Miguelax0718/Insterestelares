@@ -3,6 +3,10 @@ import 'package:astramed/features/crew/presentation/providers/crew_provider.dart
 import 'package:astramed/features/telemetry/presentation/providers/telemetry_provider.dart';
 
 import '../domain/agent_contracts.dart';
+import '../domain/guided_assessment_catalog.dart';
+import '../../apolo/domain/apolo_models.dart';
+import '../../apolo/providers/apolo_contract_providers.dart';
+import 'context_builder.dart';
 
 int _memoryIdSequence = 0;
 
@@ -20,6 +24,10 @@ AgentSkill coreSkill() {
         'Stay calm, warm, and lightly teasing—combining Navi\'s gentle persistence ("Hey, listen" habit nudges on water, exercise, and samples) with TARS-style dry humor, never preachy or robotic. '
         'Speak in short, plain-text English sentences built for TTS without markdown clutter. '
         'Safety boundary: on any critical alert, emergency triage, or serious symptom/medication question, drop all jokes immediately (zero humor) and give clear, calm, direct guidance first. '
+        'Always inspect and acknowledge live.effective_risk_level, live.critical_causes, and live.apolo.urgent_modules. '
+        'If any critical condition or eva_blocked is present, mention the exact critical causes first, with zero humor or jokes. '
+        'Use get_available_assessments whenever asked which tests, checks, exercises, SMS/SANS evaluations, or countermeasures are implemented. '
+        'Use launch_assessment to start or guide one; explain each step and await the submitted result. '
         'Use core tools to inspect live crew, vitals, and telemetry data, recall or save persistent astronaut memory, and show or hide UI components.',
     tools: [
       _GetCrewOverviewTool(),
@@ -29,6 +37,8 @@ AgentSkill coreSkill() {
       _SaveMemoryTool(),
       _ShowComponentTool(),
       _HideComponentTool(),
+      _GetAvailableAssessmentsTool(),
+      _LaunchAssessmentTool(),
     ],
     componentIds: const [
       ComponentIds.crewStatus,
@@ -55,9 +65,8 @@ class _GetCrewOverviewTool extends AgentTool {
   @override
   Future<ToolResult> call(Map<String, dynamic> args, ToolContext ctx) async {
     final crew = ctx.read<List<AstronautProfile>>(crewMembersProvider);
-    final summaries = crew
-        .map(
-          (a) => <String, dynamic>{
+    final summaries = <Map<String, dynamic>>[
+      for (final a in crew) <String, dynamic>{
             'id': a.id,
             'name': a.name,
             'role': a.role,
@@ -65,10 +74,10 @@ class _GetCrewOverviewTool extends AgentTool {
             'heart_rate': a.vitals.heartRate,
             'spo2': a.vitals.spO2,
             'sleep_hours': a.sleep.sleepHours,
-            'alert_count': a.activeAlerts.length,
-          },
-        )
-        .toList(growable: false);
+             'alert_count': a.activeAlerts.length,
+             ...await _coherenceFor(a, ctx),
+           },
+    ];
 
     final event = ShowComponentEvent(ComponentIds.crewStatus, {
       'title': 'Crew Status',
@@ -144,6 +153,7 @@ class _GetVitalsTool extends AgentTool {
       'risk_title': match.riskTitle,
       'vitals': vitalsMap,
       'active_alerts': match.activeAlerts,
+      ...await _coherenceFor(match, ctx),
     };
 
     final event = ShowComponentEvent(ComponentIds.vitalsCard, {
@@ -153,6 +163,97 @@ class _GetVitalsTool extends AgentTool {
     ctx.ui.emit(event);
 
     return ToolResult.ok(payload, uiEvents: [event]);
+  }
+}
+
+Future<Map<String, dynamic>> _coherenceFor(
+  AstronautProfile astronaut, ToolContext ctx,
+) async {
+  ApoloAstronautState? state;
+  try {
+    state = ctx.read<ApoloStateActions>(apoloActionsProvider).stateFor(astronaut.id);
+  } catch (_) {
+    // APOLO providers are deliberately optional in isolated agent hosts.
+  }
+  return {
+    ...AgentContextBuilder.coherence(
+      astronaut: astronaut, apoloState: state,
+      activeFlags: await ctx.flags.allForAstronaut(astronaut.id),
+    ),
+    if (state != null) ...{
+      'apolo_overall_severity': state.overallSeverity.wire,
+      'apolo_urgent_modules': AgentContextBuilder.apoloSummary(state)['urgent_modules'],
+    },
+  };
+}
+
+class _GetAvailableAssessmentsTool extends AgentTool {
+  @override
+  String get name => 'get_available_assessments';
+  @override
+  String get description => 'List all implemented guided tests, SMS/SANS checks, exercises and countermeasures with latest recorded status.';
+  @override
+  Map<String, dynamic> get parameters => const {'type': 'object', 'properties': <String, dynamic>{}};
+  @override
+  Future<ToolResult> call(Map<String, dynamic> args, ToolContext ctx) async {
+    final flags = await ctx.flags.allForAstronaut(ctx.astronautId);
+    const statusKeys = {
+      'zero_g_horizon': 'graybiel_latest', 'dva_gaze': 'graybiel_latest',
+      'graybiel': 'graybiel_latest', 'starfield_distortion': 'sans_latest',
+      'near_point_diopter': 'sans_latest', 'sans_contrast': 'sans_latest',
+      'lbnp': 'lbnp_latest', 'pvt': 'pvt_latest', 'readiness': 'eva_blocked',
+    };
+    return ToolResult.ok({
+      'assessments': [
+        for (final d in GuidedAssessmentCatalog.all) {
+          'id': d.id, 'title': d.title, 'category': d.category,
+          'component': d.componentId, 'est_minutes': d.estimatedMinutes,
+          'summary': d.summary, 'last_status': flags[statusKeys[d.id]],
+        },
+      ],
+      'eva_blocked': flags['eva_blocked'],
+    });
+  }
+}
+
+class _LaunchAssessmentTool extends AgentTool {
+  @override
+  String get name => 'launch_assessment';
+  @override
+  ToolEffect get effect => ToolEffect.ui;
+  @override
+  String get description => 'Open an implemented assessment and guide the astronaut step by step; accepts catalog IDs or SMS/SANS, DVA, horizon, workout, vision aliases.';
+  @override
+  Map<String, dynamic> get parameters => const {
+    'type': 'object',
+    'properties': {'assessment_id': {'type': 'string'}},
+    'required': ['assessment_id'],
+  };
+  @override
+  Future<ToolResult> call(Map<String, dynamic> args, ToolContext ctx) async {
+    final raw = args['assessment_id'];
+    if (raw is! String || raw.trim().isEmpty) {
+      return const ToolResult.fail('assessment_id is required');
+    }
+    final id = raw.trim().toLowerCase();
+    const aliases = {
+      'sms': 'graybiel', 'horizon': 'zero_g_horizon',
+      'sans': 'starfield_distortion', 'vision': 'starfield_distortion',
+      'dva': 'dva_gaze', 'workout': 'exercise',
+    };
+    var desc = GuidedAssessmentCatalog.byId(aliases[id] ?? id);
+    desc ??= GuidedAssessmentCatalog.all.where((d) => d.skillId == id).firstOrNull;
+    if (desc == null) return ToolResult.fail('Unknown assessment: $id');
+    final event = ShowComponentEvent(desc.componentId, {
+      'title': desc.title, 'assessment_id': desc.id, ...desc.defaultProps,
+    });
+    ctx.ui.emit(event);
+    return ToolResult.ok({
+      'launched': true, 'assessment_id': desc.id,
+      'guidance': '1. Review ${desc.title}: ${desc.summary} '
+          '2. Follow the displayed controls one step at a time. '
+          '3. Submit the result; wait for interpretation before continuing.',
+    }, uiEvents: [event]);
   }
 }
 
