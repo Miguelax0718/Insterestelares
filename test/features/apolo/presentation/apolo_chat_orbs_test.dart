@@ -56,15 +56,16 @@ void main() {
         final window = find.byKey(ValueKey(kind == 'health'
           ? 'apolo_orb_hover_window_renal' : 'apolo_chat_orb_hover_window_$kind'));
         expect(window, findsOneWidget);
-        final screen = tester.view.physicalSize / tester.view.devicePixelRatio;
-        expect(tester.getSize(window).width, greaterThanOrEqualTo(screen.width - 60));
-        expect(tester.getSize(window).height, greaterThanOrEqualTo(screen.height - 60));
+        expect(tester.getSize(window), Size.square(before.width * 2));
+        final decoration =
+            tester.widget<Container>(window).decoration! as BoxDecoration;
+        expect(decoration.shape, BoxShape.circle);
         final ignored = find.ancestor(of: window, matching: find.byType(IgnorePointer));
         expect(ignored, findsWidgets);
         expect(tester.widget<IgnorePointer>(ignored.first).ignoring, isTrue);
         final scale = tester.widget<AnimatedScale>(
           find.ancestor(of: target, matching: find.byType(AnimatedScale)).first);
-        expect(scale.scale, 1.14);
+        expect(scale.scale, 2.0);
         expect(tester.getSize(target), before);
         expect(before, Size.square(kind == 'health' ? 144 : kind == 'reply' ? 112 : 136));
         final bounds = tester.getRect(window);
@@ -156,7 +157,10 @@ void main() {
       final window = find.byKey(const ValueKey('apolo_orb_hover_window_renal'));
       expect(window, findsOneWidget);
       final rect = tester.getRect(window);
-      expect(rect.size, const Size(272, 312));
+      expect(rect.size, const Size(288, 288));
+      final decoration =
+          tester.widget<Container>(window).decoration! as BoxDecoration;
+      expect(decoration.shape, BoxShape.circle);
       expect(rect.left, greaterThanOrEqualTo(16));
       expect(rect.top, greaterThanOrEqualTo(16));
       expect(rect.right, lessThanOrEqualTo(304));
@@ -365,6 +369,92 @@ void main() {
     expect(find.text('Apolo · new'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('apolo_chat_orb_reply_0')));
     expect(taps, 1);
+  });
+
+  testWidgets('chat orb hover then tap opens ApoloChatSheet and closes hover overlay', (tester) async {
+    const fullReply =
+        'Hydration levels look slightly low. Drink 500 ml of water over the next hour and log your intake.';
+    final data = ApoloChatOrbData.fromSession(
+      messages: const [
+        ChatMessage(role: ChatRole.assistant, content: fullReply),
+      ],
+      components: const [],
+    ).single;
+    var opened = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) {
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  Center(
+                    child: ApoloChatOrbWidget(
+                      data: data,
+                      onTap: () => setState(() => opened = true),
+                    ),
+                  ),
+                  if (opened)
+                    ApoloChatSheet(
+                      data: data,
+                      highContrast: false,
+                      onClose: () => setState(() => opened = false),
+                    ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(seconds: 1));
+
+    final target = find.byKey(const ValueKey('apolo_chat_orb_reply_0'));
+    final window = find.byKey(const ValueKey('apolo_chat_orb_hover_window_reply_0'));
+    final before = tester.getSize(target);
+    expect(before, const Size.square(128));
+    expect(window, findsNothing);
+    expect(find.byType(ApoloChatSheet), findsNothing);
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(target));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(window, findsOneWidget);
+    expect(tester.getSize(window), Size.square(before.width * 2));
+    final decoration =
+        tester.widget<Container>(window).decoration! as BoxDecoration;
+    expect(decoration.shape, BoxShape.circle);
+    final hoveredScale = tester.widget<AnimatedScale>(
+      find.ancestor(of: target, matching: find.byType(AnimatedScale)).first,
+    );
+    expect(hoveredScale.scale, 2.0);
+    expect(find.text(fullReply), findsOneWidget);
+    expect(find.text('Click orb to interact'), findsOneWidget);
+    expect(find.byType(ApoloChatSheet), findsNothing);
+
+    await tester.tap(target);
+    await tester.pump();
+    await tester.pump();
+
+    expect(opened, isTrue);
+    expect(window, findsNothing);
+    expect(find.byType(ApoloChatSheet), findsOneWidget);
+    expect(find.byKey(const ValueKey('apolo_chat_sheet')), findsOneWidget);
+    expect(find.text('Apolo says'), findsOneWidget);
+    final sheetText = tester.widget<SelectableText>(
+      find.byKey(const ValueKey('apolo_chat_sheet_text')),
+    );
+    expect(sheetText.data, fullReply);
+    final settledScale = tester.widget<AnimatedScale>(
+      find.ancestor(of: target, matching: find.byType(AnimatedScale)).first,
+    );
+    expect(settledScale.scale, 1.0);
+    expect(tester.takeException(), isNull);
+    await mouse.removePointer();
   });
 
   const extraIcons = {
