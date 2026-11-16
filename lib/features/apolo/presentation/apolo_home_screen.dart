@@ -14,6 +14,8 @@ import 'package:astramed/features/crew/presentation/providers/crew_provider.dart
 
 import '../domain/apolo_models.dart';
 import '../providers/apolo_contract_providers.dart';
+import '../providers/apolo_alert_state_provider.dart';
+import 'apolo_assessment_launcher_sheet.dart';
 import 'apolo_crew_menu_dialog.dart';
 import 'apolo_detail_sheet.dart';
 import 'apolo_dog_widget.dart';
@@ -205,6 +207,11 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
   }
 
   void _showLocalTip(ApoloAstronautState state) {
+    final alertState = ref.read(apoloGlobalAlertStateProvider);
+    if (alertState.isRedAlert) {
+      setState(() => _localBubbleText = _initialGreeting(state, alertState));
+      return;
+    }
     final tips = _buildContextualTips(state);
     final tip = tips[_tipCursor % tips.length];
     _tipCursor++;
@@ -249,7 +256,16 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
     return list;
   }
 
-  String _initialGreeting(ApoloAstronautState state) {
+  String _initialGreeting(
+    ApoloAstronautState state,
+    ApoloGlobalAlertState alertState,
+  ) {
+    if (alertState.isRedAlert) {
+      return '${state.firstName}, critical attention required: '
+          '${alertState.summaryLine}. '
+          '${alertState.evaBlocked ? 'NO-GO EVA. ' : ''}'
+          'Review the critical alerts now. I can guide you through the next check.';
+    }
     if (state.samples.isEmpty) {
       return 'Hey, listen, ${state.firstName}! Zero urine data on file yet. Submit your first sample so I can calibrate your baseline—promise not to judge.';
     }
@@ -327,6 +343,9 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
   @override
   Widget build(BuildContext context) {
     ref.listen<String>(selectedAstronautIdProvider, (previous, nextId) {
+      if (previous != nextId) {
+        setState(() => _localBubbleText = null);
+      }
       final currentId = ref.read(agentOrchestratorProvider).astronautId;
       if (currentId != nextId) {
         ref.read(agentOrchestratorProvider.notifier).switchAstronaut(nextId);
@@ -341,16 +360,28 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
         }
       }
     });
+    ref.listen<ApoloGlobalAlertState>(apoloGlobalAlertStateProvider, (prev, next) {
+      if (next.isRedAlert &&
+          (prev?.summaryLine != next.summaryLine ||
+              prev?.isRedAlert != next.isRedAlert) &&
+          _localBubbleText != null) {
+        setState(() => _localBubbleText = null);
+      }
+    });
 
     _controllerRef = ref.read(agentOrchestratorProvider.notifier);
     final apoloState = ref.watch(apoloActiveStateProvider);
+    final alertState = ref.watch(apoloGlobalAlertStateProvider);
     final actions = ref.watch(apoloActionsProvider);
     final session = ref.watch(agentOrchestratorProvider);
     final handsFreeState = ref.watch(handsFreeControllerProvider);
     final widgetRegistry = ref.watch(componentWidgetRegistryProvider);
 
     final disableAnimations = MediaQuery.disableAnimationsOf(context);
-    _syncSamplePulse(apoloState.sampleSchedule.isDue, disableAnimations);
+    _syncSamplePulse(
+      apoloState.sampleSchedule.isDue,
+      disableAnimations || apoloState.highContrast,
+    );
 
     _dismissedComponents.removeWhere(
       (d) => !session.activeComponents.any((vm) => identical(vm, d)),
@@ -374,7 +405,9 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
         ?.content;
 
     final bubbleText =
-        _localBubbleText ?? lastAssistantMessage ?? _initialGreeting(apoloState);
+        _localBubbleText ??
+        lastAssistantMessage ??
+        _initialGreeting(apoloState, alertState);
 
     final isDogListening =
         _manualListening ||
@@ -399,6 +432,7 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
           backgroundColor: palette.bg,
           body: ApoloSkyBackground(
             highContrast: apoloState.highContrast,
+            isRedAlert: alertState.isRedAlert,
             child: Listener(
               onPointerHover: (e) => _updateLook(context, e.position),
               onPointerMove: (e) => _updateLook(context, e.position),
@@ -409,6 +443,8 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
                     child: Column(
                       children: [
                         _buildTopBar(context, apoloState, actions, palette),
+                        if (alertState.isRedAlert)
+                          _buildRedAlertBanner(alertState, palette),
                         Expanded(
                           child: LayoutBuilder(
                             builder: (context, constraints) {
@@ -424,6 +460,7 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
                               final petSection = _buildPetColumn(
                                 context: context,
                                 apoloState: apoloState,
+                                alertState: alertState,
                                 actions: actions,
                                 session: session,
                                 palette: palette,
@@ -600,6 +637,66 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  void _openAssessments() {
+    unawaited(
+      ApoloAssessmentLauncherSheet.show(
+        context,
+        onLaunch: (descriptor) => unawaited(
+          _sendText('Guide me through the ${descriptor.title} assessment'),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRedAlertBanner(
+    ApoloGlobalAlertState alertState,
+    ApoloPalette palette,
+  ) {
+    return Semantics(
+      liveRegion: true,
+      child: Container(
+        key: const Key('apolo_red_alert_banner'),
+        margin: const EdgeInsets.fromLTRB(14, 4, 14, 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: palette.critBg,
+          border: Border.all(color: palette.crit, width: 2),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.warning_rounded, color: palette.crit),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'CRITICAL RED ALERT${alertState.evaBlocked ? ' · NO-GO EVA' : ''}',
+                    style: TextStyle(
+                      color: palette.crit,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Text(alertState.summaryLine,
+                      style: TextStyle(color: palette.text)),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: () => unawaited(_sendText(
+                'Explain my critical alerts and the immediate next steps: '
+                '${alertState.summaryLine}',
+              )),
+              child: const Text('Ask Apolo'),
+            ),
+          ],
         ),
       ),
     );
@@ -892,6 +989,7 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
   Widget _buildPetColumn({
     required BuildContext context,
     required ApoloAstronautState apoloState,
+    required ApoloGlobalAlertState alertState,
     required ApoloStateActions actions,
     required AgentSessionState session,
     required ApoloPalette palette,
@@ -942,12 +1040,16 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
           decoration: BoxDecoration(
             color: palette.text,
             borderRadius: BorderRadius.circular(30),
-            border: apoloState.highContrast
+            border: alertState.isRedAlert
+                ? Border.all(color: palette.crit, width: 2.2)
+                : apoloState.highContrast
                 ? Border.all(color: Colors.white, width: 3)
                 : null,
             boxShadow: apoloState.highContrast
                 ? null
-                : const [
+                : [
+                    if (alertState.isRedAlert)
+                      BoxShadow(color: palette.critGlow, blurRadius: 28),
                     BoxShadow(
                       color: Color(0x88000000),
                       blurRadius: 36,
@@ -990,6 +1092,17 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
                     key: const ValueKey('apolo_chip_how_am_i'),
                     label: 'How am I?',
                     onTap: () => unawaited(_sendText('How am I doing?')),
+                  ),
+                  _QuickChip(
+                    key: const ValueKey('apolo_chip_assessments'),
+                    icon: Icons.fitness_center,
+                    label: 'Tests & Exercises',
+                    onTap: _openAssessments,
+                  ),
+                  _QuickChip(
+                    key: const ValueKey('apolo_chip_guide_me'),
+                    label: 'Guide me',
+                    onTap: _openAssessments,
                   ),
                   _QuickChip(
                     key: const ValueKey('apolo_chip_give_tip'),
@@ -1049,7 +1162,10 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
         const SizedBox(height: 6),
         ApoloDogWidget(
           key: const ValueKey('apolo_dog_widget'),
-          severity: apoloState.overallSeverity,
+          severity: ApoloSeverity.worst([
+            apoloState.overallSeverity,
+            alertState.severity,
+          ]),
           isListening: isDogListening,
           isSpeaking: _ttsSpeaking,
           isThinking: session.busy,

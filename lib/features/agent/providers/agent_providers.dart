@@ -18,6 +18,7 @@ import '../../03_microgravity/agent/graybiel_engine.dart';
 import '../../03_microgravity/agent/microgravity_skills.dart';
 import '../../03_microgravity/agent/procedures_engine.dart';
 import '../../03_microgravity/agent/sans_engine.dart';
+import '../../03_microgravity/presentation/cockpit_widgets/apolo_cockpit_overrides.dart';
 import '../../04_mental_health/agent/mental_health_skills.dart';
 import '../../05_clinical_triage/agent/proactive_monitor.dart';
 import '../../05_clinical_triage/agent/triage_agent_skills.dart';
@@ -29,6 +30,7 @@ import '../../pharmacy/domain/deterministic_medication_safety.dart';
 import '../../pharmacy/domain/pharmacy_inventory_repository.dart';
 import '../application/agent_conversation_controller.dart';
 import '../application/component_registry.dart';
+import '../application/component_submission_coordinator.dart';
 import '../application/core_tools.dart';
 import '../application/hands_free_controller.dart';
 import '../application/skill_registry.dart';
@@ -47,6 +49,7 @@ import '../domain/agent_config.dart';
 import '../domain/agent_contracts.dart';
 import '../domain/agent_models.dart';
 import '../domain/agent_ports.dart';
+import '../domain/guided_assessment_catalog.dart';
 import '../presentation/component_widget_registry.dart';
 
 class MissionContextMetadata {
@@ -277,7 +280,15 @@ final extraComponentSpecsProvider =
     Provider<Map<String, ComponentSpec<AgentViewModel>>>((ref) => const {});
 
 final componentWidgetOverridesProvider =
-    Provider<Map<String, AgentComponentWidgetBuilder>>((ref) => const {});
+    Provider<Map<String, AgentComponentWidgetBuilder>>((ref) => buildApoloCockpitComponentOverrides());
+
+final microgravitySkillStateProvider = Provider<MicrogravitySkillState>(
+  (ref) => MicrogravitySkillState(),
+);
+
+final componentSubmissionCoordinatorProvider = Provider<ComponentSubmissionCoordinator>(
+  (ref) => ComponentSubmissionCoordinator(ref.watch(microgravitySkillStateProvider)),
+);
 
 final skillRegistryProvider = Provider<SkillRegistry>((ref) {
   final weather = ref.watch(donkiSpaceWeatherServiceProvider);
@@ -293,7 +304,7 @@ final skillRegistryProvider = Provider<SkillRegistry>((ref) {
       pharmacyRepository: pharmacyRepo,
     ),
     radiationHealthSkill(),
-    ...microgravitySkills(),
+    ...microgravitySkills(ref.watch(microgravitySkillStateProvider)),
     ...mentalHealthSkills(),
     ...triageAgentSkills(),
     apoloSkill,
@@ -304,6 +315,14 @@ final skillRegistryProvider = Provider<SkillRegistry>((ref) {
 final componentRegistryProvider = Provider<ComponentRegistry>((ref) {
   final extraSpecs = ref.watch(extraComponentSpecsProvider);
   final registry = ComponentRegistry();
+  for (final id in MicrogravityCockpitIds.all) {
+    registry.register(ComponentSpec<GenericComponentViewModel>(
+      id: id,
+      fromProps: (props) => GenericComponentViewModel(
+        componentId: id, title: props['title'] as String? ?? id, props: props,
+      ),
+    ));
+  }
 
   // Module 01: General Health
   registry.register(
@@ -494,6 +513,8 @@ final agentOrchestratorProvider =
         componentRegistry: componentRegistry,
         initialAstronautId: initialAstronautId,
         alertStore: alertStore,
+        submissionCoordinator: ref.watch(componentSubmissionCoordinatorProvider),
+        missionDay: ref.watch(missionContextProvider).missionDay,
         contextFactory: (astronautId, ui) {
           delegatingSink.delegate = ui;
           return ToolContext(

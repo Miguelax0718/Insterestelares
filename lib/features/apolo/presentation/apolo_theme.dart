@@ -21,6 +21,8 @@ class ApoloPalette {
     required this.ok,
     required this.warn,
     required this.crit,
+    required this.critBg,
+    required this.critGlow,
   });
 
   final bool highContrast;
@@ -37,6 +39,8 @@ class ApoloPalette {
   final Color ok;
   final Color warn;
   final Color crit;
+  final Color critBg;
+  final Color critGlow;
 
   static const ApoloPalette standard = ApoloPalette._(
     highContrast: false,
@@ -53,6 +57,8 @@ class ApoloPalette {
     ok: Color(0xFF5BE38C),
     warn: Color(0xFFFFD23F),
     crit: Color(0xFFFF5A5F),
+    critBg: Color(0xFF280B14),
+    critGlow: Color(0x44FF5A5F),
   );
 
   static const ApoloPalette highContrastMode = ApoloPalette._(
@@ -70,6 +76,8 @@ class ApoloPalette {
     ok: Color(0xFF5BE38C),
     warn: Color(0xFFFFD23F),
     crit: Color(0xFFFF5A5F),
+    critBg: Color(0xFF1A0005),
+    critGlow: Color(0x44FF5A5F),
   );
 
   static ApoloPalette of(bool highContrast) =>

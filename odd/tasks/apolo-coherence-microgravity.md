@@ -1,0 +1,46 @@
+# Feature: APOLO Agent Coherence, Red-Alert Mode, Guided Tests, and Clean SMS/SANS Adaptation
+
+Objective: Make APOLO 100% coherent across crew vitals, urine biomarkers, proactive alerts, and implemented guided tests/exercises; activate a full Red-Alert UI state whenever any critical condition or NO-GO EVA is active; wire interactive component submissions (`onComponentSubmitted`) so APOLO guides the astronaut through tests and exercises step-by-step; and cleanly adapt the SMS & SANS features from `origin/feat/microgravity-sms-sans` into pure-Flutter Space Cockpit components. Branch: `feat/apolo-coherence-microgravity`. Delivery: ask-on-risk.
+Runners: `/home/krl0s/development/flutter/bin/flutter test` + `/home/krl0s/development/flutter/bin/flutter analyze --no-fatal-infos`.
+
+## Specs
+
+- **S1 — Scope (verbatim):** "Crea una rama para testear q el agente sea coherente, si hay algo critico se ponga en estado de alerta todo rojo y lo mencione, que te guie en los test o pruebas, ejercicios etc q estan implementados. Ademas tambien hay q revisar el trabajo de mi rama feat/microgravity-sms-sans que lo deje ahi , retomar la idea pero adaptarla a la nueva UI y el agente y que funcione bien, esto era para el SAS y SMS de la gravedad, que quede limpio como la nueva app. Despliega los subagentes q creas necesarios"
+- **S2 — Unified Agent Coherence & Context (`context_builder.dart`, `core_tools.dart`, `skill_registry.dart`):**
+  - `AgentContextBuilder.build` accepts optional `ApoloAstronautState? apoloState`, `List<GuidedAssessmentDescriptor> availableTests = const []`, and `Map<String, dynamic>? extraFlags` (staying strictly <= `16 * 1024` bytes via `_fitToBudget`, preserving `live.effective_risk_level`, `live.critical_causes`, `live.vitals`, `live.active_alerts`, and `live.apolo.urgent_modules`).
+  - `effective_risk_level` = worst across `AstronautProfile.riskLevel`, `ApoloAstronautState.overallSeverity`, and active clinical flags (`eva_blocked`). `critical_causes` lists concrete reasons from both systems (e.g. `SpO2 89%`, `Radiation 8-OHdG 11.2`).
+  - `coreSkill()` (`alwaysOn: true`) exposes `get_available_assessments` and `launch_assessment(assessment_id)`, enriches `get_vitals` and `get_crew_overview` with `apolo_overall_severity`, `apolo_urgent_modules`, `effective_risk_level`, and `critical_causes` (safely inside try/catch when `apoloActionsProvider` is absent in isolated unit tests), and instructs APOLO to mention critical causes first (zero humor) and guide astronauts through implemented tests/exercises.
+  - Keep `ComponentIds.all.length == 22` intact (`verification_probes_test.dart`); register extra cockpit IDs (`MicrogravityCockpitIds.zeroGHorizon`, `dvaGaze`) via `extraComponentSpecsProvider` / `componentRegistryProvider`. Keep total selected tools <= 32 (`server/app/api/schemas.py`).
+- **S3 — Clean Pure-Flutter Adaptation of `origin/feat/microgravity-sms-sans`:**
+  - Port pure mathematical/clinical analyzers from `origin/feat/microgravity-sms-sans` (`GraybielSymptomAssessment`, `FacialGreennessAnalyzer`, `GazeStabilityAnalyzer`, `ZeroGHorizonResult`, `EvaSafetyAdvisory`, `NearPointDiopterCalculator`, `SpaceAnticipationGlassesTier`, `StarfieldDistortionAnalyzer`, `LbnpProtocolMachine`) into `lib/features/03_microgravity/agent/` without adding native `camera` or `sensors_plus` plugins, so 100% of features run offline on Web, Linux, Android, macOS, and Windows.
+  - Build clean Space Cockpit interactive cards in `lib/features/03_microgravity/presentation/cockpit_widgets/` (`ZeroGHorizonCard` with 3-axis `CustomPainter` + drag/controls, `DvaGazeCard` 1 Hz metronome + optotype selector, `StarfieldDistortionCard` interactive Amsler/scotoma grid, `NearPointDiopterCard` cm->diopter slider + Space Anticipation Glasses, interactive `GraybielCard`, `LbnpRampCard` `-20 mmHg` + mandatory gradual decompression, `ExerciseMonitorCard`, `PvtTestCard`, `MptTestCard`, `DiaryRecorderCard`, `UltrasoundGuideCard`) registered via `componentWidgetOverridesProvider`, plus `ApoloAssessmentLauncherSheet` and a clean `MicrogravityView` upgrade.
+- **S4 — Closed-Loop Interactive Submission (`ComponentSubmissionCoordinator`):**
+  - Wire `onComponentSubmitted` in `agentOrchestratorProvider` through `ComponentSubmissionCoordinator` (shared singleton `microgravitySkillStateProvider`).
+  - Submitting any guided test/exercise result evaluates it deterministically offline, saves clinical flags/memory (`AgentFlagsStore`, `MemoryStore`), triggers Red-Alert + `eva_blocked` + `ShowComponentEvent(ComponentIds.alertBanner, ...)` + `ProactiveEvent(critical)` when Graybiel >= 5 / emesis, SANS Grade 2+, unsafe exercise vitals, or LBNP emergency release occurs, and sends a concise step summary to `AgentConversationOrchestrator` so APOLO speaks/replies coherently online or offline.
+- **S5 — Full Red-Alert UI State & Proactive Lifecycle:**
+  - `ApoloHomeShell` (`lib/main.dart`) initializes `crewMembersProvider.notifier.initializeFromDatabase()`, syncs telemetry, and starts/watches `proactiveMonitorProvider` and `agentNotifierProvider`.
+  - `apoloGlobalAlertStateProvider` combines `apoloActiveStateProvider`, `selectedAstronautProvider`, `eva_blocked` flag, and active critical components into `ApoloGlobalAlertState(severity, isRedAlert, reasons)`.
+  - When `isRedAlert` is true: `ApoloSkyBackground` shifts to crimson Red-Alert mode (respecting `disableAnimations` and `highContrast`), `ApoloHomeScreen` displays a high-visibility Red-Alert banner listing `reasons`, gives `apolo_speech_bubble` a `crit` border/glow, updates `ApoloDogWidget` with `effectiveSeverity`, ensures `_initialGreeting` and astronaut-switch mentions explicitly call out the critical causes with zero humor, and adds a clean "Tests" launcher chip/button opening `ApoloAssessmentLauncherSheet`.
+- **S6 — Comprehensive Verification & Tests:**
+  - Coherence & context tests (`test/features/apolo/coherence_context_test.dart`): budget <= 16 KB, unified `AST-01..AST-05` context, `get_available_assessments` + `launch_assessment`, tool count <= 32.
+  - SMS & SANS domain + cockpit widget tests (`test/features/03_microgravity/sms_sans_cockpit_test.dart`): Zero-G Horizon, 1 Hz DVA, Near-Point $\Delta D$, Starfield distortion, LBNP gradual decompression, Graybiel >= 5 NO-GO EVA.
+  - Coordinator tests (`test/features/agent/component_submission_coordinator_test.dart`): interactive submissions trigger deterministic scoring, `eva_blocked`, critical `alert_banner`, and coherent agent reply.
+  - Red-alert & full-flow widget tests (`test/features/apolo/presentation/red_alert_coherence_test.dart`): `AST-03` activates Red-Alert sky/banner/dog/critical mention; switching to `AST-01` clears Red-Alert; launching & submitting an interactive assessment works end-to-end.
+  - Independent `gentle-ai-verify` pass (`Risk: item 3`).
+
+## Tasks
+
+| ID | Specs | Route | Status | Commit |
+|----|-------|-------|--------|--------|
+| T1 | S2, S6 (Unified context, `GuidedAssessmentCatalog`, `core_tools`, `SkillRegistry`) | delegated WU-1 | pending | — |
+| T2 | S3, S6 (SMS/SANS pure analyzers + Space Cockpit interactive widgets + launcher + `MicrogravityView`) | delegated WU-2 | pending | — |
+| T3 | S4, S6 (`ComponentSubmissionCoordinator`, controller wiring, `agent_providers` overrides & specs) | delegated WU-3 | pending | — |
+| T4 | S5, S6 (`ApoloHomeShell` lifecycle, Red-Alert sky/banner/dog/greeting/launcher in APOLO UI) | delegated WU-4 | pending | — |
+| T5 | S2–S6 (Independent verifier `gentle-ai-verify` + full suite & live smoke check) | `gentle-ai-verify` + parent | pending | — |
+
+Route evidence: Writer trigger (a) — 4 independent units with disjoint edit surfaces compiled against shared `guided_assessment_catalog.dart` and `apolo_alert_state_provider.dart`; Verification trigger — touches shared `AgentContextBuilder`, `AgentConversationController`, `core_tools`, and `agent_providers` (`Risk: item 3`).
+
+## Log
+
+- **L1 (2026-11-15, user verbatim):** "Crea una rama para testear q el agente sea coherente, si hay algo critico se ponga en estado de alerta todo rojo y lo mencione, que te guie en los test o pruebas, ejercicios etc q estan implementados. Ademas tambien hay q revisar el trabajo de mi rama feat/microgravity-sms-sans que lo deje ahi , retomar la idea pero adaptarla a la nueva UI y el agente y que funcione bien, esto era para el SAS y SMS de la gravedad, que quede limpio como la nueva app. Despliega los subagentes q creas necesarios"
+- **L2 (2026-11-15, explore + architect):** Mapped coherence gaps (`AgentContextBuilder` lacked APOLO state/tests; `MockCrewData` vs `ApoloRepository` diverged on `AST-01/03/04/05`; `onComponentSubmitted` was `null`; `ApoloHomeShell` skipped `ProactiveMonitor`; `ComponentIds.all.length == 22` is pinned by `verification_probes_test.dart:656`) and inspected `origin/feat/microgravity-sms-sans` (`cfa360a`). Created shared contracts `guided_assessment_catalog.dart` and `apolo_alert_state_provider.dart`.

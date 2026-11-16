@@ -50,11 +50,31 @@ class ApoloApp extends StatelessWidget {
 
 /// Hosts the APOLO home screen as the app entry point and keeps the legacy
 /// clinical modules dashboard reachable from the top bar.
-class ApoloHomeShell extends StatelessWidget {
+class ApoloHomeShell extends ConsumerStatefulWidget {
   const ApoloHomeShell({super.key});
 
   @override
+  ConsumerState<ApoloHomeShell> createState() => _ApoloHomeShellState();
+}
+
+class _ApoloHomeShellState extends ConsumerState<ApoloHomeShell> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() async {
+      if (!mounted) return;
+      await ref.read(crewMembersProvider.notifier).initializeFromDatabase();
+      if (!mounted) return;
+      final crew = ref.read(crewMembersProvider);
+      ref.read(telemetryProvider.notifier).syncWithCrewData(crew);
+      ref.read(proactiveMonitorProvider).start();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    ref.watch(proactiveMonitorProvider);
+    ref.watch(agentNotifierProvider);
     return ApoloHomeScreen(
       onOpenClinicalDashboard: () => Navigator.of(context)
           .push(MaterialPageRoute(builder: (_) => const AstraMedDashboard())),

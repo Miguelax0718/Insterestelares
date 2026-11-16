@@ -11,10 +11,12 @@ class ApoloSkyBackground extends StatefulWidget {
     super.key,
     required this.highContrast,
     required this.child,
+    this.isRedAlert = false,
   });
 
   final bool highContrast;
   final Widget child;
+  final bool isRedAlert;
 
   @override
   State<ApoloSkyBackground> createState() => _ApoloSkyBackgroundState();
@@ -88,7 +90,7 @@ class _ApoloSkyBackgroundState extends State<ApoloSkyBackground>
     final disableAnimations = MediaQuery.disableAnimationsOf(context);
 
     return ColoredBox(
-      color: palette.bg,
+      color: widget.isRedAlert ? palette.critBg : palette.bg,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -105,6 +107,7 @@ class _ApoloSkyBackgroundState extends State<ApoloSkyBackground>
                           : _controller.value,
                       animate: !disableAnimations && !widget.highContrast,
                       highContrast: widget.highContrast,
+                      isRedAlert: widget.isRedAlert,
                     ),
                   );
                 },
@@ -140,12 +143,14 @@ class _SkyPainter extends CustomPainter {
     required this.progress,
     required this.animate,
     required this.highContrast,
+    required this.isRedAlert,
   });
 
   final List<_Star> stars;
   final double progress;
   final bool animate;
   final bool highContrast;
+  final bool isRedAlert;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -157,7 +162,9 @@ class _SkyPainter extends CustomPainter {
       final n1Radius = math.max(size.width, size.height) * 0.65;
       final n1Paint = Paint()
         ..shader = RadialGradient(
-          colors: const [Color(0x5525205A), Color(0x0025205A)],
+          colors: isRedAlert
+              ? const [Color(0x557A1024), Color(0x007A1024)]
+              : const [Color(0x5525205A), Color(0x0025205A)],
           stops: const [0.0, 1.0],
         ).createShader(Rect.fromCircle(center: n1Center, radius: n1Radius));
       canvas.drawRect(Offset.zero & size, n1Paint);
@@ -167,10 +174,28 @@ class _SkyPainter extends CustomPainter {
       final n2Radius = math.max(size.width, size.height) * 0.55;
       final n2Paint = Paint()
         ..shader = RadialGradient(
-          colors: const [Color(0x55123060), Color(0x00123060)],
+          colors: isRedAlert
+              ? const [Color(0x444D0816), Color(0x004D0816)]
+              : const [Color(0x55123060), Color(0x00123060)],
           stops: const [0.0, 1.0],
         ).createShader(Rect.fromCircle(center: n2Center, radius: n2Radius));
       canvas.drawRect(Offset.zero & size, n2Paint);
+      if (isRedAlert) {
+        final pulse = animate
+            ? 0.12 + 0.04 * math.sin(progress * math.pi * 4)
+            : 0.12;
+        canvas.drawRect(
+          Offset.zero & size,
+          Paint()
+            ..shader = RadialGradient(
+              colors: [
+                Colors.transparent,
+                const Color(0xFFFF5A5F).withValues(alpha: pulse),
+              ],
+              stops: const [0.55, 1.0],
+            ).createShader(Offset.zero & size),
+        );
+      }
     }
 
     final starPaint = Paint()..style = PaintingStyle.fill;
@@ -220,6 +245,7 @@ class _SkyPainter extends CustomPainter {
   bool shouldRepaint(covariant _SkyPainter oldDelegate) {
     return oldDelegate.progress != progress ||
         oldDelegate.animate != animate ||
-        oldDelegate.highContrast != highContrast;
+        oldDelegate.highContrast != highContrast ||
+        oldDelegate.isRedAlert != isRedAlert;
   }
 }

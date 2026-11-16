@@ -3,12 +3,16 @@ import 'dart:async';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../apolo/domain/apolo_models.dart';
+import '../../apolo/providers/apolo_contract_providers.dart';
 
 import '../data/persistence/session_summary_generator.dart';
 import '../domain/agent_contracts.dart';
 import '../domain/agent_exception.dart';
 import '../domain/agent_models.dart';
 import '../domain/agent_ports.dart';
+import '../domain/guided_assessment_catalog.dart';
+import 'component_submission_coordinator.dart';
 import 'component_registry.dart';
 import 'context_builder.dart';
 import 'skill_registry.dart';
@@ -120,6 +124,8 @@ class AgentConversationOrchestrator {
     ProactiveAlertStore? alertStore,
     this.onStateChanged,
     this.onComponentSubmitted,
+    this.submissionCoordinator,
+    this.missionDay,
   }) : _clock = clock ?? (() => DateTime.now().toUtc()),
        _alertStore = alertStore ?? ProactiveAlertStore(),
        _state = AgentSessionState(astronautId: initialAstronautId) {
@@ -147,6 +153,8 @@ class AgentConversationOrchestrator {
   final void Function(AgentSessionState state)? onStateChanged;
   final void Function(String componentId, Map<String, dynamic> result)?
   onComponentSubmitted;
+  final ComponentSubmissionCoordinator? submissionCoordinator;
+  final int? missionDay;
 
   final Map<String, AgentSessionState> _sessionsByAstronaut = {};
   final List<ChatMessage> _midTurnConfirmationMessages = [];
@@ -206,7 +214,97 @@ class AgentConversationOrchestrator {
   }
 
   void submitComponentResult(String componentId, Map<String, dynamic> result) {
+    unawaited(submitInteractiveResult(componentId, result, speakReply: true));
+  }
+
+  /// Evaluates and persists card results before any optional gateway request.
+  Future<AgentSessionState> submitInteractiveResult(
+    String componentId,
+    Map<String, dynamic> result, {
+    bool speakReply = false,
+  }) async {
     onComponentSubmitted?.call(componentId, result);
+    final coordinator = submissionCoordinator;
+    if (coordinator == null) return _state;
+    final targetId = _state.astronautId;
+    final sink = _TurnUiSink(onSubmit: submitComponentResult);
+    final ctx = contextFactory(targetId, sink);
+    try {
+      final evaluated = await coordinator.submit(componentId, result, ctx);
+      final target = _stateFor(targetId);
+      final next = target.copyWith(
+        activeComponents: _applyUiEvents(target.activeComponents, evaluated.uiEvents),
+        messages: List.unmodifiable([
+          ...target.messages,
+          if (evaluated.proactiveEvent == null)
+            ChatMessage(role: ChatRole.assistant, content: evaluated.summary),
+        ]),
+        clearLastError: true,
+      );
+      _commitTargetState(next);
+      if (evaluated.proactiveEvent case final event?) {
+        await handleProactiveEvent(event);
+        return _stateFor(targetId);
+      }
+      // Never route card results through free-chat's generic offline fallback.
+      try {
+        final response = await chat.send(
+          [
+            ...next.messages,
+            ChatMessage(role: ChatRole.user, content:
+              'Assessment $componentId completed: ${evaluated.summary} '
+              'Give one brief next step without changing the recorded findings.'),
+          ],
+          context: await _buildContextMap(ctx, next.activeComponents),
+          tools: const [],
+        );
+        if (response.reply.trim().isNotEmpty) {
+          final current = _stateFor(targetId);
+          _commitTargetState(current.copyWith(messages: List.unmodifiable([
+            ...current.messages,
+            ChatMessage(role: ChatRole.assistant, content: response.reply),
+          ])));
+          if (speakReply) await _safeSpeak(response.reply);
+          return _stateFor(targetId);
+        }
+      } on AgentUnavailableException {
+        final current = _stateFor(targetId);
+        _commitTargetState(current.copyWith(offlineMode: true));
+      } catch (_) {
+        // The deterministic result remains authoritative if the gateway fails.
+      }
+      if (speakReply) await _safeSpeak(evaluated.summary);
+      return _stateFor(targetId);
+    } catch (error) {
+      final current = _stateFor(targetId);
+      _commitTargetState(current.copyWith(lastError: error.toString()));
+      return _stateFor(targetId);
+    }
+  }
+
+  Future<AgentSessionState> launchGuidedAssessment(
+    GuidedAssessmentDescriptor descriptor, {
+    bool speakReply = false,
+  }) async {
+    final guidance = '${descriptor.title}. Step 1: ${descriptor.summary} '
+        'Step 2: Follow the card instructions. Step 3: Submit your result for review.';
+    _emitState(_state.copyWith(
+      activeComponents: _applyUiEvents(_state.activeComponents, [
+        ShowComponentEvent(descriptor.componentId, {
+          ...descriptor.defaultProps,
+          'title': descriptor.title,
+          'assessment_id': descriptor.id,
+          'astronaut_id': _state.astronautId,
+        }),
+      ]),
+      messages: List.unmodifiable([
+        ..._state.messages,
+        ChatMessage(role: ChatRole.assistant, content: guidance),
+      ]),
+      clearLastError: true,
+    ));
+    if (speakReply) await _safeSpeak(guidance);
+    return _state;
   }
 
   Future<MemoryEntry?> closeSession({
@@ -1017,6 +1115,18 @@ class AgentConversationOrchestrator {
     } catch (_) {
       astronaut = null;
     }
+    ApoloAstronautState? apoloState;
+    try {
+      apoloState = ctx.read<ApoloStateActions>(apoloActionsProvider)
+          .stateFor(ctx.astronautId);
+    } catch (_) {
+      try {
+        final active = ctx.read<ApoloAstronautState>(apoloActiveStateProvider);
+        if (active.astronautId == ctx.astronautId) apoloState = active;
+      } catch (_) {
+        // Minimal unit-test contexts need not expose APOLO state.
+      }
+    }
 
     if (astronaut != null) {
       return contextBuilder.build(
@@ -1024,6 +1134,9 @@ class AgentConversationOrchestrator {
         memory: ctx.memory,
         flags: ctx.flags,
         activeComponentIds: activeIds,
+        missionDay: missionDay,
+        apoloState: apoloState,
+        availableTests: GuidedAssessmentCatalog.all,
       );
     }
     return contextBuilder.buildMinimal(
@@ -1031,6 +1144,9 @@ class AgentConversationOrchestrator {
       memory: ctx.memory,
       flags: ctx.flags,
       activeComponentIds: activeIds,
+      missionDay: missionDay,
+      apoloState: apoloState,
+      availableTests: GuidedAssessmentCatalog.all,
     );
   }
 
@@ -1091,6 +1207,9 @@ class AgentConversationController extends StateNotifier<AgentSessionState> {
         AgentConversationOrchestrator.defaultProactiveCooldown,
     Duration proactiveCoalesceWindow = Duration.zero,
     ProactiveAlertStore? alertStore,
+    ComponentSubmissionCoordinator? submissionCoordinator,
+    int? missionDay,
+    void Function(String componentId, Map<String, dynamic> result)? onComponentSubmitted,
   }) : super(AgentSessionState(astronautId: initialAstronautId)) {
     _orchestrator = AgentConversationOrchestrator(
       chat: chat,
@@ -1106,6 +1225,9 @@ class AgentConversationController extends StateNotifier<AgentSessionState> {
       proactiveCooldown: proactiveCooldown,
       proactiveCoalesceWindow: proactiveCoalesceWindow,
       alertStore: alertStore,
+      submissionCoordinator: submissionCoordinator,
+      missionDay: missionDay,
+      onComponentSubmitted: onComponentSubmitted,
       onStateChanged: (next) {
         if (mounted) {
           state = next;
@@ -1117,6 +1239,14 @@ class AgentConversationController extends StateNotifier<AgentSessionState> {
   late final AgentConversationOrchestrator _orchestrator;
 
   AgentConversationOrchestrator get orchestrator => _orchestrator;
+
+  Future<AgentSessionState> submitInteractiveResult(
+    String componentId, Map<String, dynamic> result, {bool speakReply = false}
+  ) => _orchestrator.submitInteractiveResult(componentId, result, speakReply: speakReply);
+
+  Future<AgentSessionState> launchGuidedAssessment(
+    GuidedAssessmentDescriptor descriptor, {bool speakReply = false}
+  ) => _orchestrator.launchGuidedAssessment(descriptor, speakReply: speakReply);
 
   @override
   void dispose() {
