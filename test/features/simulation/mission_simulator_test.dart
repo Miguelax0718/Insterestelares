@@ -55,7 +55,7 @@ void main() {
     }
   });
 
-  test('batch progress equals individual days and becomes warning then critical', () {
+  test('batch progress equals individual days and plateaus without critical crew', () {
     final a = create();
     final b = create();
     a.read(missionSimulatorProvider.notifier).advanceDays(5);
@@ -65,9 +65,22 @@ void main() {
     expect(a.read(missionSimulatorProvider).missionDay, 6);
     expect(a.read(crewMembersProvider).first.vitals.heartRate, b.read(crewMembersProvider).first.vitals.heartRate);
     expect(a.read(apoloStateNotifierProvider)['AST-01']!.samples.last.values, b.read(apoloStateNotifierProvider)['AST-01']!.samples.last.values);
-    expect(a.read(crewMembersProvider).any((p) => p.riskLevel == CrewRiskLevel.warning), isTrue);
-    a.read(missionSimulatorProvider.notifier).advanceDays(30);
-    expect(a.read(crewMembersProvider).any((p) => p.riskLevel == CrewRiskLevel.critical), isTrue);
+    // Primeros días: nadie en estado crítico y la FC no se mueve.
+    expect(a.read(crewMembersProvider).every((p) => p.riskLevel == CrewRiskLevel.nominal), isTrue);
+
+    final start = create().read(crewMembersProvider).first;
+    a.read(missionSimulatorProvider.notifier).advanceDays(174);
+    final crew = a.read(crewMembersProvider);
+    // Día 180 sin incidentes: déficit de sueño (aviso), nadie en estado crítico.
+    expect(crew.any((p) => p.riskLevel == CrewRiskLevel.warning), isTrue);
+    expect(crew.every((p) => p.riskLevel != CrewRiskLevel.critical), isTrue);
+    // Norsk 2015: la FC no cambia y la sistólica baja 8 mmHg y se estabiliza.
+    expect(crew.first.vitals.heartRate, start.vitals.heartRate);
+    expect(crew.first.vitals.systolicBP, closeTo(start.vitals.systolicBP - 8, 0.01));
+    // Barger 2014: el sueño se estabiliza cerca de 6 h, no sigue cayendo.
+    expect(crew.first.sleep.sleepHours, closeTo(start.sleep.sleepHours - 1.4, 0.05));
+    expect(crew.every((p) => p.sleep.sleepHours >= 5.5), isTrue);
+    expect(crew.every((p) => p.exercise.targetReached), isTrue);
   });
 
   test('mission environments produce different deterministic drift', () {

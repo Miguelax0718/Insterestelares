@@ -67,24 +67,26 @@ class MissionSimulatorNotifier extends StateNotifier<MissionSimulatorState> {
         MissionType.surface => 1.6,
       };
       final day = state.missionDay + 1;
+      // Un día sin incidentes: la tripulación se adapta y se estabiliza
+      // (ver MissionDrift). Los fallos graves salen de triggerEvent.
+      final sleepDelta = MissionDrift.sleepDelta(state.missionType, day);
       _ref.read(crewMembersProvider.notifier).applyProgressiveDay(
         missionDay: day,
-        doseRateDeltaMicroSv: 4.0 * factor,
+        doseRateDeltaMicroSv: 0,
         cumulativeDoseDeltaMsv: 0.15 * factor,
-        sleepDeltaHours: -0.12 * factor,
-        hrDelta: 1.6 * factor,
-        bpDelta: 0.7 * factor,
-        exerciseTargetMet: day < 12,
+        sleepDeltaHours: sleepDelta,
+        hrDelta: 0,
+        bpDelta: MissionDrift.bpDelta(day),
+        exerciseTargetMet: true,
       );
       _ref.read(apoloStateNotifierProvider.notifier).applySimulationProgress(
         missionDay: day,
         extraDoseMsv: 0.15 * factor,
-        sleepDeltaHours: -0.12 * factor,
-        waterDeltaMl: -(60 * factor).round(),
+        sleepDeltaHours: sleepDelta,
       );
       _ref.read(selectedMissionDayProvider.notifier).state = day;
       state = state.copyWith(missionDay: day);
-      _log('Progressive ${state.missionType.name} drift');
+      _log('Nominal ${state.missionType.name} day');
     }
   }
 
