@@ -11,7 +11,8 @@ class MissionSimulatorSkill extends AgentSkill {
       'Use control_mission_simulation to start, pause, advance 1–365 days, reset_nominal, '
       'or set_mission_type (orbital/lunar/transit/surface). '
       'Use trigger_simulation_event for sleep_loss, solar_particle_event, exercise_failure, '
-      'or workload, optionally targeting an astronaut_id. Never represent simulation as real telemetry.',
+      'or workload, optionally targeting an astronaut_id or scope "crew". Each crew member responds '
+      'differently (exposure, susceptibility, condition) and conditions evolve with countermeasures. Never represent simulation as real telemetry.',
     tools: const [MissionSimulatorStatusTool(), ControlMissionSimulationTool(), TriggerSimulationEventTool()],
     componentIds: const ['mission_simulator'],
     triggers: const ['simulador', 'simulación', 'simulacion', 'simulation', 'simulator',
@@ -30,6 +31,16 @@ Map<String, dynamic> _status(ToolContext ctx) {
     'nominal': ctx.read<int>(nominalCrewCountProvider),
     'warning': ctx.read<int>(warningCrewCountProvider),
     'critical': ctx.read<int>(criticalCrewCountProvider),
+    'whole_crew': s.wholeCrew,
+    'active_conditions': [
+      for (final e in s.episodes.where((e) => !e.isExposure))
+        {
+          'astronaut_id': e.astronautId,
+          'condition': e.kind.label,
+          'severity': e.severityLabelOn(s.missionDay),
+          'countermeasure': e.kind.countermeasure,
+        },
+    ],
     'log': s.log.take(8).toList(),
   };
 }
@@ -116,13 +127,15 @@ class TriggerSimulationEventTool extends AgentTool {
   @override
   String get name => 'trigger_simulation_event';
   @override
-  String get description => 'Apply a synthetic event to the selected or specified astronaut.';
+  String get description => 'Apply a synthetic event to the selected/specified astronaut or the whole crew; '
+      'responses differ per person.';
   @override
   Map<String, dynamic> get parameters => const {
     'type': 'object', 'required': ['event'], 'additionalProperties': false,
     'properties': {
       'event': {'type': 'string', 'enum': ['sleep_loss', 'solar_particle_event', 'exercise_failure', 'workload']},
       'astronaut_id': {'type': 'string'},
+      'scope': {'type': 'string', 'enum': ['selected', 'crew']},
     },
   };
   @override
@@ -130,7 +143,9 @@ class TriggerSimulationEventTool extends AgentTool {
   @override
   Future<ToolResult> call(Map<String, dynamic> args, ToolContext ctx) async {
     if (args['event'] is! String || !_events.containsKey(args['event']) ||
-        args.keys.any((k) => !['event', 'astronaut_id'].contains(k))) {
+        args.keys.any((k) => !['event', 'astronaut_id', 'scope'].contains(k)) ||
+        (args.containsKey('scope') && !['selected', 'crew'].contains(args['scope'])) ||
+        (args['scope'] == 'crew' && args.containsKey('astronaut_id'))) {
       return const ToolResult.fail('Invalid simulation event or argument.');
     }
     final rawId = args['astronaut_id'];
@@ -142,7 +157,11 @@ class TriggerSimulationEventTool extends AgentTool {
     final crewIds = ctx.read<List<AstronautProfile>>(crewMembersProvider).map((p) => p.id);
     if (!crewIds.contains(id)) return const ToolResult.fail('Unknown astronaut_id.');
     ctx.read<MissionSimulatorNotifier>(missionSimulatorProvider.notifier)
-      .triggerEvent(_events[args['event']]!, astronautId: id);
+      .triggerEvent(
+        _events[args['event']]!,
+        astronautId: args['scope'] == 'crew' ? null : (rawId != null || args['scope'] == 'selected' ? id : null),
+        wholeCrew: args['scope'] == 'crew' ? true : (args.containsKey('scope') ? false : null),
+      );
     return _show(ctx);
   }
 }

@@ -70,6 +70,14 @@ class MissionSimulatorCard extends ConsumerWidget {
                   if (id != null) ref.read(selectedAstronautIdProvider.notifier).state = id;
                 },
               ),
+              SwitchListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Whole crew'),
+                subtitle: const Text('Solar particle events always reach everyone'),
+                value: state.wholeCrew,
+                onChanged: actions.setWholeCrew,
+              ),
               Wrap(spacing: 6, children: [
                 for (final event in SimulationEvent.values)
                   OutlinedButton(onPressed: () => actions.triggerEvent(event), child: Text(switch (event) {
@@ -84,8 +92,18 @@ class MissionSimulatorCard extends ConsumerWidget {
                 Chip(label: Text('Warning ${ref.watch(warningCrewCountProvider)}'), avatar: Icon(Icons.warning, color: p.warn)),
                 Chip(label: Text('Critical ${ref.watch(criticalCrewCountProvider)}'), avatar: Icon(Icons.error, color: p.crit)),
               ]),
+              if (state.episodes.any((e) => !e.isExposure)) ...[
+                const Text('Active conditions'),
+                Wrap(spacing: 6, runSpacing: 4, children: [
+                  for (final e in state.episodes.where((e) => !e.isExposure))
+                    Chip(
+                      label: Text('${e.astronautId} · ${e.kind.label} · '
+                          '${e.severityLabelOn(state.missionDay)}'),
+                    ),
+                ]),
+              ],
               const Text('Simulation log'),
-              for (final entry in state.log.take(8)) Text(entry),
+              for (final entry in state.log.take(12)) Text(entry),
             ],
           ),
         ),
