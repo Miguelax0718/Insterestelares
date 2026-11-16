@@ -63,7 +63,7 @@ class SleepTrendCard extends ConsumerWidget {
               ],
               references: const [
                 TrendReference(MedicalThresholds.minRecommendedSleepHours,
-                    'Mínimo recomendado (6,5 h)', SpaceTheme.warningYellow),
+                    'Mínimo recomendado (${MedicalThresholds.minRecommendedSleepHours} h)', SpaceTheme.warningYellow),
               ],
             ),
             const SizedBox(height: 12),
