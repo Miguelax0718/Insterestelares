@@ -3,11 +3,61 @@ import 'dart:convert';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 
 import '../domain/agent_contracts.dart';
+import '../domain/guided_assessment_catalog.dart';
+import '../../apolo/domain/apolo_models.dart';
 
 class AgentContextBuilder {
   const AgentContextBuilder();
 
   static const int maxBytes = 16 * 1024;
+
+  /// Shared safety projection for prompts and live read tools.
+  static Map<String, dynamic> coherence({
+    AstronautProfile? astronaut,
+    ApoloAstronautState? apoloState,
+    Map<String, dynamic> activeFlags = const {},
+  }) {
+    final eva = activeFlags['eva_blocked'];
+    final blocked = eva is Map && eva['blocked'] == true;
+    final critical = astronaut?.riskLevel.name == 'critical' ||
+        apoloState?.overallSeverity == ApoloSeverity.crit ||
+        (blocked && eva['severity'] == 'crit');
+    final warning = astronaut?.riskLevel.name == 'warning' ||
+        apoloState?.overallSeverity == ApoloSeverity.warn || blocked;
+    return {
+      'effective_risk_level': critical ? 'critical' : warning ? 'warning' : 'nominal',
+      'critical_causes': <String>{
+        if (astronaut?.riskLevel.name == 'critical') ...[
+          ...astronaut!.activeAlerts,
+          astronaut.riskTitle,
+        ],
+        if (apoloState != null)
+          for (final m in apoloState.rankedModules)
+            if (m.severity == ApoloSeverity.crit) '${m.title}: ${m.keyMetric}',
+        if (blocked) 'EVA blocked: ${eva['reason'] ?? eva['reasons'] ?? 'NO-GO EVA'}',
+      }.where((s) => s.isNotEmpty).toList(),
+    };
+  }
+
+  static Map<String, dynamic> apoloSummary(ApoloAstronautState state) => {
+    'overall_severity': state.overallSeverity.wire,
+    'water_ml': state.waterMlToday,
+    'water_goal_ml': state.waterGoalMl,
+    'exercise_min': state.exerciseMinToday,
+    'exercise_goal_min': state.exerciseGoalMin,
+    'sample_due': state.sampleSchedule.isDue,
+    'sample_status': state.sampleSchedule.shortLabel,
+    'urgent_modules': [
+      for (final m in state.rankedModules)
+        if (m.severity != ApoloSeverity.ok)
+          {'id': m.id.name, 'title': m.title, 'sev': m.severity.wire, 'metric': m.keyMetric},
+    ],
+    'pending_recs': [
+      for (final m in state.rankedModules)
+        for (final r in m.recommendations)
+          if (!r.done) r.text,
+    ].take(4).toList(),
+  };
 
   Future<Map<String, dynamic>> build({
     required AstronautProfile astronaut,
@@ -15,9 +65,14 @@ class AgentContextBuilder {
     required AgentFlagsStore flags,
     List<String> activeComponentIds = const [],
     int? missionDay,
+    ApoloAstronautState? apoloState,
+    List<GuidedAssessmentDescriptor> availableTests = const [],
+    Map<String, dynamic>? extraFlags,
   }) async {
     final recentMemory = await memory.recentForPrompt(astronaut.id);
-    final activeFlags = await flags.allForAstronaut(astronaut.id);
+    final activeFlags = <String, dynamic>{
+      ...await flags.allForAstronaut(astronaut.id), ...?extraFlags,
+    };
 
     final live = <String, dynamic>{
       'id': astronaut.id,
@@ -25,6 +80,8 @@ class AgentContextBuilder {
       'role': astronaut.role,
       'mission_day': ?missionDay,
       'risk_level': astronaut.riskLevel.name,
+      ...coherence(astronaut: astronaut, apoloState: apoloState, activeFlags: activeFlags),
+      if (apoloState != null) 'apolo': apoloSummary(apoloState),
       'vitals': <String, dynamic>{
         'heart_rate': astronaut.vitals.heartRate,
         'systolic_bp': astronaut.vitals.systolicBP,
@@ -101,6 +158,8 @@ class AgentContextBuilder {
       'memory': memoryItems,
       'active_components': components,
       'flags': flagsCopy,
+      if (availableTests.isNotEmpty)
+        'available_tests': availableTests.map((t) => t.toCompactJson()).toList(),
     };
 
     return _fitToBudget(context);
@@ -112,12 +171,23 @@ class AgentContextBuilder {
     required AgentFlagsStore flags,
     List<String> activeComponentIds = const [],
     int? missionDay,
+    ApoloAstronautState? apoloState,
+    List<GuidedAssessmentDescriptor> availableTests = const [],
+    Map<String, dynamic>? extraFlags,
   }) async {
     final recentMemory = await memory.recentForPrompt(astronautId);
-    final activeFlags = await flags.allForAstronaut(astronautId);
+    final activeFlags = <String, dynamic>{
+      ...await flags.allForAstronaut(astronautId), ...?extraFlags,
+    };
 
     final context = <String, dynamic>{
-      'live': <String, dynamic>{'id': astronautId, 'mission_day': ?missionDay},
+      'live': <String, dynamic>{
+        'id': astronautId, 'mission_day': ?missionDay,
+        ...coherence(apoloState: apoloState, activeFlags: activeFlags),
+        if (apoloState != null) 'apolo': apoloSummary(apoloState),
+      },
+      if (availableTests.isNotEmpty)
+        'available_tests': availableTests.map((t) => t.toCompactJson()).toList(),
       'memory': recentMemory
           .map(
             (entry) => <String, dynamic>{
@@ -160,12 +230,16 @@ class AgentContextBuilder {
     }
 
     final live = context['live'] as Map<String, dynamic>;
-    final alerts = live['active_alerts'];
-    if (alerts is List) {
-      while (alerts.isNotEmpty && _encodedByteLength(context) > maxBytes) {
-        alerts.removeLast();
-      }
+    live.remove('passive_dimensions');
+    if (_encodedByteLength(context) <= maxBytes) {
+      return context;
     }
+    context.remove('available_tests');
+    if (_encodedByteLength(context) <= maxBytes) {
+      return context;
+    }
+    final apolo = live['apolo'];
+    if (apolo is Map) apolo.remove('pending_recs');
     final components = context['active_components'] as List<dynamic>;
     while (components.isNotEmpty && _encodedByteLength(context) > maxBytes) {
       components.removeLast();
@@ -174,8 +248,11 @@ class AgentContextBuilder {
       return context;
     }
 
-    if (live.containsKey('passive_dimensions')) {
-      live.remove('passive_dimensions');
+    final alerts = live['active_alerts'];
+    if (alerts is List) {
+      while (alerts.isNotEmpty && _encodedByteLength(context) > maxBytes) {
+        alerts.removeLast();
+      }
       if (_encodedByteLength(context) <= maxBytes) {
         return context;
       }
@@ -186,6 +263,10 @@ class AgentContextBuilder {
         'id': live['id'],
         if (live['name'] != null) 'name': live['name'],
         if (live['risk_level'] != null) 'risk_level': live['risk_level'],
+        if (live['effective_risk_level'] != null)
+          'effective_risk_level': live['effective_risk_level'],
+        if (live['critical_causes'] != null)
+          'critical_causes': live['critical_causes'],
       },
     };
   }

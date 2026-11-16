@@ -504,7 +504,11 @@ void main() {
       expect(skill.id, 'core');
       expect(skill.alwaysOn, isTrue);
       tools = {for (final t in skill.tools) t.name: t};
-      expect(tools.keys, hasLength(7));
+      expect(tools.keys, hasLength(9));
+      expect(
+        tools.keys,
+        containsAll(['get_available_assessments', 'launch_assessment']),
+      );
     });
 
     tearDown(() => container.dispose());

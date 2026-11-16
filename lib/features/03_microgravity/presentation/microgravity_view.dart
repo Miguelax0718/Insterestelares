@@ -3,6 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:astramed/features/agent/domain/guided_assessment_catalog.dart';
+import 'package:astramed/features/agent/providers/agent_providers.dart';
+import 'package:astramed/features/apolo/presentation/apolo_theme.dart';
+import 'cockpit_widgets/apolo_cockpit_overrides.dart';
+
 import '../../../core/calibration/domain/device_calibration.dart';
 import '../../../core/calibration/presentation/calibration_dialog.dart';
 import '../../../core/sensing/data/simulated_sensing_adapters.dart';
@@ -26,12 +31,42 @@ import '../sms/presentation/sms_suite_page.dart';
 class MicrogravityView extends ConsumerWidget {
   const MicrogravityView({super.key});
 
+  void _launch(BuildContext context, WidgetRef ref, String id) {
+    final descriptor = GuidedAssessmentCatalog.byId(id)!;
+    final controller = ref.read(agentOrchestratorProvider.notifier);
+    final astronautId = ref.read(selectedAstronautProvider).id;
+    controller.switchAstronaut(astronautId);
+    final vm = ref.read(componentRegistryProvider).resolve(descriptor.componentId,
+      {...descriptor.defaultProps, 'astronaut_id': astronautId});
+    final builder = buildApoloCockpitComponentOverrides()[descriptor.componentId]!;
+    showModalBottomSheet<void>(
+      context: context, isScrollControlled: true, isDismissible: false,
+      enableDrag: false, backgroundColor: ApoloPalette.standard.bg,
+      builder: (sheetContext) => SafeArea(child: SingleChildScrollView(
+        padding: const EdgeInsets.all(12),
+        child: builder(sheetContext, vm, (result) async {
+          final session = await controller.submitInteractiveResult(descriptor.componentId, result);
+          if (!sheetContext.mounted) return;
+          if (session.lastError != null) {
+            ScaffoldMessenger.of(sheetContext).showSnackBar(
+              SnackBar(content: Text('Could not record assessment: ${session.lastError}')));
+            return;
+          }
+          if (result['completed'] == true || result['emergency_release'] == true) {
+            Navigator.pop(sheetContext);
+          }
+        }, () => Navigator.pop(sheetContext)),
+      )),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final astronaut = ref.watch(selectedAstronautProvider);
     final exercise = astronaut.exercise;
     final progress = (exercise.durationMinutes / 150.0).clamp(0.0, 1.0);
 
+    const p = ApoloPalette.standard;
     final smsHistory = ref.watch(smsAssessmentsProvider);
     final sansHistory = ref.watch(sansAssessmentsProvider);
     final lbnpState = ref.watch(lbnpProtocolProvider);
@@ -39,7 +74,9 @@ class MicrogravityView extends ConsumerWidget {
     final latestSms = smsHistory.isNotEmpty ? smsHistory.first : null;
     final latestSans = sansHistory.isNotEmpty ? sansHistory.first : null;
 
-    return ListView(
+    return Theme(
+      data: buildApoloTheme(),
+      child: ListView(
       padding: const EdgeInsets.all(16.0),
       children: [
         // Encabezado del módulo
@@ -349,69 +386,57 @@ class MicrogravityView extends ConsumerWidget {
 
         // Meta Diaria de Ejercicio Musculoesquelético (ARED / T2 / CEVIS)
         Card(
-          color: SpaceTheme.card,
+          color: p.bg2,
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.fitness_center, color: Colors.greenAccent),
-                        SizedBox(width: 8),
-                        Text(
-                          'Contramedidas Físicas (NASA HRP)',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                        ),
-                      ],
-                    ),
-                    if (exercise.targetReached)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Text(
-                          'META ALCANZADA',
-                          style: TextStyle(fontSize: 10, color: Colors.greenAccent, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                  ],
-                ),
+                const Text('Exercise Countermeasures • NASA HRP',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+                if (exercise.targetReached) const Text('✓ Target reached'),
                 const SizedBox(height: 12),
-                Text('Dispositivo principal: ${exercise.deviceName}', style: const TextStyle(color: Colors.white70)),
+                Text('Primary device: ${exercise.deviceName}', style: TextStyle(color: p.text2)),
                 const SizedBox(height: 6),
                 LinearProgressIndicator(
                   value: progress,
-                  backgroundColor: Colors.white12,
-                  color: exercise.targetReached ? Colors.greenAccent : SpaceTheme.warningYellow,
+                  backgroundColor: p.surface,
+                  color: exercise.targetReached ? p.ok : p.warn,
                   minHeight: 10,
                   borderRadius: BorderRadius.circular(5),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Tiempo: ${exercise.durationMinutes} min / 150 min objetivo',
-                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      '${exercise.caloriesBurned.toInt()} kcal quemadas',
-                      style: const TextStyle(color: SpaceTheme.cyan, fontSize: 12),
-                    ),
-                  ],
-                ),
+                Text('${exercise.durationMinutes} / 150 min target • ${exercise.caloriesBurned.toInt()} kcal'),
               ],
             ),
           ),
         ),
         const SizedBox(height: 12),
 
+        for (final suite in {
+          'SMS Suite': ['zero_g_horizon', 'dva_gaze', 'graybiel'],
+          'SANS Suite': ['starfield_distortion', 'near_point_diopter', 'lbnp'],
+        }.entries) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(
+              suite.key,
+              style: TextStyle(color: p.lav2, fontSize: 18),
+            ),
+          ),
+          for (final id in suite.value)
+            Card(
+              color: p.surface,
+              child: ListTile(
+                leading: Icon(Icons.explore_outlined, color: p.lav),
+                title: Text(GuidedAssessmentCatalog.byId(id)!.title),
+                subtitle: Text(GuidedAssessmentCatalog.byId(id)!.summary),
+                trailing: const Icon(Icons.arrow_forward),
+                onTap: () => _launch(context, ref, id),
+              ),
+            ),
+        ],
+        const SizedBox(height: 8),
         const Card(
           color: SpaceTheme.card,
           child: ListTile(
@@ -421,7 +446,7 @@ class MicrogravityView extends ConsumerWidget {
           ),
         ),
       ],
-    );
+    ));
   }
 
   static Color _sansRiskColor(SansFunctionalRiskTier tier) {

@@ -3,6 +3,7 @@ import 'package:astramed/features/03_microgravity/agent/graybiel_engine.dart';
 import 'package:astramed/features/03_microgravity/agent/procedures_engine.dart';
 import 'package:astramed/features/03_microgravity/agent/sans_engine.dart';
 import 'package:astramed/features/agent/domain/agent_contracts.dart';
+import 'package:astramed/features/agent/domain/guided_assessment_catalog.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 
@@ -31,8 +32,11 @@ List<AgentSkill> microgravitySkills([MicrogravitySkillState? sharedState]) {
         _RecordGraybielAnswerTool(state),
         _ScoreGraybielTool(state),
         _ChangeMedicationRouteTool(state),
+        StartZeroGHorizonTool(),
+        StartDvaGazeTool(),
       ],
-      componentIds: const [ComponentIds.graybielQuestionnaire],
+      componentIds: const [ComponentIds.graybielQuestionnaire,
+        MicrogravityCockpitIds.zeroGHorizon, MicrogravityCockpitIds.dvaGaze],
       triggers: const [
         'graybiel',
         'motion sickness',
@@ -42,6 +46,7 @@ List<AgentSkill> microgravitySkills([MicrogravitySkillState? sharedState]) {
         'emesis',
         'vomiting',
         'stasis',
+        'horizon', 'zero-g', 'dva', 'vor', 'greenness', 'test',
       ],
       offlineFlow: GraybielOfflineFlow(state.graybielSessions),
     ),
@@ -70,6 +75,7 @@ List<AgentSkill> microgravitySkills([MicrogravitySkillState? sharedState]) {
         'focus',
         'goggles',
         'hyperopic',
+        'glasses', 'diopter', 'starfield', 'distortion',
       ],
     ),
     AgentSkill(
@@ -116,6 +122,44 @@ List<AgentSkill> microgravitySkills([MicrogravitySkillState? sharedState]) {
       ],
     ),
   ];
+}
+
+class StartZeroGHorizonTool extends AgentTool {
+  const StartZeroGHorizonTool();
+  @override
+  String get name => 'start_zero_g_horizon';
+  @override
+  String get description => 'Launch touch-controlled three-axis Zero-G Horizon alignment.';
+  @override
+  ToolEffect get effect => ToolEffect.ui;
+  @override
+  Map<String, dynamic> get parameters => const {'type': 'object', 'properties': <String, dynamic>{}};
+  @override
+  Future<ToolResult> call(Map<String, dynamic> args, ToolContext ctx) async {
+    final event = ShowComponentEvent(MicrogravityCockpitIds.zeroGHorizon,
+      {'astronaut_id': ctx.astronautId});
+    ctx.ui.emit(event);
+    return ToolResult.ok({'started': true}, uiEvents: [event]);
+  }
+}
+
+class StartDvaGazeTool extends AgentTool {
+  const StartDvaGazeTool();
+  @override
+  String get name => 'start_dva_gaze';
+  @override
+  String get description => 'Launch 1 Hz DVA optotypes with self-reported fixation.';
+  @override
+  ToolEffect get effect => ToolEffect.ui;
+  @override
+  Map<String, dynamic> get parameters => const {'type': 'object', 'properties': <String, dynamic>{}};
+  @override
+  Future<ToolResult> call(Map<String, dynamic> args, ToolContext ctx) async {
+    final event = ShowComponentEvent(MicrogravityCockpitIds.dvaGaze,
+      {'astronaut_id': ctx.astronautId});
+    ctx.ui.emit(event);
+    return ToolResult.ok({'started': true}, uiEvents: [event]);
+  }
 }
 
 class _StartGraybielTool extends AgentTool {
