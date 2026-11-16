@@ -6,6 +6,41 @@ import 'package:astramed/features/crew/models/astronaut_profile.dart';
 
 /// Base de datos inicial con los 5 astronautas de la misión espacial
 class MockCrewData {
+  /// Healthy demo baseline; historical clinical scenarios remain available.
+  static List<AstronautProfile> getNominalCrew() {
+    return getInitialCrew().asMap().entries.map((entry) {
+      final i = entry.key;
+      final p = entry.value;
+      return p.copyWith(
+        vitals: p.vitals.copyWith(
+          heartRate: 66.0 + i * 2,
+          systolicBP: 115.0 + i,
+          diastolicBP: 74.0 + i,
+          spO2: i.isEven ? 99.0 : 98.0,
+          bodyTemp: i.isEven ? 36.6 : 36.7,
+          respiratoryRate: 14.0 + i % 3,
+          capillaryRefillSeconds: 1.3 + (i % 3) * 0.1,
+          bloodGlucose: 95.0,
+        ),
+        radiation: p.radiation.copyWith(
+          doseRateMicroSvPerHour: 40.0,
+          cumulativeDoseMilliSv: 12.0,
+          severity: RadiationSeverity.normal,
+        ),
+        sleep: p.sleep.copyWith(
+          sleepHours: 7.4 + i * 0.1,
+          wakeEpisodes: 0,
+          morningMood: MoodLevel.great,
+        ),
+        exercise: p.exercise.copyWith(targetReached: true),
+        riskLevel: CrewRiskLevel.nominal,
+        riskTitle: 'Estado Nominal',
+        riskDescription: 'Biomarcadores estables y adaptación adecuada al vuelo espacial.',
+        activeAlerts: const [],
+      );
+    }).toList();
+  }
+
   static List<AstronautProfile> getInitialCrew() {
     final now = DateTime.now();
 

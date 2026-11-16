@@ -126,6 +126,7 @@ class AgentConversationOrchestrator {
     this.onComponentSubmitted,
     this.submissionCoordinator,
     this.missionDay,
+    this.missionDayReader,
   }) : _clock = clock ?? (() => DateTime.now().toUtc()),
        _alertStore = alertStore ?? ProactiveAlertStore(),
        _state = AgentSessionState(astronautId: initialAstronautId) {
@@ -155,6 +156,7 @@ class AgentConversationOrchestrator {
   onComponentSubmitted;
   final ComponentSubmissionCoordinator? submissionCoordinator;
   final int? missionDay;
+  final int? Function()? missionDayReader;
 
   final Map<String, AgentSessionState> _sessionsByAstronaut = {};
   final List<ChatMessage> _midTurnConfirmationMessages = [];
@@ -304,6 +306,33 @@ class AgentConversationOrchestrator {
       clearLastError: true,
     ));
     if (speakReply) await _safeSpeak(guidance);
+    return _state;
+  }
+
+  Future<AgentSessionState> launchCockpitComponent(
+    String componentId, {
+    String? title,
+    Map<String, dynamic> props = const {},
+    String? guidance,
+    bool speakReply = false,
+  }) async {
+    _emitState(_state.copyWith(
+      activeComponents: _applyUiEvents(_state.activeComponents, [
+        ShowComponentEvent(componentId, {
+          ...props,
+          'title': ?title,
+          'astronaut_id': _state.astronautId,
+        }),
+      ]),
+      messages: guidance == null
+          ? _state.messages
+          : List.unmodifiable([
+              ..._state.messages,
+              ChatMessage(role: ChatRole.assistant, content: guidance),
+            ]),
+      clearLastError: true,
+    ));
+    if (speakReply && guidance != null) await _safeSpeak(guidance);
     return _state;
   }
 
@@ -1054,7 +1083,9 @@ class AgentConversationOrchestrator {
       );
     } else {
       _emitState(updated);
-      await _safeSpeak(step.prompt);
+      if (speakReply) {
+        await _safeSpeak(step.prompt);
+      }
     }
     return updated;
   }
@@ -1134,7 +1165,7 @@ class AgentConversationOrchestrator {
         memory: ctx.memory,
         flags: ctx.flags,
         activeComponentIds: activeIds,
-        missionDay: missionDay,
+        missionDay: missionDayReader?.call() ?? missionDay,
         apoloState: apoloState,
         availableTests: GuidedAssessmentCatalog.all,
       );
@@ -1144,7 +1175,7 @@ class AgentConversationOrchestrator {
       memory: ctx.memory,
       flags: ctx.flags,
       activeComponentIds: activeIds,
-      missionDay: missionDay,
+      missionDay: missionDayReader?.call() ?? missionDay,
       apoloState: apoloState,
       availableTests: GuidedAssessmentCatalog.all,
     );
@@ -1209,6 +1240,7 @@ class AgentConversationController extends StateNotifier<AgentSessionState> {
     ProactiveAlertStore? alertStore,
     ComponentSubmissionCoordinator? submissionCoordinator,
     int? missionDay,
+    int? Function()? missionDayReader,
     void Function(String componentId, Map<String, dynamic> result)? onComponentSubmitted,
   }) : super(AgentSessionState(astronautId: initialAstronautId)) {
     _orchestrator = AgentConversationOrchestrator(
@@ -1227,6 +1259,7 @@ class AgentConversationController extends StateNotifier<AgentSessionState> {
       alertStore: alertStore,
       submissionCoordinator: submissionCoordinator,
       missionDay: missionDay,
+      missionDayReader: missionDayReader,
       onComponentSubmitted: onComponentSubmitted,
       onStateChanged: (next) {
         if (mounted) {
@@ -1247,6 +1280,20 @@ class AgentConversationController extends StateNotifier<AgentSessionState> {
   Future<AgentSessionState> launchGuidedAssessment(
     GuidedAssessmentDescriptor descriptor, {bool speakReply = false}
   ) => _orchestrator.launchGuidedAssessment(descriptor, speakReply: speakReply);
+
+  Future<AgentSessionState> launchCockpitComponent(
+    String componentId, {
+    String? title,
+    Map<String, dynamic> props = const {},
+    String? guidance,
+    bool speakReply = false,
+  }) => _orchestrator.launchCockpitComponent(
+    componentId,
+    title: title,
+    props: props,
+    guidance: guidance,
+    speakReply: speakReply,
+  );
 
   @override
   void dispose() {

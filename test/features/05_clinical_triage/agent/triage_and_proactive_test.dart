@@ -570,6 +570,7 @@ void main() {
 
         final step1 = await orchestrator.sendUserMessage(
           'Check pre-eva readiness',
+          speakReply: true,
         );
         expect(step1.offlineMode, isTrue);
         expect(step1.activeOfflineFlowSkillId, 'readiness');

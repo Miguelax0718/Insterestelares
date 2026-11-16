@@ -6,12 +6,14 @@ import 'package:astramed/features/agent/domain/agent_models.dart';
 import 'package:astramed/features/agent/domain/agent_ports.dart';
 import 'package:astramed/features/agent/providers/agent_providers.dart';
 import 'package:astramed/features/apolo/domain/apolo_models.dart';
+import 'package:astramed/features/apolo/presentation/apolo_chat_orbs.dart';
 import 'package:astramed/features/apolo/presentation/apolo_detail_sheet.dart';
 import 'package:astramed/features/apolo/presentation/apolo_dog_widget.dart';
 import 'package:astramed/features/apolo/presentation/apolo_home_screen.dart';
 import 'package:astramed/features/apolo/presentation/apolo_orb_widget.dart';
 import 'package:astramed/features/apolo/providers/apolo_contract_providers.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
+import 'package:astramed/features/crew/presentation/widgets/crew_sidebar_drawer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -598,7 +600,6 @@ void main() {
     WidgetTester tester, {
     required List<Override> overrides,
     Size size = const Size(1280, 800),
-    VoidCallback? onOpenClinicalDashboard,
     bool disableAnimations = true,
   }) {
     tester.view.physicalSize = size;
@@ -613,9 +614,7 @@ void main() {
             size: size,
             disableAnimations: disableAnimations,
           ),
-          child: ApoloHomeScreen(
-            onOpenClinicalDashboard: onOpenClinicalDashboard,
-          ),
+          child: const ApoloHomeScreen(),
         ),
       ),
     );
@@ -827,26 +826,70 @@ void main() {
   );
 
   testWidgets(
-    'onOpenClinicalDashboard callback fires and responsive narrow layout stacks orbs',
+    'legacy modules button is removed, narrow layout stacks orbs, and sidebar opens CrewSidebarDrawer',
     (tester) async {
       final controller = _FakeApoloController(_buildFakeApoloState());
-      var openedDashboard = false;
       await tester.pumpWidget(
         buildTestApp(
           tester,
           size: const Size(420, 820),
           overrides: buildOverrides(controller: controller),
-          onOpenClinicalDashboard: () => openedDashboard = true,
         ),
       );
       await tester.pumpAndSettle();
 
+      expect(find.byKey(const ValueKey('apolo_modules_button')), findsNothing);
       expect(find.byType(ApoloDogWidget), findsOneWidget);
       expect(find.byType(ApoloOrbWidget), findsNWidgets(2));
 
-      await tester.tap(find.byKey(const ValueKey('apolo_modules_button')));
+      await tester.tap(find.byKey(const ValueKey('apolo_sidebar_button')));
       await tester.pumpAndSettle();
-      expect(openedDashboard, isTrue);
+      expect(find.byType(CrewSidebarDrawer), findsOneWidget);
+      expect(find.byKey(const ValueKey('sidebar_mission_simulator_button')), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'long agent reply is summarized in speech bubble and opens full text from chat orb',
+    (tester) async {
+      final controller = _FakeApoloController(_buildFakeApoloState());
+      const longReply =
+          'First sentence about hydration biomarkers in microgravity. '
+          'Second sentence explains why urine density rose to 1.028 today across recent samples and why drinking 500 ml now protects renal saturation and circadian recovery over the next orbit.';
+      final chat = _FakeChatService((messages, _, _, _) async {
+        return const AgentReply(reply: longReply, model: 'test-model');
+      });
+
+      await tester.pumpWidget(
+        buildTestApp(
+          tester,
+          overrides: buildOverrides(controller: controller, chatService: chat),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const ValueKey('apolo_ask_input')),
+        'Why is my density elevated?',
+      );
+      await tester.tap(find.byKey(const ValueKey('apolo_send_button')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining('(Tap the new circle to read it all.)'),
+        findsOneWidget,
+      );
+      final chatOrb = find.byType(ApoloChatOrbWidget);
+      expect(chatOrb, findsOneWidget);
+
+      await tester.tap(chatOrb);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('apolo_chat_sheet')), findsOneWidget);
+      expect(find.text(longReply), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('apolo_chat_sheet_hide')));
+      await tester.pumpAndSettle();
+      expect(find.byType(ApoloChatOrbWidget), findsNothing);
     },
   );
 

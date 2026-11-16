@@ -18,6 +18,50 @@ class CrewNotifier extends StateNotifier<List<AstronautProfile>> {
         super(MockCrewData.getInitialCrew());
 
   /// Inicializa la tripulación cargando datos desde la base de datos `DB/Users/`
+  void initializeNominalMission() => resetAllNominal();
+
+  void resetAllNominal() {
+    state = MockCrewData.getNominalCrew();
+    for (final profile in state) {
+      _dbService.saveAstronautProfile(profile);
+    }
+  }
+
+  /// Synthetic demo drift, not a forecast of individual medical outcomes.
+  void applyProgressiveDay({
+    required int missionDay,
+    required double doseRateDeltaMicroSv,
+    required double cumulativeDoseDeltaMsv,
+    required double sleepDeltaHours,
+    required double hrDelta,
+    required double bpDelta,
+    required bool exerciseTargetMet,
+  }) {
+    for (final p in List<AstronautProfile>.of(state)) {
+      applySimulationProfile(
+        astronautId: p.id,
+        vitals: p.vitals.copyWith(
+          source: 'simulation',
+          missionDay: missionDay,
+          heartRate: (p.vitals.heartRate + hrDelta).clamp(45.0, 140.0),
+          systolicBP: (p.vitals.systolicBP + bpDelta).clamp(85.0, 170.0),
+          respiratoryRate: (p.vitals.respiratoryRate + hrDelta * 0.12).clamp(12.0, 28.0),
+          spO2: (p.vitals.spO2 - hrDelta * 0.025).clamp(88.0, 100.0),
+          capillaryRefillSeconds: (p.vitals.capillaryRefillSeconds + hrDelta * 0.008).clamp(1.0, 3.0),
+        ),
+        radiation: p.radiation.copyWith(
+          source: 'simulation',
+          doseRateMicroSvPerHour: p.radiation.doseRateMicroSvPerHour + doseRateDeltaMicroSv,
+          cumulativeDoseMilliSv: p.radiation.cumulativeDoseMilliSv + cumulativeDoseDeltaMsv,
+          severity: RadiationSeverity.normal,
+        ),
+        sleep: p.sleep.copyWith(source: 'simulation', sleepHours: (p.sleep.sleepHours + sleepDeltaHours).clamp(3.0, 9.0)),
+        exercise: p.exercise.copyWith(source: 'simulation', targetReached: exerciseTargetMet),
+        eventLabel: 'Mission day $missionDay',
+      );
+    }
+  }
+
   Future<void> initializeFromDatabase() async {
     final loadedCrew = await _dbService.loadCrewFromDbUsers();
     state = loadedCrew;

@@ -8,10 +8,27 @@ import 'dva_gaze_card.dart';
 import 'graybiel_card.dart';
 import 'sans_cockpit_cards.dart';
 import 'clinical_cockpit_cards.dart';
+import '../../../01_general_health/presentation/cockpit_widgets/vitals_cockpit_cards.dart';
+import '../../../05_clinical_triage/presentation/cockpit_widgets/medical_procedures_card.dart';
 
-/// Shared interactive surfaces used by both the agent canvas and legacy tab.
+import '../../../simulation/presentation/mission_simulator_card.dart';
+
+/// Shared interactive surfaces used by both the agent canvas and cockpit sheets.
 Map<String, AgentComponentWidgetBuilder> buildApoloCockpitComponentOverrides() {
   return {
+    ApoloCockpitIds.missionSimulator: (_, vm, submit, dismiss) =>
+      MissionSimulatorCard(onDismiss: dismiss),
+    ComponentIds.telemetryChart: (_, vm, submit, dismiss) =>
+      VitalsTrendCockpitCard(onDismiss: dismiss,
+        astronautId: vm.toProps()['astronaut_id'] as String?),
+    ApoloCockpitIds.manualVitals: (_, vm, submit, dismiss) =>
+      ManualVitalsTapCard(onSubmit: submit, onDismiss: dismiss,
+        astronautId: vm.toProps()['astronaut_id'] as String?),
+    ApoloCockpitIds.medicalProcedures: (_, vm, submit, dismiss) =>
+      MedicalProceduresCockpitCard(onSubmit: submit, onDismiss: dismiss,
+        astronautId: vm.toProps()['astronaut_id'] as String?,
+        initialProcedureId: vm.toProps()['procedure_id'] as String?,
+        initialQuery: vm.toProps()['query'] as String?),
     MicrogravityCockpitIds.zeroGHorizon: (_, vm, submit, dismiss) =>
       ZeroGHorizonCard(onSubmit: submit, onDismiss: dismiss),
     MicrogravityCockpitIds.dvaGaze: (_, vm, submit, dismiss) =>

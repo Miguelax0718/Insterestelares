@@ -1,16 +1,15 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'package:astramed/features/05_clinical_triage/data/medical_procedures_data.dart';
+import 'package:astramed/features/01_general_health/agent/general_health_skills.dart';
 import 'package:astramed/features/05_clinical_triage/models/triage_decision.dart';
 import 'package:astramed/features/agent/domain/agent_contracts.dart';
-import 'package:astramed/features/agent/providers/agent_providers.dart';
+import 'package:astramed/features/agent/domain/guided_assessment_catalog.dart';
 import 'package:astramed/features/apolo/domain/apolo_models.dart';
 import 'package:astramed/features/apolo/providers/apolo_contract_providers.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 
 /// Skill siempre activo que conecta el asistente APOLO con:
-/// 1) Navegación a la Terminal Clínica (`AstraMedDashboard`) y sus 5 módulos / orbes,
+/// 1) Tarjetas clínicas y orbes APOLO sin navegación al dashboard antiguo,
 /// 2) Búsqueda offline del catálogo maestro de 10 procedimientos médicos (incl. Radiación, SAS/SMS, SANS, RCP),
 /// 3) Guías paso a paso para medición manual de signos vitales sin sensores.
 AgentSkill clinicalNavigationAndProceduresSkill() {
@@ -19,7 +18,7 @@ AgentSkill clinicalNavigationAndProceduresSkill() {
     alwaysOn: true,
     instructions:
         'You are the central interactive astronaut health assistant in AstraMed / APOLO. '
-        'When the user asks to open the clinical terminal, dashboard, modules, or a specific tab '
+         'Open APOLO cockpit cards, never the legacy dashboard. When the user asks to open the clinical terminal or a capability '
         '(General Health, Radiation, Microgravity/SMS/SANS, Mental Health/Sleep, Triage/Procedures), '
         'or asks to open manual measurement mode, ALWAYS call `open_clinical_terminal` instead of `show_component(crew_status)`. '
         'When the user asks how to manually measure vital signs (pulse, respiratory rate, capillary refill, temperature, blood pressure) '
@@ -31,8 +30,19 @@ AgentSkill clinicalNavigationAndProceduresSkill() {
       _SearchMedicalProceduresTool(),
       _GetManualVitalsGuideTool(),
     ],
-    componentIds: [ComponentIds.statusReport],
+    componentIds: [ComponentIds.statusReport, ComponentIds.telemetryChart,
+      ComponentIds.vitalsCard, ComponentIds.spaceWeatherAlert,
+      ComponentIds.pvtTest, MicrogravityCockpitIds.zeroGHorizon,
+      ApoloCockpitIds.manualVitals, ApoloCockpitIds.medicalProcedures,
+      ApoloCockpitIds.missionSimulator],
     triggers: [
+      'grafica vitales',
+      'gráfica vitales',
+      'vitals trend',
+      'procedimientos',
+      'procedures',
+      'simulador',
+      'simulator',
       'abre la terminal',
       'abrir terminal',
       'abrir la terminal',
@@ -71,6 +81,8 @@ AgentSkill clinicalNavigationAndProceduresSkill() {
       'llenado capilar',
       'manual vitals',
       'take pulse',
+      'measure pulse',
+      'record manual vitals',
       'protocolo sas',
       'protocolo sms',
       'protocolo sans',
@@ -139,28 +151,6 @@ AgentComponentEvent _buildStatusReportEvent(
     'subsystems': subsystems,
     'generated_at': ctx.now.toUtc().toIso8601String(),
   });
-}
-
-void _dispatchTerminalNavigation(
-  ToolContext ctx, {
-  required int tabIndex,
-  bool openManualVitals = false,
-  String? procedureId,
-}) {
-  final current = ctx.read<ClinicalNavigationRequest?>(
-    clinicalNavigationRequestProvider,
-  );
-  final nextNonce = (current?.nonce ?? 0) + 1;
-  ctx
-      .read<StateController<ClinicalNavigationRequest?>>(
-        clinicalNavigationRequestProvider.notifier,
-      )
-      .state = ClinicalNavigationRequest(
-    tabIndex: tabIndex,
-    openManualVitals: openManualVitals,
-    procedureId: procedureId,
-    nonce: nextNonce,
-  );
 }
 
 ({int tabIndex, String tabLabel, ApoloModuleId? apoloOrb, bool showAllOrbs})
@@ -274,9 +264,9 @@ class _OpenClinicalTerminalTool extends AgentTool {
 
   @override
   String get description =>
-      'Opens the AstraMed clinical terminal / dashboard UI directly on a requested module tab '
-      '(general_health=0, radiation=1, microgravity=2, mental_health=3, triage=4) or displays APOLO module orbs. '
-      'Optionally opens the manual vitals measurement dialog or a specific medical procedure sheet.';
+      'Opens interactive APOLO cockpit cards: vitals trends, manual_vitals, '
+      'medical procedures, radiation, microgravity, mental_health or simulator. '
+      'Also opens APOLO module orbs. No legacy dashboard navigation.';
 
   @override
   ToolEffect get effect => ToolEffect.ui;
@@ -288,18 +278,18 @@ class _OpenClinicalTerminalTool extends AgentTool {
           'module': {
             'type': 'string',
             'description':
-                'Target module or view: "terminal", "general_health", "radiation", '
-                    '"microgravity", "mental_health", "triage", or an APOLO orb ID.',
+                'Target card: "general_health", "vitals", "manual_vitals", "radiation", '
+                    '"microgravity", "mental_health", "triage", "procedures", "simulator", or an APOLO orb ID.',
           },
           'open_manual_vitals': {
             'type': 'boolean',
             'description':
-                'When true, opens the interactive Tap-to-Count manual vitals dialog inside General Health.',
+                'When true, opens the interactive APOLO Tap-to-Count card.',
           },
           'procedure_id': {
             'type': 'string',
             'description':
-                'Optional MedicalProcedure ID (e.g. PROC-CARDIAC-ARREST, PROC-RADIATION-ARS, PROC-VESTIBULAR-SAS, PROC-SANS-CEPHALEA) to open inside Triage.',
+                'Optional MedicalProcedure ID to open in the APOLO procedures card.',
           },
         },
       };
@@ -307,7 +297,8 @@ class _OpenClinicalTerminalTool extends AgentTool {
   @override
   Future<ToolResult> call(Map<String, dynamic> args, ToolContext ctx) async {
     final rawModule = args['module']?.toString() ?? 'terminal';
-    final openManual = args['open_manual_vitals'] == true;
+    final openManual = args['open_manual_vitals'] == true ||
+        _normalizeText(rawModule).contains('manual');
     final procedureId = args['procedure_id']?.toString().trim();
     final hasProcedure = procedureId != null && procedureId.isNotEmpty;
 
@@ -323,7 +314,7 @@ class _OpenClinicalTerminalTool extends AgentTool {
         }
       } catch (_) {
         // Standalone test containers may omit apoloActionsProvider overrides;
-        // still dispatch terminal navigation if requested or report ok.
+        // report the requested orb without navigating to the legacy dashboard.
       }
       final uiEvent = _buildStatusReportEvent(
         ctx,
@@ -338,30 +329,50 @@ class _OpenClinicalTerminalTool extends AgentTool {
       }, uiEvents: [uiEvent]);
     }
 
-    _dispatchTerminalNavigation(
-      ctx,
-      tabIndex: openManual ? 0 : target.tabIndex,
-      openManualVitals: openManual,
-      procedureId: hasProcedure ? procedureId : null,
-    );
-
-    final summary = openManual
-        ? 'Terminal clínica abierta en Salud General con el asistente interactivo de Medición Manual.'
-        : (hasProcedure
-            ? 'Terminal clínica abierta en Triage con el procedimiento $procedureId.'
-            : 'Terminal clínica abierta en el módulo "${target.tabLabel}" (pestaña ${target.tabIndex + 1}/5).');
-
+    final simulator = _normalizeText(rawModule).contains('simula');
+    final id = openManual ? ApoloCockpitIds.manualVitals
+        : simulator ? ApoloCockpitIds.missionSimulator
+        : switch (target.tabIndex) {
+          1 => ComponentIds.statusReport,
+          2 => MicrogravityCockpitIds.zeroGHorizon,
+          3 => ComponentIds.pvtTest,
+          4 => ApoloCockpitIds.medicalProcedures,
+          _ => ComponentIds.telemetryChart,
+        };
+    final title = openManual ? 'Manual Vitals (Tap-to-Count)'
+        : simulator ? 'Mission Simulator'
+        : switch (target.tabIndex) {
+          0 => 'Vitals Trend',
+          1 => 'Radiation Status',
+          2 => 'Zero-G Horizon (Sensorimotor)',
+          3 => 'PVT Reaction Time Test',
+          _ => 'Medical Procedures',
+        };
     return ToolResult.ok({
-      'opened': 'clinical_terminal',
-      'tab_index': openManual ? 0 : target.tabIndex,
-      'tab_label': openManual ? 'Salud General (Medición Manual)' : target.tabLabel,
+      'opened': title,
+      'component_id': id,
       'open_manual_vitals': openManual,
       if (hasProcedure) 'procedure_id': procedureId,
     }, uiEvents: [
+      if (id != ComponentIds.statusReport) AgentComponentEvent.show(id, {
+        'title': title,
+        if (hasProcedure) 'procedure_id': procedureId,
+        if (id == ComponentIds.telemetryChart) ...{
+          'metric': 'heartRate', 'unit': 'bpm', 'series': <dynamic>[],
+          'astronaut_id': _resolveActiveAstronaut(ctx)?.id ?? ctx.astronautId,
+        },
+      }),
+      if (id == ComponentIds.telemetryChart && _resolveActiveAstronaut(ctx) != null)
+        AgentComponentEvent.show(ComponentIds.vitalsCard,
+          VitalsCardViewModel.fromAstronaut(_resolveActiveAstronaut(ctx)!).toProps()),
       _buildStatusReportEvent(
         ctx,
-        title: 'Terminal Clínica: ${target.tabLabel}',
-        summary: summary,
+        title: title,
+        summary: id == ComponentIds.statusReport
+          ? 'Dosimetría local: ${_resolveActiveAstronaut(ctx)?.radiation.doseRateMicroSvPerHour} µSv/h; '
+            'dosis acumulada ${_resolveActiveAstronaut(ctx)?.radiation.cumulativeDoseMilliSv} mSv. '
+            'No representa un pronóstico solar en vivo.'
+          : 'Tarjeta APOLO abierta: $title.',
       ),
     ]);
   }
@@ -445,7 +456,12 @@ class _SearchMedicalProceduresTool extends AgentTool {
           .take(3)
           .map((p) => {'id': p.id, 'title': p.title, 'priority': p.priority.name})
           .toList(),
-    }, uiEvents: [statusEvent]);
+    }, uiEvents: [
+      AgentComponentEvent.show(ApoloCockpitIds.medicalProcedures, {
+        'title': primary.title, 'procedure_id': primary.id, 'query': query,
+      }),
+      statusEvent,
+    ]);
   }
 }
 
@@ -459,7 +475,7 @@ class _GetManualVitalsGuideTool extends AgentTool {
   String get description =>
       'Provides step-by-step anatomical instructions for taking vital signs manually without electronic sensors '
       '(pulse via carotid/radial artery 15s x4, respiratory rate 30s x2, capillary refill 5s nail press <2.0s, '
-      'body temperature, and blood pressure). Optionally opens the interactive Tap-to-Count dialog in General Health.';
+       'body temperature, and blood pressure). Optionally opens the interactive APOLO Tap-to-Count card.';
 
   @override
   ToolEffect get effect => ToolEffect.ui;
@@ -476,7 +492,7 @@ class _GetManualVitalsGuideTool extends AgentTool {
           'open_manual_tool': {
             'type': 'boolean',
             'description':
-                'If true, opens the interactive Tap-to-Count timer dialog inside General Health.',
+                 'If true, opens the interactive APOLO Tap-to-Count card.',
           },
         },
       };
@@ -486,10 +502,6 @@ class _GetManualVitalsGuideTool extends AgentTool {
     final metric = _normalizeText(args['metric']?.toString() ?? 'all');
     final openTool = args['open_manual_tool'] == true;
 
-    if (openTool) {
-      _dispatchTerminalNavigation(ctx, tabIndex: 0, openManualVitals: true);
-    }
-
     final guides = _manualGuidesForMetric(metric);
     final summary = guides.map((g) => '${g['name']}: ${g['steps']}').join('\n');
 
@@ -498,6 +510,9 @@ class _GetManualVitalsGuideTool extends AgentTool {
       'opened_manual_dialog': openTool,
       'guides': guides,
     }, uiEvents: [
+      if (openTool) AgentComponentEvent.show(ApoloCockpitIds.manualVitals, {
+        'title': 'Manual Vitals (Tap-to-Count)', 'metric': metric,
+      }),
       _buildStatusReportEvent(
         ctx,
         title: 'Guía de Medición Manual de Signos Vitales',
@@ -528,7 +543,7 @@ class ClinicalNavigationOfflineFlow implements QueryAwareDeterministicFlow {
   Future<DeterministicStep> start(ToolContext ctx) async {
     return const DeterministicStep(
       prompt:
-          'Puedo abrir la terminal clínica en cualquier módulo, guiarte en la medición manual de signos vitales o consultar protocolos de emergencia (Radiación, SAS/SMS, SANS, RCP). ¿Qué necesitas?',
+           'Puedo abrir tarjetas clínicas APOLO, guiarte en la medición manual de signos vitales o consultar protocolos de emergencia (Radiación, SAS/SMS, SANS, RCP). ¿Qué necesitas?',
       options: [
         'Abrir Terminal Clínica',
         'Cómo tomar signos vitales manualmente',
@@ -548,12 +563,18 @@ class ClinicalNavigationOfflineFlow implements QueryAwareDeterministicFlow {
         norm.contains('tomar pulso') ||
         norm.contains('llenado capilar') ||
         norm.contains('sin sensor') ||
-        norm.contains('take pulse')) {
+        norm.contains('take pulse') ||
+        norm.contains('measure pulse')) {
       final wantsDialogOpen =
           norm.contains('abre') ||
           norm.contains('abrir') ||
           norm.contains('inicia') ||
-          norm.contains('toma manual') ||
+           norm.contains('toma manual') ||
+           norm.contains('medir') ||
+           norm.contains('tomar pulso') ||
+           norm.contains('take pulse') ||
+           norm.contains('measure') ||
+           norm.contains('record') ||
           norm.contains('open');
       final res = await const _GetManualVitalsGuideTool().call({
         'metric': norm,
@@ -566,7 +587,7 @@ class ClinicalNavigationOfflineFlow implements QueryAwareDeterministicFlow {
       return DeterministicStep(
         prompt:
             'Guía de medición manual de signos vitales (100% offline):\n$lines'
-            '${wantsDialogOpen ? '\n\nHe abierto el contador interactivo (Tap-to-Count) en Salud General.' : ''}',
+             '${wantsDialogOpen ? '\n\nHe abierto la tarjeta interactiva APOLO (Tap-to-Count).' : ''}',
         isTerminal: true,
         uiEvents: res.uiEvents,
         verdict: res.data,

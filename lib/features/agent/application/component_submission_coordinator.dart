@@ -246,6 +246,29 @@ class ComponentSubmissionCoordinator {
         summary = 'Sleep, mood, and stress diary recorded. Maintain a regular sleep window and review trends.';
       case ComponentIds.ultrasoundGuide:
         summary = 'Ultrasound scan steps recorded. Save findings for flight surgeon review.';
+      case ApoloCockpitIds.manualVitals:
+        final hr = number('heart_rate', 70);
+        final rr = number('respiratory_rate', 16);
+        final cap = number('capillary_refill_seconds', 1.5);
+        final temp = number('body_temp', 36.6);
+        critical = hr > 115 || hr < 45 || rr >= 26 || cap > 2.5 || temp > 38.0;
+        flag = 'manual_vitals_latest';
+        title = 'Critical manual vital signs recorded';
+        summary =
+            'Manual vitals saved: HR ${hr.toStringAsFixed(0)} bpm, '
+            'RR ${rr.toStringAsFixed(0)} rpm, refill ${cap.toStringAsFixed(1)}s, '
+            'temp ${temp.toStringAsFixed(1)} C.'
+            '${critical ? ' Critical threshold exceeded; review triage immediately.' : ''}';
+      case ApoloCockpitIds.medicalProcedures:
+        final procTitle =
+            result['title']?.toString() ??
+            result['procedure_id']?.toString() ??
+            'medical procedure';
+        flag = 'medical_procedures_latest';
+        summary = 'Reviewed offline procedure: $procTitle.';
+      case ApoloCockpitIds.missionSimulator:
+        flag = 'mission_simulator_latest';
+        summary = 'Mission simulator state updated.';
       default:
         throw FormatException('Unsupported interactive component: $componentId');
     }

@@ -364,6 +364,47 @@ class ApoloRepository {
     );
   }
 
+  Map<String, ApoloAstronautState> buildNominalStates({
+    bool highContrast = false,
+    bool autoTips = false,
+    bool solarStormActive = false,
+    int missionDay = 1,
+  }) {
+    final crew = MockCrewData.getNominalCrew();
+    return {
+      for (var i = 0; i < _presets.length; i++)
+        crew[i].id: _assembleState(
+          astronautId: crew[i].id,
+          apoloCrewKey: _presets[i].apoloKey,
+          name: crew[i].name,
+          role: crew[i].role,
+          initials: crew[i].avatarInitials,
+          colorHex: _presets[i].colorHex,
+          doseMsv: 12.0,
+          waterMlToday: _presets[i].waterGoalMl,
+          waterGoalMl: _presets[i].waterGoalMl,
+          exerciseMinToday: _presets[i].exerciseGoalMin,
+          exerciseGoalMin: _presets[i].exerciseGoalMin,
+          sleepHours: 7.5,
+          resistanceSessionsWeek: 3,
+          samples: generateMockSamples(
+            apoloKey: _presets[i].apoloKey,
+            astronautId: crew[i].id,
+            targetValues: const {},
+            count: 1,
+            currentMissionDay: missionDay,
+          ),
+          recommendations: const [],
+          now: _clock(),
+          highContrast: highContrast,
+          autoTips: autoTips,
+          solarStormActive: solarStormActive,
+          missionDay: missionDay,
+          initialSampleCount: 1,
+        ),
+    };
+  }
+
   static List<ApoloUrineSample> generateMockSamples({
     required String apoloKey,
     required String astronautId,
@@ -462,6 +503,10 @@ class ApoloRepository {
   static ApoloAstronautState rebuildState(
     ApoloAstronautState current, {
     required DateTime now,
+    int? missionDay,
+    double? doseMsv,
+    double? sleepHours,
+    int? waterGoalMl,
     int? waterMlToday,
     int? exerciseMinToday,
     int? resistanceSessionsWeek,
@@ -491,10 +536,10 @@ class ApoloRepository {
     final nextModules = ApoloBiomarkerEngine.buildModules(
       samples: nextSamples,
       waterMlToday: nextWater,
-      waterGoalMl: current.waterGoalMl,
-      doseMsv: current.doseMsv,
+      waterGoalMl: waterGoalMl ?? current.waterGoalMl,
+      doseMsv: doseMsv ?? current.doseMsv,
       doseLimitMsv: current.doseLimitMsv,
-      sleepHours: current.sleepHours,
+      sleepHours: sleepHours ?? current.sleepHours,
       solarStormActive: nextStorm,
       recommendations: nextRecs,
     );
@@ -514,15 +559,15 @@ class ApoloRepository {
       initials: current.initials,
       colorHex: current.colorHex,
       missionName: current.missionName,
-      missionDay: current.missionDay,
+      missionDay: missionDay ?? current.missionDay,
       totalMissionDays: current.totalMissionDays,
-      doseMsv: current.doseMsv,
+      doseMsv: doseMsv ?? current.doseMsv,
       doseLimitMsv: current.doseLimitMsv,
       waterMlToday: nextWater,
-      waterGoalMl: current.waterGoalMl,
+      waterGoalMl: waterGoalMl ?? current.waterGoalMl,
       exerciseMinToday: nextEx,
       exerciseGoalMin: current.exerciseGoalMin,
-      sleepHours: current.sleepHours,
+      sleepHours: sleepHours ?? current.sleepHours,
       resistanceSessionsWeek: nextSessions,
       overallSeverity: nextOverall,
       modules: nextModules,
@@ -541,6 +586,8 @@ class ApoloRepository {
   }
 
   static ApoloAstronautState _assembleState({
+    int? missionDay,
+    int initialSampleCount = 40,
     required String astronautId,
     required String apoloCrewKey,
     required String name,
@@ -561,8 +608,11 @@ class ApoloRepository {
     required bool autoTips,
     required bool solarStormActive,
   }) {
+    final initialSamples = samples.length <= initialSampleCount
+        ? samples
+        : samples.sublist(samples.length - initialSampleCount);
     final modules = ApoloBiomarkerEngine.buildModules(
-      samples: samples,
+      samples: initialSamples,
       waterMlToday: waterMlToday,
       waterGoalMl: waterGoalMl,
       doseMsv: doseMsv,
@@ -572,7 +622,7 @@ class ApoloRepository {
       recommendations: recommendations,
     );
     final overall = ApoloBiomarkerEngine.overallSeverity(modules);
-    final schedule = ApoloBiomarkerEngine.sampleSchedule(now, samples: samples);
+    final schedule = ApoloBiomarkerEngine.sampleSchedule(now, samples: initialSamples);
 
     final initialDraft = ApoloAstronautState(
       astronautId: astronautId,
@@ -582,7 +632,7 @@ class ApoloRepository {
       initials: initials,
       colorHex: colorHex,
       missionName: defaultMissionName,
-      missionDay: defaultMissionDay,
+      missionDay: missionDay ?? defaultMissionDay,
       totalMissionDays: defaultTotalMissionDays,
       doseMsv: doseMsv,
       doseLimitMsv: defaultDoseLimitMsv,
@@ -597,7 +647,7 @@ class ApoloRepository {
       visibleOrbs: const [],
       openModuleId: null,
       sampleSchedule: schedule,
-      samples: List<ApoloUrineSample>.unmodifiable(samples),
+      samples: List<ApoloUrineSample>.unmodifiable(initialSamples),
       highContrast: highContrast,
       autoTips: autoTips,
       solarStormActive: solarStormActive,
@@ -704,6 +754,61 @@ class ApoloStateNotifier extends StateNotifier<Map<String, ApoloAstronautState>>
   bool _solarStormActive = false;
 
   String get activeAstronautId => _activeAstronautId;
+
+  void resetAllNominal({int missionDay = 1}) {
+    _solarStormActive = false;
+    _lastSubmittedAtByAstronaut.clear();
+    state = _repository.buildNominalStates(
+      highContrast: _highContrast,
+      autoTips: _autoTips,
+      missionDay: missionDay,
+    );
+  }
+
+  void applySimulationProgress({
+    required int missionDay,
+    required double extraDoseMsv,
+    required double sleepDeltaHours,
+    int waterDeltaMl = 0,
+    bool? solarStormActive,
+    String? targetAstronautId,
+    Map<String, double>? biomarkerOverrides,
+  }) {
+    if (solarStormActive != null) setSolarStorm(solarStormActive);
+    final now = _clock();
+    for (final current in state.values.toList()) {
+      if (targetAstronautId != null && current.astronautId != targetAstronautId) continue;
+      final samples = List<ApoloUrineSample>.of(current.samples);
+      if (biomarkerOverrides != null || missionDay != current.missionDay) {
+        final values = <String, double>{
+          if (samples.isNotEmpty) ...samples.last.values,
+          ...?biomarkerOverrides,
+        };
+        samples.add(ApoloUrineSample(
+          id: '${current.apoloCrewKey}-sim-$missionDay-${samples.length}',
+          astronautId: current.astronautId,
+          missionDay: missionDay,
+          takenAt: samples.isEmpty ? now : samples.last.takenAt.add(
+            missionDay == current.missionDay ? const Duration(seconds: 1) : const Duration(days: 1)),
+          method: 'simulation',
+          values: Map.unmodifiable(values),
+        ));
+      }
+      var updated = ApoloRepository.rebuildState(
+        current,
+        now: now,
+        missionDay: missionDay,
+        doseMsv: current.doseMsv + extraDoseMsv,
+        sleepHours: (current.sleepHours + sleepDeltaHours).clamp(3.0, 9.0),
+        waterMlToday: (current.waterMlToday + waterDeltaMl).clamp(0, 10000),
+        samples: samples,
+        lastSubmittedAt: _lastSubmittedAtByAstronaut[current.astronautId],
+      );
+      updated = ApoloRepository.rebuildState(updated, now: now,
+        visibleOrbs: updated.rankedModules.where((m) => m.severity != ApoloSeverity.ok).take(4).map((m) => m.id).toList());
+      _putState(updated);
+    }
+  }
 
   void setActiveAstronautId(String astronautId) {
     _activeAstronautId = ApoloRepository.resolveAstronautId(astronautId);
