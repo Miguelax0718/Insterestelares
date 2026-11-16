@@ -315,7 +315,7 @@ class _ApoloChatOrbWidgetState extends State<ApoloChatOrbWidget>
     final expanded = _hovered;
 
     final body = AnimatedScale(
-      scale: expanded ? 1.14 : 1.0,
+      scale: expanded ? 2.0 : 1.0,
       duration: disable ? Duration.zero : const Duration(milliseconds: 220),
       curve: Curves.easeOutCubic,
       child: Material(
@@ -482,43 +482,50 @@ class _ApoloChatOrbWidgetState extends State<ApoloChatOrbWidget>
           windowKey: ValueKey('apolo_chat_orb_hover_window_${data.key}'),
           accent: accent,
           highContrast: widget.highContrast,
+          diameter: diameter,
           content: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Wrap(
-                spacing: 14,
-                runSpacing: 10,
+                spacing: (diameter * 0.055).clamp(5.0, 9.0),
+                runSpacing: (diameter * 0.035).clamp(4.0, 6.0),
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Container(
-                    width: 52,
-                    height: 52,
+                    width: (diameter * 0.20).clamp(22.0, 32.0),
+                    height: (diameter * 0.20).clamp(22.0, 32.0),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: accent.withValues(alpha: 0.18),
                       border: Border.all(color: accent.withValues(alpha: 0.5)),
                     ),
-                    child: Icon(data.icon, color: accent, size: 28),
+                    child: Icon(
+                      data.icon,
+                      color: accent,
+                      size: (diameter * 0.11).clamp(13.0, 18.0),
+                    ),
                   ),
                   Text(
                     data.title.isNotEmpty ? data.title : 'Apolo reply',
                     style: TextStyle(
                       color: palette.text,
-                      fontSize: 24,
+                      fontSize: (diameter * 0.105).clamp(13.0, 17.0),
                       fontWeight: FontWeight.w700,
-                      height: 1.2,
+                      height: 1.15,
                     ),
                   ),
                   if (data.severity != null)
                     ApoloStatusChip(
                       severity: data.severity!,
                       highContrast: widget.highContrast,
+                      compact: true,
                     )
                   else
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
+                        horizontal: 7,
+                        vertical: 2,
                       ),
                       decoration: BoxDecoration(
                         color: accent.withValues(alpha: 0.16),
@@ -531,11 +538,11 @@ class _ApoloChatOrbWidgetState extends State<ApoloChatOrbWidget>
                         data.kind == ApoloChatOrbKind.reply
                             ? 'Apolo reply'
                             : data.interactive
-                                ? 'Needs input'
-                                : 'Ready',
+                            ? 'Needs input'
+                            : 'Ready',
                         style: TextStyle(
                           color: accent,
-                          fontSize: 12.5,
+                          fontSize: 10.5,
                           fontWeight: FontWeight.w700,
                           height: 1.15,
                         ),
@@ -543,7 +550,7 @@ class _ApoloChatOrbWidgetState extends State<ApoloChatOrbWidget>
                     ),
                 ],
               ),
-              const SizedBox(height: 20),
+              SizedBox(height: (diameter * 0.075).clamp(7.0, 11.0)),
               if (data.kind == ApoloChatOrbKind.reply)
                 Text(
                   data.message?.content.trim().isNotEmpty == true
@@ -551,8 +558,8 @@ class _ApoloChatOrbWidgetState extends State<ApoloChatOrbWidget>
                       : data.preview,
                   style: TextStyle(
                     color: palette.text,
-                    fontSize: 18,
-                    height: 1.55,
+                    fontSize: (diameter * 0.095).clamp(11.0, 14.0),
+                    height: 1.38,
                   ),
                 )
               else ...[
@@ -564,34 +571,39 @@ class _ApoloChatOrbWidgetState extends State<ApoloChatOrbWidget>
                             : data.preview),
                   style: TextStyle(
                     color: palette.text,
-                    fontSize: 17,
-                    height: 1.5,
+                    fontSize: (diameter * 0.09).clamp(11.0, 13.5),
+                    height: 1.35,
                   ),
                 ),
-                const SizedBox(height: 14),
+                SizedBox(height: (diameter * 0.05).clamp(6.0, 9.0)),
                 Text(
                   data.interactive
                       ? 'Interactive module · requires astronaut input'
                       : 'Clinical readout · informational view',
                   style: TextStyle(
                     color: palette.text2,
-                    fontSize: 14.5,
+                    fontSize: (diameter * 0.08).clamp(10.0, 12.5),
                     fontWeight: FontWeight.w500,
+                    height: 1.3,
                   ),
                 ),
               ],
-              const SizedBox(height: 24),
+              SizedBox(height: (diameter * 0.075).clamp(8.0, 12.0)),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.touch_app_outlined, color: accent, size: 16),
-                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.touch_app_outlined,
+                    color: accent,
+                    size: (diameter * 0.095).clamp(12.0, 15.0),
+                  ),
+                  const SizedBox(width: 6),
                   Flexible(
                     child: Text(
                       'Click orb to interact',
                       style: TextStyle(
                         color: accent,
-                        fontSize: 14,
+                        fontSize: (diameter * 0.08).clamp(10.5, 12.5),
                         fontWeight: FontWeight.w700,
                       ),
                     ),
