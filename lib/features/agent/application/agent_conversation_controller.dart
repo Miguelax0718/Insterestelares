@@ -27,6 +27,8 @@ class AgentSessionState {
     this.busy = false,
     this.offlineMode = false,
     this.lastError,
+    this.lastLaunchedComponentId,
+    this.lastLaunchedNonce = 0,
   });
 
   final String astronautId;
@@ -37,6 +39,8 @@ class AgentSessionState {
   final bool busy;
   final bool offlineMode;
   final String? lastError;
+  final String? lastLaunchedComponentId;
+  final int lastLaunchedNonce;
 
   AgentSessionState copyWith({
     String? astronautId,
@@ -50,6 +54,9 @@ class AgentSessionState {
     bool? offlineMode,
     String? lastError,
     bool clearLastError = false,
+    String? lastLaunchedComponentId,
+    bool clearLastLaunchedComponentId = false,
+    int? lastLaunchedNonce,
   }) {
     return AgentSessionState(
       astronautId: astronautId ?? this.astronautId,
@@ -64,6 +71,9 @@ class AgentSessionState {
       busy: busy ?? this.busy,
       offlineMode: offlineMode ?? this.offlineMode,
       lastError: clearLastError ? null : (lastError ?? this.lastError),
+      lastLaunchedComponentId: clearLastLaunchedComponentId
+          ? null : (lastLaunchedComponentId ?? this.lastLaunchedComponentId),
+      lastLaunchedNonce: lastLaunchedNonce ?? this.lastLaunchedNonce,
     );
   }
 }
@@ -168,6 +178,39 @@ class AgentConversationOrchestrator {
   AgentSessionState _state;
 
   AgentSessionState get state => _state;
+  final Set<ChatMessage> _proactiveMessages = Set.identity();
+
+  /// Clear transient alerts in every crew session without removing user work.
+  void clearProactiveAlerts() {
+    _coalesceTimer?.cancel();
+    _coalesceTimer = null;
+    final pending = List<_QueuedProactiveEvent>.of(_pendingNonCritical);
+    _pendingNonCritical.clear();
+    _lastCriticalBannerAtByAstronaut.clear();
+    for (final entry in _sessionsByAstronaut.entries.toList()) {
+      final session = entry.value;
+      _sessionsByAstronaut[entry.key] = session.copyWith(
+        activeComponents: _applyUiEvents(session.activeComponents, const [
+          HideComponentEvent(ComponentIds.alertBanner),
+          HideComponentEvent(ComponentIds.spaceWeatherAlert),
+          HideComponentEvent(ComponentIds.evaReadiness),
+        ]),
+        messages: List.unmodifiable(
+          session.messages.where((message) => !_proactiveMessages.contains(message)),
+        ),
+        clearLastError: true,
+        clearLastLaunchedComponentId: true,
+      );
+    }
+    _proactiveMessages.clear();
+    _emitState(_sessionsByAstronaut[_state.astronautId] ??
+        _state.copyWith(clearLastError: true, clearLastLaunchedComponentId: true));
+    for (final item in pending) {
+      if (!item.completer.isCompleted) {
+        item.completer.complete(_stateFor(item.event.astronautId));
+      }
+    }
+  }
 
   void dispose() {
     _disposed = true;
@@ -291,6 +334,8 @@ class AgentConversationOrchestrator {
     final guidance = '${descriptor.title}. Step 1: ${descriptor.summary} '
         'Step 2: Follow the card instructions. Step 3: Submit your result for review.';
     _emitState(_state.copyWith(
+      lastLaunchedComponentId: descriptor.componentId,
+      lastLaunchedNonce: _state.lastLaunchedNonce + 1,
       activeComponents: _applyUiEvents(_state.activeComponents, [
         ShowComponentEvent(descriptor.componentId, {
           ...descriptor.defaultProps,
@@ -317,6 +362,8 @@ class AgentConversationOrchestrator {
     bool speakReply = false,
   }) async {
     _emitState(_state.copyWith(
+      lastLaunchedComponentId: componentId,
+      lastLaunchedNonce: _state.lastLaunchedNonce + 1,
       activeComponents: _applyUiEvents(_state.activeComponents, [
         ShowComponentEvent(componentId, {
           ...props,
@@ -524,6 +571,7 @@ class AgentConversationOrchestrator {
       role: ChatRole.assistant,
       content: event.spokenMessage,
     );
+    _proactiveMessages.add(criticalMessage);
     final updated = targetState.copyWith(
       messages: List<ChatMessage>.unmodifiable([
         ...targetState.messages,
@@ -566,11 +614,13 @@ class AgentConversationOrchestrator {
         eventTime: now,
       );
       final compactEntry = event.spokenMessage.trim();
+      final message = ChatMessage(role: ChatRole.assistant, content: compactEntry);
+      if (compactEntry.isNotEmpty) _proactiveMessages.add(message);
       final nextMessages = compactEntry.isEmpty
           ? targetState.messages
           : List<ChatMessage>.unmodifiable([
               ...targetState.messages,
-              ChatMessage(role: ChatRole.assistant, content: compactEntry),
+              message,
             ]);
 
       final updated = targetState.copyWith(
@@ -1272,6 +1322,7 @@ class AgentConversationController extends StateNotifier<AgentSessionState> {
   late final AgentConversationOrchestrator _orchestrator;
 
   AgentConversationOrchestrator get orchestrator => _orchestrator;
+  void clearProactiveAlerts() => _orchestrator.clearProactiveAlerts();
 
   Future<AgentSessionState> submitInteractiveResult(
     String componentId, Map<String, dynamic> result, {bool speakReply = false}

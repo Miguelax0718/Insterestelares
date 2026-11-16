@@ -594,6 +594,11 @@ final proactiveMonitorProvider = Provider<ProactiveMonitor>((ref) {
     }
   });
   ref.onDispose(monitor.dispose);
+  ref.listen<int>(simulationResetCounterProvider, (previous, next) {
+    controller.clearProactiveAlerts();
+    monitor.resetCooldowns();
+    notifier.clear();
+  });
   return monitor;
 });
 

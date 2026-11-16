@@ -366,6 +366,16 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
     });
 
     ref.listen<AgentSessionState>(agentOrchestratorProvider, (prev, next) {
+      final explicitlyLaunched =
+          next.lastLaunchedNonce != (prev?.lastLaunchedNonce ?? 0) &&
+          next.lastLaunchedComponentId != null;
+      if (explicitlyLaunched && mounted) {
+        _dismissedComponents.removeWhere(
+          (vm) => vm.componentId == next.lastLaunchedComponentId,
+        );
+        setState(() =>
+            _openChatKey = 'component_${next.lastLaunchedComponentId}');
+      }
       final prevLen = prev?.messages.length ?? 0;
       if (next.messages.length > prevLen) {
         if (mounted && _localBubbleText != null) {
@@ -386,7 +396,7 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
       _seenComponentIds.removeWhere(
         (id) => !next.activeComponents.any((c) => c.componentId == id),
       );
-      if (fresh.isNotEmpty && mounted && _openChatKey == null) {
+      if (fresh.isNotEmpty && mounted && !explicitlyLaunched && _openChatKey == null) {
         setState(() => _openChatKey = 'component_${fresh.first.componentId}');
       }
     });
@@ -623,6 +633,7 @@ class _ApoloHomeScreenState extends ConsumerState<ApoloHomeScreen>
                                     if (totalOrbs > 0) ...[
                                       const SizedBox(height: 12),
                                       Wrap(
+                                        clipBehavior: Clip.none,
                                         alignment: WrapAlignment.center,
                                         spacing: 10,
                                         runSpacing: 10,
@@ -1758,19 +1769,21 @@ class _OrbSideColumn extends StatelessWidget {
       );
       return Center(
         child: SingleChildScrollView(
+          clipBehavior: Clip.none,
+          padding: const EdgeInsets.symmetric(vertical: 16),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Padding(
+              Expanded(child: Padding(
                 padding: EdgeInsets.only(top: mirrorZigzag ? 44 : 0),
                 child: column(colA),
-              ),
+              )),
               const SizedBox(width: 8),
-              Padding(
+              Expanded(child: Padding(
                 padding: EdgeInsets.only(top: mirrorZigzag ? 0 : 44),
                 child: column(colB),
-              ),
+              )),
             ],
           ),
         ),
@@ -1779,6 +1792,8 @@ class _OrbSideColumn extends StatelessWidget {
 
     return Center(
       child: SingleChildScrollView(
+        clipBehavior: Clip.none,
+        padding: const EdgeInsets.symmetric(vertical: 16),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
