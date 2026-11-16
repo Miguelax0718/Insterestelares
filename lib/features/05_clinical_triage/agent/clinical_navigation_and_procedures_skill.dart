@@ -94,6 +94,11 @@ AgentSkill clinicalNavigationAndProceduresSkill() {
       'primeros auxilios',
       'botiquin',
       'botiquín',
+      'protocol',
+      'first aid',
+      'medical kit',
+      'cpr',
+      'how to measure',
     ],
     offlineFlow: ClinicalNavigationOfflineFlow(),
   );
@@ -162,7 +167,7 @@ _resolveTarget(String rawModule) {
       norm.contains('show_all_orbs')) {
     return (
       tabIndex: 0,
-      tabLabel: 'Esferas APOLO',
+      tabLabel: 'APOLO Orbs',
       apoloOrb: null,
       showAllOrbs: true,
     );
@@ -179,7 +184,7 @@ _resolveTarget(String rawModule) {
   if (directOrb != null) {
     return (
       tabIndex: 0,
-      tabLabel: 'Esfera APOLO: ${directOrb.name}',
+      tabLabel: 'APOLO Orb: ${directOrb.title}',
       apoloOrb: directOrb,
       showAllOrbs: false,
     );
@@ -190,7 +195,7 @@ _resolveTarget(String rawModule) {
       norm.contains('dosimetr')) {
     return (
       tabIndex: 1,
-      tabLabel: 'Radiación Espacial',
+      tabLabel: 'Space Radiation',
       apoloOrb: null,
       showAllOrbs: false,
     );
@@ -205,7 +210,7 @@ _resolveTarget(String rawModule) {
       norm.contains('0g')) {
     return (
       tabIndex: 2,
-      tabLabel: 'Microgravedad (SMS / SANS)',
+      tabLabel: 'Microgravity (SMS / SANS)',
       apoloOrb: null,
       showAllOrbs: false,
     );
@@ -217,7 +222,7 @@ _resolveTarget(String rawModule) {
       norm.contains('circadian')) {
     return (
       tabIndex: 3,
-      tabLabel: 'Sueño y Salud Mental',
+      tabLabel: 'Sleep and Mental Health',
       apoloOrb: null,
       showAllOrbs: false,
     );
@@ -230,14 +235,14 @@ _resolveTarget(String rawModule) {
       norm.contains('auxilios')) {
     return (
       tabIndex: 4,
-      tabLabel: 'Triage Clínico y Procedimientos',
+      tabLabel: 'Clinical Triage and Procedures',
       apoloOrb: null,
       showAllOrbs: false,
     );
   }
   return (
     tabIndex: 0,
-    tabLabel: 'Salud General',
+    tabLabel: 'General Health',
     apoloOrb: null,
     showAllOrbs: false,
   );
@@ -319,7 +324,7 @@ class _OpenClinicalTerminalTool extends AgentTool {
       final uiEvent = _buildStatusReportEvent(
         ctx,
         title: target.tabLabel,
-        summary: 'Vista APOLO actualizada: ${target.tabLabel}.',
+        summary: 'APOLO view updated: ${target.tabLabel}.',
       );
       return ToolResult.ok({
         'opened': target.tabLabel,
@@ -369,10 +374,10 @@ class _OpenClinicalTerminalTool extends AgentTool {
         ctx,
         title: title,
         summary: id == ComponentIds.statusReport
-          ? 'Dosimetría local: ${_resolveActiveAstronaut(ctx)?.radiation.doseRateMicroSvPerHour} µSv/h; '
-            'dosis acumulada ${_resolveActiveAstronaut(ctx)?.radiation.cumulativeDoseMilliSv} mSv. '
-            'No representa un pronóstico solar en vivo.'
-          : 'Tarjeta APOLO abierta: $title.',
+          ? 'Local dosimetry: ${_resolveActiveAstronaut(ctx)?.radiation.doseRateMicroSvPerHour} µSv/h; '
+            'cumulative dose ${_resolveActiveAstronaut(ctx)?.radiation.cumulativeDoseMilliSv} mSv. '
+            'This is not a live solar forecast.'
+          : 'APOLO card opened: $title.',
       ),
     ]);
   }
@@ -436,15 +441,15 @@ class _SearchMedicalProceduresTool extends AgentTool {
     final primary = matches.first;
     final statusEvent = _buildStatusReportEvent(
       ctx,
-      title: 'Protocolo: ${primary.title}',
+      title: 'Protocol: ${primary.title}',
       riskLevel: _priorityToRiskLevel(primary.priority),
       summary:
-          '${primary.summary} Pasos clave: ${primary.steps.take(3).map((s) => '${s.step}. ${s.title}').join(' | ')}',
+          '${primary.summary} Key steps: ${primary.steps.take(3).map((s) => '${s.step}. ${s.title}').join(' | ')}',
       alerts: primary.warnings.take(2).toList(),
       subsystems: {
-        'Categoría': primary.category,
-        'Código': primary.code,
-        'Botiquín': primary.requiredSupplies.map((s) => s.name).join(', '),
+        'Category': primary.category,
+        'Code': primary.code,
+        'Medical kit': primary.requiredSupplies.map((s) => s.name).join(', '),
       },
     );
 
@@ -515,14 +520,14 @@ class _GetManualVitalsGuideTool extends AgentTool {
       }),
       _buildStatusReportEvent(
         ctx,
-        title: 'Guía de Medición Manual de Signos Vitales',
+        title: 'Manual Vital Signs Measurement Guide',
         riskLevel: 'nominal',
         summary: summary,
         subsystems: {
-          'Modo': '100% Offline / Sin sensores electrónicos',
-          'Fórmula pulso': 'Latidos en 15s × 4 = bpm (Normal 60–100)',
-          'Fórmula respiración': 'Elevaciones en 30s × 2 = rpm (Normal 12–20)',
-          'Llenado capilar': 'Presión uña 5s; retorno < 2.0s normal',
+          'Mode': '100% Offline / No electronic sensors',
+          'Pulse formula': 'Beats in 15s × 4 = bpm (Normal 60–100)',
+          'Respiration formula': 'Chest rises in 30s × 2 = breaths/min (Normal 12–20)',
+          'Capillary refill': 'Press nail for 5s; refill < 2.0s is normal',
         },
       ),
     ]);
@@ -543,11 +548,11 @@ class ClinicalNavigationOfflineFlow implements QueryAwareDeterministicFlow {
   Future<DeterministicStep> start(ToolContext ctx) async {
     return const DeterministicStep(
       prompt:
-           'Puedo abrir tarjetas clínicas APOLO, guiarte en la medición manual de signos vitales o consultar protocolos de emergencia (Radiación, SAS/SMS, SANS, RCP). ¿Qué necesitas?',
+           'I can open APOLO clinical cards, guide manual vital sign measurements, or look up emergency protocols (Radiation, SAS/SMS, SANS, CPR). What do you need?',
       options: [
-        'Abrir Terminal Clínica',
-        'Cómo tomar signos vitales manualmente',
-        'Consultar protocolos médicos (SAS/SMS, SANS, Radiación)',
+        'Open Clinical Terminal',
+        'How to measure vital signs manually',
+        'Look up medical protocols (SAS/SMS, SANS, Radiation)',
       ],
     );
   }
@@ -564,6 +569,7 @@ class ClinicalNavigationOfflineFlow implements QueryAwareDeterministicFlow {
         norm.contains('llenado capilar') ||
         norm.contains('sin sensor') ||
         norm.contains('take pulse') ||
+        norm.contains('how to measure') ||
         norm.contains('measure pulse')) {
       final wantsDialogOpen =
           norm.contains('abre') ||
@@ -586,8 +592,8 @@ class ClinicalNavigationOfflineFlow implements QueryAwareDeterministicFlow {
           .join('\n');
       return DeterministicStep(
         prompt:
-            'Guía de medición manual de signos vitales (100% offline):\n$lines'
-             '${wantsDialogOpen ? '\n\nHe abierto la tarjeta interactiva APOLO (Tap-to-Count).' : ''}',
+            'Manual vital signs guide (100% offline):\n$lines'
+             '${wantsDialogOpen ? '\n\nThe interactive APOLO Tap-to-Count card is open.' : ''}',
         isTerminal: true,
         uiEvents: res.uiEvents,
         verdict: res.data,
@@ -611,7 +617,13 @@ class ClinicalNavigationOfflineFlow implements QueryAwareDeterministicFlow {
         norm.contains('sas') ||
         norm.contains('sms') ||
         norm.contains('sans') ||
-        norm.contains('rcp');
+        norm.contains('rcp') ||
+        norm.contains('protocol') ||
+        norm.contains('first aid') ||
+        norm.contains('medical kit') ||
+        norm.contains('how to treat') ||
+        norm.contains('what to do') ||
+        norm.contains('cpr');
 
     if (isProtocolIntent && !isOpenIntent) {
       final res = await const _SearchMedicalProceduresTool().call({
@@ -619,7 +631,7 @@ class ClinicalNavigationOfflineFlow implements QueryAwareDeterministicFlow {
       }, ctx);
       final procMap =
           res.data['primary_procedure'] as Map<String, dynamic>? ?? const {};
-      final title = procMap['title']?.toString() ?? 'Protocolo médico';
+      final title = procMap['title']?.toString() ?? 'Medical protocol';
       final steps = (procMap['steps'] as List<dynamic>? ?? const [])
           .take(3)
           .map((s) {
@@ -643,9 +655,9 @@ class ClinicalNavigationOfflineFlow implements QueryAwareDeterministicFlow {
     }, ctx);
     final label = res.data['tab_label']?.toString() ??
         res.data['opened']?.toString() ??
-        'Terminal Clínica';
+        'Clinical Terminal';
     return DeterministicStep(
-      prompt: 'Listo: he abierto $label en tu pantalla.',
+      prompt: 'Opened $label on your screen.',
       isTerminal: true,
       uiEvents: res.uiEvents,
       verdict: res.data,
@@ -671,7 +683,7 @@ List<MedicalProcedure> _matchProcedures({
   }
 
   final keywordMapping = <String, List<String>>{
-    'PROC-RADIATION-ARS': ['radiac', 'ars', 'spe', 'tormenta solar', 'dosis'],
+    'PROC-RADIATION-ARS': ['radiac', 'radiation', 'ars', 'spe', 'tormenta solar', 'solar storm', 'dosis'],
     'PROC-VESTIBULAR-SAS': ['sas', 'sms', 'mareo', 'vertigo', 'vestibular', 'nausea'],
     'PROC-SANS-CEPHALEA': ['sans', 'ocular', 'ojo', 'cefalea', 'vista', 'papiledema', 'hiperop'],
     'PROC-CARDIAC-ARREST': ['rcp', 'cpr', 'paro', 'cardiac', 'desfibril', 'aed'],
@@ -724,33 +736,33 @@ List<Map<String, String>> _manualGuidesForMetric(String metric) {
   final allGuides = <Map<String, String>>[
     {
       'key': 'pulse',
-      'name': 'Pulso / Frecuencia Cardíaca (bpm)',
+      'name': 'Pulse / Heart Rate (bpm)',
       'steps':
-          'Coloca dedos índice y medio (no el pulgar) sobre la muñeca radial o cuello (carótida). Cuenta los latidos durante 15 segundos y multiplica ×4. Normal NASA: 60–100 bpm.',
+          'Place your index and middle fingers (not your thumb) over the radial artery at the wrist or carotid artery in the neck. Count beats for 15 seconds and multiply ×4. NASA normal range: 60–100 bpm.',
     },
     {
       'key': 'respiration',
-      'name': 'Frecuencia Respiratoria (rpm)',
+      'name': 'Respiratory Rate (breaths/min)',
       'steps':
-          'Observa cuántas veces se eleva el tórax en 30 segundos en reposo y multiplica ×2. Normal: 12–20 rpm.',
+          'Count chest rises for 30 seconds at rest and multiply ×2. Normal: 12–20 breaths/min.',
     },
     {
       'key': 'capillary',
-      'name': 'Llenado Capilar y Perfusión (s)',
+      'name': 'Capillary Refill and Perfusion (s)',
       'steps':
-          'Presiona el lecho ungueal 5 segundos hasta blanquear, suelta y mide cuánto tarda en volver al color rosado. Normal: < 2.0 segundos.',
+          'Press the nail bed for 5 seconds until it blanches, release, and time the return to pink. Normal: < 2.0 seconds.',
     },
     {
       'key': 'temperature',
-      'name': 'Temperatura Corporal (°C)',
+      'name': 'Body Temperature (°C)',
       'steps':
-          'Coloca el termómetro timpánico o sublingual y confirma estado de reposo. Normal: 36.0–37.2 °C (alerta <35.5 o >37.8 °C).',
+          'Use a tympanic or sublingual thermometer and confirm the patient is resting. Normal: 36.0–37.2 °C (alert <35.5 or >37.8 °C).',
     },
     {
       'key': 'blood_pressure',
-      'name': 'Presión Arterial (mmHg)',
+      'name': 'Blood Pressure (mmHg)',
       'steps':
-          'Ancla el cuerpo sin cruzar piernas, manguito a la altura del corazón en reposo 5 min. Normal NASA: 90–130 / 60–85 mmHg.',
+          'Secure the body with legs uncrossed and the cuff at heart level after 5 min of rest. NASA normal range: 90–130 / 60–85 mmHg.',
     },
   ];
 

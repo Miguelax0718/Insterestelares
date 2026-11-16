@@ -30,7 +30,7 @@ class MedicalProceduresData {
         if (list.isNotEmpty) return list;
       }
     } catch (e) {
-      debugPrint('Aviso: usando catálogo local de procedimientos médicos: $e');
+      debugPrint('Warning: using the local medical procedures catalog: $e');
     }
     return getProcedures();
   }
@@ -54,7 +54,7 @@ class MedicalProceduresData {
         if (list.isNotEmpty) return list;
       }
     } catch (e) {
-      debugPrint('Aviso: usando escenarios locales de triage clínico: $e');
+      debugPrint('Warning: using local clinical triage scenarios: $e');
     }
     return getScenarios();
   }
@@ -109,7 +109,7 @@ class MedicalProceduresData {
             scenario.recommendedProcedureId == simulatedSituationId) {
           targetProcedureId = scenario.recommendedProcedureId;
           scenarioNote =
-              'Situación reportada (${scenario.label}): ${scenario.symptomSummary}.';
+              'Reported situation (${scenario.label}): ${scenario.symptomSummary}.';
           break;
         }
       }
@@ -118,7 +118,7 @@ class MedicalProceduresData {
       if (targetProc != null) {
         addSuggestion(
           targetProc.id,
-          scenarioNote ?? 'Situación clínica activa: ${targetProc.summary}',
+          scenarioNote ?? 'Active clinical situation: ${targetProc.summary}',
           targetProc.priority == TriagePriority.red,
         );
       }
@@ -135,7 +135,7 @@ class MedicalProceduresData {
         (v.spO2 < 85.0 && v.systolicBP < 80.0)) {
       addSuggestion(
         'PROC-CARDIAC-ARREST',
-        'Pulso crítico (${v.heartRate.toInt()} bpm) con compromiso circulatorio. Verificar conciencia/pulso e iniciar RCP en microgravedad.',
+        'Critical pulse (${v.heartRate.toInt()} bpm) with circulatory compromise. Check consciousness/pulse and initiate microgravity CPR.',
         true,
       );
     }
@@ -143,7 +143,7 @@ class MedicalProceduresData {
     if (v.spO2 < 90.0) {
       addSuggestion(
         'PROC-HYPOXIA-DECOMP',
-        'Saturación SpO2 crítica (${v.spO2.toStringAsFixed(0)}%). Administrar oxígeno al 100% y revisar sello EVA/cabina.',
+        'Critical SpO2 (${v.spO2.toStringAsFixed(0)}%). Administer 100% oxygen and check EVA/cabin seals.',
         true,
       );
     }
@@ -152,7 +152,7 @@ class MedicalProceduresData {
         r.severity == RadiationSeverity.critical) {
       addSuggestion(
         'PROC-RADIATION-ARS',
-        'Tasa de radiación elevada (${r.doseRateMicroSvPerHour.toStringAsFixed(0)} µSv/h). Trasladar a refugio blindado y vigilar síntomas.',
+        'Elevated radiation dose rate (${r.doseRateMicroSvPerHour.toStringAsFixed(0)} µSv/h). Move to a shielded shelter and monitor symptoms.',
         true,
       );
     }
@@ -163,7 +163,7 @@ class MedicalProceduresData {
         v.systolicBP > 145.0) {
       addSuggestion(
         'PROC-HEMODYNAMIC-SYNCOPE',
-        'Inestabilidad hemodinámica (FC ${v.heartRate.toInt()} bpm, PA ${v.systolicBP.toInt()}/${v.diastolicBP.toInt()} mmHg). Reposo y control cardiovascular.',
+        'Hemodynamic instability (HR ${v.heartRate.toInt()} bpm, BP ${v.systolicBP.toInt()}/${v.diastolicBP.toInt()} mmHg). Rest and monitor cardiovascular status.',
         v.systolicBP < 85.0 || v.systolicBP > 160.0 || v.heartRate > 115.0,
       );
     }
@@ -171,7 +171,7 @@ class MedicalProceduresData {
     if (v.respiratoryRate > 22.0) {
       addSuggestion(
         'PROC-HYPERCAPNIA-CO2',
-        'Frecuencia respiratoria alta (${v.respiratoryRate.toInt()} rpm). Evaluar acumulación de CO2 y ventilación de cabina.',
+        'Elevated respiratory rate (${v.respiratoryRate.toInt()} breaths/min). Assess CO2 buildup and cabin ventilation.',
         v.respiratoryRate >= 26.0,
       );
     }
@@ -179,7 +179,7 @@ class MedicalProceduresData {
     if (v.bodyTemp > 37.3) {
       addSuggestion(
         'PROC-RENAL-DEHYDRATION',
-        'Temperatura elevada (${v.bodyTemp.toStringAsFixed(1)} °C). Reforzar hidratación oral y control térmico.',
+        'Elevated temperature (${v.bodyTemp.toStringAsFixed(1)} °C). Increase oral hydration and temperature monitoring.',
         v.bodyTemp > 38.0,
       );
     }
@@ -188,7 +188,7 @@ class MedicalProceduresData {
         v.systolicBP <= 145.0) {
       addSuggestion(
         'PROC-SANS-CEPHALEA',
-        'Presión arterial limítrofe (${v.systolicBP.toInt()}/${v.diastolicBP.toInt()} mmHg). Vigilar cefalea y visión (SANS).',
+        'Borderline blood pressure (${v.systolicBP.toInt()}/${v.diastolicBP.toInt()} mmHg). Monitor headache and vision (SANS).',
         false,
       );
     }
@@ -197,7 +197,7 @@ class MedicalProceduresData {
         s.wakeEpisodes >= 3) {
       addSuggestion(
         'PROC-CIRCADIAN-FATIGUE',
-        'Déficit de descanso (${s.sleepHours.toStringAsFixed(1)} h, ${s.wakeEpisodes} despertares). Aplicar protocolo de higiene del sueño.',
+        'Sleep deficit (${s.sleepHours.toStringAsFixed(1)} h, ${s.wakeEpisodes} awakenings). Apply the sleep hygiene protocol.',
         false,
       );
     }
@@ -205,7 +205,7 @@ class MedicalProceduresData {
     if (suggestions.isEmpty) {
       addSuggestion(
         'PROC-CIRCADIAN-FATIGUE',
-        'Tripulante estable (Estado Nominal). Mantener vigilancia preventiva y rutina de descanso saludable.',
+        'Crew member stable (Nominal Status). Maintain preventive monitoring and a healthy sleep routine.',
         false,
       );
     }
@@ -219,17 +219,17 @@ class MedicalProceduresData {
       MedicalProcedure(
         id: 'PROC-CARDIAC-ARREST',
         code: 'IMG-ACLS-01',
-        title: 'Paro Cardíaco y RCP en Microgravedad (ACLS Espacial)',
+        title: 'Cardiac Arrest and Microgravity CPR (Space ACLS)',
         category: 'cardiovascular',
         priority: TriagePriority.red,
         nasaHazard: 'Gravity fields / Distance from Earth',
         summary:
-            'Protocolo de reanimación cardiopulmonar adaptado a ingravidez cuando un tripulante pierde la conciencia, no respira o presenta ausencia de pulso o ritmo desfibrilable.',
+            'Cardiopulmonary resuscitation adapted for weightlessness when a crew member is unconscious, is not breathing, has no pulse, or has a shockable rhythm.',
         whenToActivate: [
-          'Tripulante inconsciente que no responde a estímulos verbales ni táctiles',
-          'Ausencia de respiración normal o respiración agónica (jadeo)',
-          'Ausencia de pulso central o frecuencia cardíaca crítica (< 40 bpm o > 150 bpm sin perfusión)',
-          'Llenado capilar > 3.0 segundos con cianosis o alerta de asistolia/FV en Astroskin',
+          'Unconscious crew member unresponsive to verbal or tactile stimuli',
+          'Absent normal breathing or agonal breathing (gasping)',
+          'Absent central pulse or critical heart rate (< 40 bpm or > 150 bpm without perfusion)',
+          'Capillary refill > 3.0 seconds with cyanosis or an Astroskin asystole/VF alert',
         ],
         vitalTriggers: {
           'minHeartRate': 40.0,
@@ -249,90 +249,90 @@ class MedicalProceduresData {
         steps: [
           ProcedureStep(
             step: 1,
-            title: 'Confirmar paro y activar alarma de cabina',
+            title: 'Confirm arrest and activate the cabin alarm',
             action:
-                'Verificar estado de conciencia y respiración en máximo 10 segundos. Activar la alerta médica de cabina para convocar al Oficial Médico (CMO) y al resto de la tripulación.',
+                'Check consciousness and breathing within 10 seconds. Activate the cabin medical alert to summon the Crew Medical Officer (CMO) and the rest of the crew.',
             clinicalTip:
-                'No perder tiempo buscando pulso radial si no hay respuesta ni respiración; iniciar preparación de RCP de inmediato.',
+                'Do not waste time checking a radial pulse if the patient is unresponsive and not breathing; prepare for CPR immediately.',
             durationSeconds: 10,
           ),
           ProcedureStep(
             step: 2,
-            title: 'Inmovilizar en el sistema CMRS',
+            title: 'Secure the patient in the CMRS',
             action:
-                'Asegurar al paciente sobre la camilla rígida CMRS (Crew Medical Restraint System) con las correas de pecho, pelvis y piernas para evitar que el cuerpo flote con cada compresión.',
+                'Secure the patient to the rigid Crew Medical Restraint System (CMRS) board with chest, pelvic, and leg straps to prevent drifting with each compression.',
             clinicalTip:
-                'Si estás solo y el CMRS aún no está desplegado, sujeta tus piernas alrededor de la cintura del paciente (abrazo invertido) mientras un segundo tripulante trae el CMRS y el DEA.',
+                'If alone before the CMRS is deployed, wrap your legs around the patient at the waist (reverse bear hug) while a second crew member brings the CMRS and AED.',
             durationSeconds: 30,
           ),
           ProcedureStep(
             step: 3,
-            title: 'Iniciar compresiones torácicas en microgravedad',
+            title: 'Start chest compressions in microgravity',
             action:
-                'Aplicar compresiones continuas en el centro del esternón a ritmo de 100-120 por minuto y profundidad de 5 a 6 cm. Usar el método Handstand (apoyar los pies contra la pared/techo opuesto del módulo para generar fuerza axial) o el método Evetts-Russomano.',
+                'Apply continuous compressions at the center of the sternum at 100-120 per minute and a depth of 5 to 6 cm. Use the Handstand method (brace feet against the opposite module wall/ceiling to generate axial force) or the Evetts-Russomano method.',
             clinicalTip:
-                'Permitir la reexpansión completa del tórax entre compresiones y rotar al reanimador cada 2 minutos para evitar fatiga.',
+                'Allow full chest recoil between compressions and change rescuers every 2 minutes to prevent fatigue.',
             durationSeconds: 120,
           ),
           ProcedureStep(
             step: 4,
-            title: 'Aplicar DEA espacial (AED)',
+            title: 'Apply the space AED',
             action:
-                'Encender el desfibrilador externo automático, colocar los parches adhesivos en tórax seco (subclavicular derecho e infraaxilar izquierdo) y detener brevemente las compresiones solo mientras analiza el ritmo.',
+                'Turn on the automated external defibrillator, apply adhesive pads to the dry chest (right subclavicular and left infra-axillary positions), and briefly pause compressions only during rhythm analysis.',
             clinicalTip:
-                'Antes de administrar la descarga, verificar visualmente que ningún tripulante toque el cuerpo o el marco metálico del CMRS.',
+                'Before delivering a shock, visually confirm that no crew member is touching the patient or the metal CMRS frame.',
             durationSeconds: 25,
           ),
           ProcedureStep(
             step: 5,
-            title: 'Ventilación con mascarilla BVM y O2 al 100%',
+            title: 'Ventilate with a BVM and 100% O2',
             action:
-                'Asegurar vía aérea permeable con tracción mandibular o cánula orofaríngea. Administrar 2 ventilaciones de rescate cada 30 compresiones usando bolsa-válvula-mascarilla conectada a oxígeno al 100%.',
+                'Maintain a patent airway using a jaw thrust or oropharyngeal airway. Give 2 rescue breaths after every 30 compressions using a bag-valve-mask connected to 100% oxygen.',
             clinicalTip:
-                'Evitar hiperventilación excesiva (máximo 1 segundo por insuflación hasta ver elevación torácica).',
+                'Avoid excessive ventilation (no more than 1 second per breath, until visible chest rise).',
             durationSeconds: 20,
           ),
           ProcedureStep(
             step: 6,
-            title: 'Soporte ACLS y registro telemétrico',
+            title: 'Provide ACLS support and record telemetry',
             action:
-                'Si no hay retorno de circulación espontánea tras 2 minutos de RCP y descarga, administrar Epinefrina 1 mg IV/IO cada 3-5 minutos. Registrar eventos y enviar paquete diferido a Cirujanos de Vuelo.',
+                'If spontaneous circulation has not returned after 2 minutes of CPR and defibrillation, administer epinephrine 1 mg IV/IO every 3-5 minutes. Record events and queue a report for flight surgeons.',
             clinicalTip:
-                'Mantener ciclos continuos de 2 minutos hasta recuperar pulso palpable o indicación médica de término.',
+                'Continue uninterrupted 2-minute cycles until a palpable pulse returns or medical direction advises stopping.',
             durationSeconds: 120,
           ),
         ],
         requiredSupplies: [
           ProcedureSupply(
             itemId: 'CMRS-BOARD',
-            name: 'Crew Medical Restraint System (Camilla CMRS)',
-            usage: 'Fijación del paciente y del reanimador en microgravedad',
-            location: 'Bahía Médica / Rack CHeCS',
+            name: 'Crew Medical Restraint System (CMRS Board)',
+            usage: 'Secure the patient and rescuer in microgravity',
+            location: 'Medical Bay / CHeCS Rack',
           ),
           ProcedureSupply(
             itemId: 'AED-SPACE',
-            name: 'Desfibrilador Externo Automático Espacial (AED)',
-            usage: 'Análisis de ritmo y desfibrilación bifásica',
-            location: 'Módulo Harmony / Kit Emergencia A1',
+            name: 'Space Automated External Defibrillator (AED)',
+            usage: 'Rhythm analysis and biphasic defibrillation',
+            location: 'Harmony Module / Emergency Kit A1',
           ),
           ProcedureSupply(
             itemId: 'BVM-O2-100',
-            name: 'Bolsa-Válvula-Mascarilla + Toma O2 100%',
-            usage: 'Ventilación asistida 30:2 con oxígeno suplementario',
-            location: 'Módulo Harmony / Kit Vía Aérea',
+            name: 'Bag-Valve-Mask + 100% O2 Outlet',
+            usage: 'Assisted ventilation at 30:2 with supplemental oxygen',
+            location: 'Harmony Module / Airway Kit',
           ),
           ProcedureSupply(
             itemId: 'MED-EPINEPHRINE',
-            name: 'Epinefrina 1 mg/10 mL (Jeringa precargada)',
+            name: 'Epinephrine 1 mg/10 mL (Prefilled Syringe)',
             usage:
-                '1 mg IV/IO cada 3-5 minutos en ritmo no desfibrilable o refractario',
-            location: 'Botiquín ACLS / Cajón Rojo 1',
+                '1 mg IV/IO every 3-5 minutes for non-shockable or refractory rhythms',
+            location: 'ACLS Kit / Red Drawer 1',
           ),
         ],
         warnings: [
-          'Nunca intentar compresiones sin anclaje corporal; la tercera ley de Newton impulsará al reanimador lejos del paciente.',
-          'Asegurarse de que la superficie torácica esté seca antes de usar los parches del DEA.',
-          'No interrumpir las compresiones más de 10 segundos durante la colocación de vía aérea o análisis.',
+          'Never attempt compressions without body restraint; Newton’s third law will push the rescuer away from the patient.',
+          'Ensure the chest surface is dry before applying AED pads.',
+          'Do not interrupt compressions for more than 10 seconds during airway placement or analysis.',
         ],
         criterionReference:
             'NASA-STD-3001 / ISS Integrated Medical Group ACLS & Microgravity CPR Checklist',
@@ -340,17 +340,17 @@ class MedicalProceduresData {
       MedicalProcedure(
         id: 'PROC-HYPOXIA-DECOMP',
         code: 'IMG-HYP-02',
-        title: 'Hipoxia Aguda y Descompresión Post-EVA',
+        title: 'Acute Hypoxia and Post-EVA Decompression',
         category: 'respiratory',
         priority: TriagePriority.red,
         nasaHazard: 'Hostile closed environments / Gravity fields',
         summary:
-            'Atención inmediata ante caída crítica de oxígeno en sangre (SpO2 < 90%), fuga de traje EVA, despresurización o enfermedad por descompresión.',
+            'Immediate care for critically low blood oxygen (SpO2 < 90%), an EVA suit leak, depressurization, or decompression sickness.',
         whenToActivate: [
-          'SpO2 < 90% confirmado en Bio-Monitor Astroskin o pulsioxímetro',
-          'Falta de aire intensa, polipnea (> 24 rpm) o confusión mental',
-          'Dolor articular, mareo o parestesias tras una caminata espacial (EVA)',
-          'Cianosis labial/ungueal o llenado capilar > 2.5 segundos',
+          'SpO2 < 90% confirmed by Astroskin Bio-Monitor or pulse oximeter',
+          'Severe breathlessness, rapid breathing (> 24 breaths/min), or confusion',
+          'Joint pain, dizziness, or paresthesia after a spacewalk (EVA)',
+          'Lip/nail cyanosis or capillary refill > 2.5 seconds',
         ],
         vitalTriggers: {
           'minSpO2': 90.0,
@@ -368,58 +368,58 @@ class MedicalProceduresData {
         steps: [
           ProcedureStep(
             step: 1,
-            title: 'Suministrar oxígeno suplementario al 100%',
+            title: 'Administer 100% supplemental oxygen',
             action:
-                'Colocar mascarilla de no reinhalación o circuito cerrado con flujo de O2 al 100% (10-15 L/min) manteniendo al astronauta en reposo semi-reclinado y anclado.',
+                'Apply a non-rebreather mask or closed circuit with 100% O2 (10-15 L/min), keeping the astronaut resting, semi-reclined, and secured.',
             clinicalTip:
-                'Revisar inmediatamente la presión de cabina y el nivel de O2 ambiental en el panel ECLSS.',
+                'Immediately check cabin pressure and ambient O2 on the ECLSS panel.',
             durationSeconds: 30,
           ),
           ProcedureStep(
             step: 2,
-            title: 'Verificar sello de escotilla y traje EVA',
+            title: 'Check hatch and EVA suit seals',
             action:
-                'Si el evento ocurre en la esclusa tras una EVA, asegurar presurización nominal a 101.3 kPa (14.7 psi) y descartar burbujas o síntomas neurológicos por descompresión (DCS).',
+                'If the event occurs in the airlock after an EVA, ensure nominal pressurization at 101.3 kPa (14.7 psi) and assess for bubbles or neurological symptoms of decompression sickness (DCS).',
             clinicalTip:
-                'Si hay síntomas de enfermedad por descompresión, iniciar protocolo de recompresión hiperbárica en esclusa con O2 al 100%.',
+                'If decompression sickness symptoms are present, initiate the airlock hyperbaric recompression protocol with 100% O2.',
             durationSeconds: 60,
           ),
           ProcedureStep(
             step: 3,
-            title: 'Monitorear signos vitales cada 2 minutos',
+            title: 'Monitor vital signs every 2 minutes',
             action:
-                'Conectar Astroskin e i-STAT para vigilar recuperación de SpO2 >= 95%, descenso de frecuencia cardíaca y saturación venosa/gases.',
+                'Connect Astroskin and i-STAT to monitor SpO2 recovery to >= 95%, decreasing heart rate, and venous saturation/blood gases.',
             clinicalTip:
-                'Si el SpO2 no supera 92% tras 5 minutos de O2 al 100%, asistir ventilación con BVM y preparar alerta roja a Tierra.',
+                'If SpO2 does not exceed 92% after 5 minutes of 100% O2, assist ventilation with a BVM and prepare a red alert to Earth.',
             durationSeconds: 120,
           ),
           ProcedureStep(
             step: 4,
-            title: 'Hidratación y reposo post-evento',
+            title: 'Provide hydration and rest after the event',
             action:
-                'Una vez estabilizado (SpO2 >= 94%), administrar hidratación oral con electrolitos y mantener monitoreo continuo durante 4 horas.',
+                'Once stable (SpO2 >= 94%), give oral fluids with electrolytes and continue monitoring for 4 hours.',
             clinicalTip:
-                'Prohibir nuevas actividades físicas o EVA hasta autorización médica.',
+                'Do not resume physical activity or EVA until medically cleared.',
             durationSeconds: 180,
           ),
         ],
         requiredSupplies: [
           ProcedureSupply(
             itemId: 'BVM-O2-100',
-            name: 'Mascarilla de Oxígeno 100% / BVM',
-            usage: 'Administración inmediata de oxígeno a alto flujo',
-            location: 'Esclusa Quest / Kit Vía Aérea',
+            name: '100% Oxygen Mask / BVM',
+            usage: 'Immediate high-flow oxygen delivery',
+            location: 'Quest Airlock / Airway Kit',
           ),
           ProcedureSupply(
             itemId: 'MED-ORAL-REHYDRATION',
-            name: 'Solución de Rehidratación Oral con Electrolitos',
-            usage: 'Soporte hemodinámico tras estabilización respiratoria',
-            location: 'Bahía Médica / Cajón Verde 2',
+            name: 'Oral Rehydration Solution with Electrolytes',
+            usage: 'Hemodynamic support after respiratory stabilization',
+            location: 'Medical Bay / Green Drawer 2',
           ),
         ],
         warnings: [
-          'No retirar el oxígeno prematuramente aunque el tripulante sienta mejoría subjetiva.',
-          'Evitar cualquier esfuerzo físico mientras la frecuencia respiratoria supere 20 rpm.',
+          'Do not stop oxygen prematurely even if the crew member reports feeling better.',
+          'Avoid physical exertion while respiratory rate exceeds 20 breaths/min.',
         ],
         criterionReference:
             'NASA-STD-3001 Vol. 2 Atmosphere & Decompression Sickness Protocol',
@@ -427,16 +427,16 @@ class MedicalProceduresData {
       MedicalProcedure(
         id: 'PROC-RADIATION-ARS',
         code: 'IMG-RAD-03',
-        title: 'Síndrome Agudo por Radiación (ARS) y Tormenta Solar (SPE)',
+        title: 'Acute Radiation Syndrome (ARS) and Solar Particle Event (SPE)',
         category: 'radiation',
         priority: TriagePriority.red,
         nasaHazard: 'Space radiation',
         summary:
-            'Protocolo de protección y manejo clínico ante evento de partículas solares (SPE), tasa de dosis > 150 µSv/h o síntomas prodrómicos de radiación.',
+            'Protection and clinical management for a solar particle event (SPE), dose rate > 150 µSv/h, or prodromal radiation symptoms.',
         whenToActivate: [
-          'Alarma de dosimetría HERA con tasa > 150 µSv/h o dosis acumulada en rápido ascenso',
-          'Náuseas, vómitos, fatiga súbita o eritema cutáneo tras alerta de tormenta solar',
-          'Tripulante expuesto fuera del módulo principal durante evento SPE',
+          'HERA dosimetry alarm with dose rate > 150 µSv/h or rapidly rising cumulative dose',
+          'Nausea, vomiting, sudden fatigue, or skin erythema after a solar storm alert',
+          'Crew member exposed outside the main module during an SPE',
         ],
         vitalTriggers: {
           'maxDoseRateMicroSvPerHour': 150.0,
@@ -453,59 +453,59 @@ class MedicalProceduresData {
         steps: [
           ProcedureStep(
             step: 1,
-            title: 'Refugio inmediato en Storm Shelter',
+            title: 'Move immediately to the Storm Shelter',
             action:
-                'Abortar cualquier actividad en módulos externos o EVA. Trasladar a toda la tripulación al refugio blindado rodeado por reservas de agua y suministros de alta densidad de hidrógeno.',
+                'Abort all external module activity or EVA. Move the entire crew to the shielded shelter surrounded by water reserves and hydrogen-rich supplies.',
             clinicalTip:
-                'Cada minuto fuera del blindaje durante un pico SPE multiplica la dosis absorbida en médula ósea.',
+                'Each minute outside shielding during an SPE peak increases the absorbed bone marrow dose.',
             durationSeconds: 120,
           ),
           ProcedureStep(
             step: 2,
-            title: 'Control de náuseas y síntomas prodrómicos',
+            title: 'Control nausea and prodromal symptoms',
             action:
-                'Si hay náuseas o vómitos tempranos, administrar Ondansetrón 4-8 mg sublingual/oral para prevenir deshidratación y broncoaspiración en microgravedad.',
+                'For early nausea or vomiting, administer ondansetron 4-8 mg sublingually/orally to prevent dehydration and aspiration in microgravity.',
             clinicalTip:
-                'Registrar hora exacta de inicio de náuseas; ayuda a estimar la dosis biológica absorbida.',
+                'Record the exact onset time of nausea to help estimate the absorbed biological dose.',
             durationSeconds: 60,
           ),
           ProcedureStep(
             step: 3,
-            title: 'Evaluación hematológica y dosimetría',
+            title: 'Perform hematological assessment and dosimetry',
             action:
-                'Realizar lectura con HERA Radiation Assay y análisis capilar con i-STAT para vigilar electrolitos, glucosa y estado metabólico.',
+                'Take a HERA Radiation Assay reading and capillary i-STAT analysis to monitor electrolytes, glucose, and metabolic status.',
             clinicalTip:
-                'Comparar la dosis acumulada contra los límites operacionales NASA-STD-3001.',
+                'Compare cumulative dose against NASA-STD-3001 operational limits.',
             durationSeconds: 180,
           ),
           ProcedureStep(
             step: 4,
-            title: 'Hidratación y vigilancia continua',
+            title: 'Maintain hydration and continuous monitoring',
             action:
-                'Mantener ingesta de líquidos con electrolitos, evitar fármacos nefrotóxicos y permanecer en el refugio hasta confirmación de descenso de flujo solar.',
+                'Maintain fluid intake with electrolytes, avoid nephrotoxic drugs, and remain sheltered until decreased solar flux is confirmed.',
             clinicalTip:
-                'Reevaluar biomarcadores de daño oxidativo y conteo linfocitario si hay equipo disponible.',
+                'Reassess oxidative damage biomarkers and lymphocyte count if equipment is available.',
             durationSeconds: 300,
           ),
         ],
         requiredSupplies: [
           ProcedureSupply(
             itemId: 'MED-ONDANSETRON',
-            name: 'Ondansetrón 4 mg (Tabletas dispersables)',
+            name: 'Ondansetron 4 mg (Dispersible Tablets)',
             usage:
-                '1 tableta cada 8 horas para control de náuseas/vómito por radiación',
-            location: 'Botiquín Principal / Cajón Amarillo 1',
+                '1 tablet every 8 hours for radiation-related nausea/vomiting',
+            location: 'Main Medical Kit / Yellow Drawer 1',
           ),
           ProcedureSupply(
             itemId: 'MED-ORAL-REHYDRATION',
-            name: 'Solución de Rehidratación Oral',
-            usage: 'Reposición hídrica controlada en refugio',
-            location: 'Storm Shelter / Kit Emergencia',
+            name: 'Oral Rehydration Solution',
+            usage: 'Controlled fluid replacement in the shelter',
+            location: 'Storm Shelter / Emergency Kit',
           ),
         ],
         warnings: [
-          'No abandonar el refugio blindado hasta que el dosímetro HERA marque niveles basales estables.',
-          'Evitar administrar aspirina o AINEs si se sospecha afectación plaquetaria.',
+          'Do not leave the shielded shelter until the HERA dosimeter shows stable baseline levels.',
+          'Avoid aspirin or NSAIDs if platelet impairment is suspected.',
         ],
         criterionReference:
             'NASA-STD-3001 Permissible Exposure Limits (PEL) & SRAG SPE Protocol',
@@ -513,16 +513,16 @@ class MedicalProceduresData {
       MedicalProcedure(
         id: 'PROC-HEMODYNAMIC-SYNCOPE',
         code: 'IMG-HEM-04',
-        title: 'Arritmia, Hipotensión Severa o Crisis Hipertensiva',
+        title: 'Arrhythmia, Severe Hypotension or Hypertensive Crisis',
         category: 'hemodynamics',
         priority: TriagePriority.red,
         nasaHazard: 'Gravity fields',
         summary:
-            'Estabilización cardiovascular ante presiones arteriales peligrosas (< 85 o > 160 mmHg), taquicardia sostenida (> 115 bpm), bradicardia (< 48 bpm) o presíncope.',
+            'Cardiovascular stabilization for dangerous blood pressure (< 85 or > 160 mmHg), sustained tachycardia (> 115 bpm), bradycardia (< 48 bpm), or presyncope.',
         whenToActivate: [
-          'Presión sistólica < 85 mmHg o > 160 mmHg',
-          'Frecuencia cardíaca > 115 bpm en reposo o < 48 bpm sintomática',
-          'Mareo al cambiar de postura, visión en túnel, dolor torácico o palpitaciones',
+          'Systolic pressure < 85 mmHg or > 160 mmHg',
+          'Resting heart rate > 115 bpm or symptomatic rate < 48 bpm',
+          'Postural dizziness, tunnel vision, chest pain, or palpitations',
         ],
         vitalTriggers: {
           'minHeartRate': 48.0,
@@ -542,59 +542,59 @@ class MedicalProceduresData {
         steps: [
           ProcedureStep(
             step: 1,
-            title: 'Reposo y anclaje horizontal',
+            title: 'Rest and secure horizontally',
             action:
-                'Detener actividad física de inmediato, anclar al astronauta en posición de reposo y conectar Astroskin y EPM Cardiocavity Module para trazado continuo.',
+                'Stop physical activity immediately, secure the astronaut in a resting position, and connect Astroskin and the EPM Cardiocavity Module for continuous recording.',
             clinicalTip:
-                'En entornos con gravedad parcial (Luna/Marte), elevar suavemente las piernas si hay hipotensión.',
+                'In partial gravity (Moon/Mars), gently elevate the legs if hypotensive.',
             durationSeconds: 45,
           ),
           ProcedureStep(
             step: 2,
-            title: 'Descartar causas reversibles',
+            title: 'Rule out reversible causes',
             action:
-                'Verificar SpO2, glucosa capilar con i-STAT, temperatura corporal y niveles de CO2 en cabina para descartar hipoxia, hipoglucemia o hipercapnia.',
+                'Check SpO2, capillary glucose with i-STAT, body temperature, and cabin CO2 to rule out hypoxia, hypoglycemia, or hypercapnia.',
             clinicalTip:
-                'Una glucemia < 70 mg/dL puede simular una crisis autonómica severa.',
+                'Blood glucose < 70 mg/dL can mimic a severe autonomic crisis.',
             durationSeconds: 90,
           ),
           ProcedureStep(
             step: 3,
-            title: 'Maniobras de soporte hemodinámico',
+            title: 'Provide hemodynamic support',
             action:
-                'En hipotensión sin edema pulmonar, administrar carga rápida de hidratación oral con electrolitos (500 mL). En crisis hipertensiva sintomática, mantener ambiente tranquilo, respiración lenta guiada y notificar al CMO.',
+                'For hypotension without pulmonary edema, give a rapid oral fluid load with electrolytes (500 mL). For symptomatic hypertensive crisis, maintain a quiet environment, guide slow breathing, and notify the CMO.',
             clinicalTip:
-                'Registrar presión cada 5 minutos hasta estabilización entre 95 y 135 mmHg sistólica.',
+                'Record blood pressure every 5 minutes until systolic pressure stabilizes between 95 and 135 mmHg.',
             durationSeconds: 180,
           ),
           ProcedureStep(
             step: 4,
-            title: 'Escalamiento si aparece dolor torácico',
+            title: 'Escalate if chest pain develops',
             action:
-                'Si hay dolor opresivo en pecho, sudoración fría o deterioro neurológico, preparar el DEA en modo monitor y consultar protocolo ACLS de inmediato.',
+                'For crushing chest pain, cold sweats, or neurological deterioration, prepare the AED in monitor mode and consult the ACLS protocol immediately.',
             clinicalTip:
-                'Guardar el registro completo de EPM y Astroskin para revisión del equipo médico.',
+                'Save the complete EPM and Astroskin recording for medical team review.',
             durationSeconds: 120,
           ),
         ],
         requiredSupplies: [
           ProcedureSupply(
             itemId: 'MED-ORAL-REHYDRATION',
-            name: 'Solución de Rehidratación Oral',
+            name: 'Oral Rehydration Solution',
             usage:
-                'Expansión de volumen en hipotensión ortostática o deshidratación',
-            location: 'Bahía Médica / Cajón Verde 2',
+                'Volume replacement for orthostatic hypotension or dehydration',
+            location: 'Medical Bay / Green Drawer 2',
           ),
           ProcedureSupply(
             itemId: 'AED-SPACE',
-            name: 'DEA Espacial (en espera / modo monitor)',
-            usage: 'Vigilancia en caso de progresión de arritmia inestable',
-            location: 'Módulo Harmony / Kit Emergencia A1',
+            name: 'Space AED (Standby / Monitor Mode)',
+            usage: 'Monitoring for progression of unstable arrhythmia',
+            location: 'Harmony Module / Emergency Kit A1',
           ),
         ],
         warnings: [
-          'Si el tripulante pierde el pulso o la conciencia, cambiar de inmediato a PROC-CARDIAC-ARREST.',
-          'No realizar maniobras de esfuerzo o ejercicio en ARED/CEVIS mientras persista la inestabilidad.',
+          'If the crew member loses their pulse or consciousness, switch immediately to PROC-CARDIAC-ARREST.',
+          'Do not strain or exercise on ARED/CEVIS while instability persists.',
         ],
         criterionReference:
             'NASA-STD-3001 Cardiovascular Health & Orthostatic Intolerance Guidelines',
@@ -602,16 +602,16 @@ class MedicalProceduresData {
       MedicalProcedure(
         id: 'PROC-HYPERCAPNIA-CO2',
         code: 'IMG-ENV-05',
-        title: 'Exposición a Alto CO2 (Hipercapnia en Cabina o Traje)',
+        title: 'High CO2 Exposure (Cabin or Suit Hypercapnia)',
         category: 'environmental',
         priority: TriagePriority.red,
         nasaHazard: 'Hostile closed environments',
         summary:
-            'Manejo rápido cuando el fallo de depuradores de dióxido de carbono eleva el CO2 ambiental causando cefalea pulsátil, polipnea, confusión o somnolencia.',
+            'Rapid management when carbon dioxide scrubber failure raises ambient CO2, causing throbbing headache, rapid breathing, confusion, or drowsiness.',
         whenToActivate: [
-          'Frecuencia respiratoria sostenida > 22 rpm sin ejercicio previo',
-          'Dolor de cabeza intenso en varios tripulantes o alarma ECLSS de pCO2 > 4 mmHg',
-          'Letargo, confusión, enrojecimiento facial o dificultad para concentrarse',
+          'Sustained respiratory rate > 22 breaths/min without prior exercise',
+          'Severe headache in several crew members or ECLSS pCO2 alarm > 4 mmHg',
+          'Lethargy, confusion, facial flushing, or difficulty concentrating',
         ],
         vitalTriggers: {
           'maxRespiratoryRate': 22.0,
@@ -627,49 +627,49 @@ class MedicalProceduresData {
         steps: [
           ProcedureStep(
             step: 1,
-            title: 'Evacuar a módulo con aire renovado',
+            title: 'Evacuate to a module with fresh air',
             action:
-                'Trasladar al tripulante afectado a un módulo adyacente con ventilación nominal verificada y activar ventiladores portátiles de mezcla de aire.',
+                'Move the affected crew member to an adjacent module with verified nominal ventilation and turn on portable air-mixing fans.',
             clinicalTip:
-                'En microgravedad no existe convección natural; se forman bolsas de CO2 alrededor de la cabeza si fallan los ventiladores.',
+                'There is no natural convection in microgravity; CO2 pockets form around the head if fans fail.',
             durationSeconds: 45,
           ),
           ProcedureStep(
             step: 2,
-            title: 'Suministrar aire limpio o O2 de soporte',
+            title: 'Provide clean air or supplemental O2',
             action:
-                'Administrar oxígeno suplementario si SpO2 < 94% o si hay disnea intensa, mientras se verifica el sistema de depuración CDRA/LiOH.',
+                'Give supplemental oxygen if SpO2 < 94% or severe dyspnea is present while checking the CDRA/LiOH scrubber system.',
             clinicalTip:
-                'Vigilar que no se acumule fatiga respiratoria ni caída del nivel de conciencia.',
+                'Watch for increasing respiratory fatigue or declining consciousness.',
             durationSeconds: 60,
           ),
           ProcedureStep(
             step: 3,
-            title: 'Control de síntomas y reevaluación',
+            title: 'Monitor symptoms and reassess',
             action:
-                'Medir frecuencia respiratoria, pulso y presión cada 5 minutos. Si la cefalea persiste tras normalizar el ambiente, valorar analgesia básica.',
+                'Measure respiratory rate, pulse, and blood pressure every 5 minutes. Consider basic analgesia if headache persists after environmental conditions normalize.',
             clinicalTip:
-                'Confirmar que el resto de la tripulación en ese módulo no presente síntomas simultáneos.',
+                'Check whether other crew members in the module have simultaneous symptoms.',
             durationSeconds: 180,
           ),
         ],
         requiredSupplies: [
           ProcedureSupply(
             itemId: 'BVM-O2-100',
-            name: 'Mascarilla de Oxígeno / Toma O2',
-            usage: 'Soporte respiratorio si existe hipoxemia asociada',
-            location: 'Kit Vía Aérea',
+            name: 'Oxygen Mask / O2 Outlet',
+            usage: 'Respiratory support for associated hypoxemia',
+            location: 'Airway Kit',
           ),
           ProcedureSupply(
             itemId: 'MED-ACETAMINOPHEN',
-            name: 'Paracetamol (Acetaminofén) 500 mg',
-            usage: '1 tableta tras corregir ambiente si persiste cefalea residual',
-            location: 'Botiquín Principal / Cajón Verde 1',
+            name: 'Paracetamol (Acetaminophen) 500 mg',
+            usage: '1 tablet after environmental correction if residual headache persists',
+            location: 'Main Medical Kit / Green Drawer 1',
           ),
         ],
         warnings: [
-          'No regresar al módulo afectado hasta confirmar niveles seguros de pCO2 en el sistema ECLSS.',
-          'No dormir en compartimentos con flujo de ventilación obstruido o apagado.',
+          'Do not return to the affected module until safe pCO2 levels are confirmed on ECLSS.',
+          'Do not sleep in compartments with blocked or inactive ventilation.',
         ],
         criterionReference:
             'NASA-STD-3001 Spacecraft Atmospheric CO2 Exposure Limits',
@@ -677,16 +677,16 @@ class MedicalProceduresData {
       MedicalProcedure(
         id: 'PROC-TRAUMA-HEMORRHAGE',
         code: 'IMG-TRM-06',
-        title: 'Hemorragia, Quemaduras y Traumatismo en Microgravedad',
+        title: 'Hemorrhage, Burns and Trauma in Microgravity',
         category: 'trauma',
         priority: TriagePriority.red,
         nasaHazard: 'Hostile closed environments / Gravity fields',
         summary:
-            'Control de sangrados, heridas abiertas, contusiones o quemaduras en cabina evitando la dispersión de fluidos biológicos en ingravidez.',
+            'Control cabin bleeding, open wounds, contusions, or burns while preventing biological fluid dispersal in weightlessness.',
         whenToActivate: [
-          'Herida con sangrado activo, laceración profunda o traumatismo mecánico',
-          'Quemadura térmica, eléctrica o química en piel o extremidades',
-          'Signos de choque temprano (pulso > 110 bpm, presión sistólica < 90 mmHg, palidez)',
+          'Actively bleeding wound, deep laceration, or mechanical trauma',
+          'Thermal, electrical, or chemical burn to skin or limbs',
+          'Early shock signs (pulse > 110 bpm, systolic pressure < 90 mmHg, pallor)',
         ],
         vitalTriggers: {
           'keywords': [
@@ -702,64 +702,64 @@ class MedicalProceduresData {
         steps: [
           ProcedureStep(
             step: 1,
-            title: 'Contener fluidos y aplicar presión directa',
+            title: 'Contain fluids and apply direct pressure',
             action:
-                'Colocarse guantes estériles y cubrir la herida de inmediato con gasa hemostática aplicando presión firme y continua durante 3-5 minutos para evitar gotas flotantes.',
+                'Put on sterile gloves and immediately cover the wound with hemostatic gauze, applying firm continuous pressure for 3-5 minutes to prevent floating droplets.',
             clinicalTip:
-                'En microgravedad la sangre forma esferas y se adhiere por tensión superficial; sellar bordes con apósito absorbente.',
+                'In microgravity, blood forms spheres and adheres through surface tension; seal edges with an absorbent dressing.',
             durationSeconds: 180,
           ),
           ProcedureStep(
             step: 2,
-            title: 'Escalar a torniquete si el sangrado es arterial',
+            title: 'Escalate to a tourniquet for arterial bleeding',
             action:
-                'Si la hemorragia en una extremidad no cede con presión directa y gasa hemostática, colocar torniquete 5-7 cm por encima de la herida y anotar hora exacta de aplicación.',
+                'If limb bleeding persists despite direct pressure and hemostatic gauze, apply a tourniquet 5-7 cm above the wound and record the exact application time.',
             clinicalTip:
-                'Apretar hasta detener el sangrado activo; no colocar sobre articulaciones.',
+                'Tighten until active bleeding stops; do not place over joints.',
             durationSeconds: 60,
           ),
           ProcedureStep(
             step: 3,
-            title: 'Cuidado específico en quemaduras',
+            title: 'Provide burn-specific care',
             action:
-                'Enfriar la zona afectada con compresas estériles húmedas (sin hielo directo) durante 10 minutos y cubrir con gel/apósito estéril para quemaduras sin reventar ampollas.',
+                'Cool the affected area with moist sterile compresses (no direct ice) for 10 minutes and cover with sterile burn gel/dressing without bursting blisters.',
             clinicalTip:
-                'Retirar anillos, relojes o sensores cercanos antes de que aparezca edema.',
+                'Remove nearby rings, watches, or sensors before swelling develops.',
             durationSeconds: 120,
           ),
           ProcedureStep(
             step: 4,
-            title: 'Analgesia y control de signos vitales',
+            title: 'Provide analgesia and monitor vital signs',
             action:
-                'Evaluar presión arterial, pulso y llenado capilar cada 10 minutos. Administrar analgesia oral según intensidad del dolor si el paciente está consciente.',
+                'Assess blood pressure, pulse, and capillary refill every 10 minutes. Give oral analgesia according to pain severity if the patient is conscious.',
             clinicalTip:
-                'Limpiar con toallitas desinfectantes cualquier microgota liberada en cabina.',
+                'Clean any droplets released into the cabin with disinfectant wipes.',
             durationSeconds: 120,
           ),
         ],
         requiredSupplies: [
           ProcedureSupply(
             itemId: 'SUP-HEMOSTATIC-GAUZE',
-            name: 'Gasa Hemostática y Apósitos Sellados',
-            usage: 'Compresión directa y contención de sangre en microgravedad',
-            location: 'Kit Trauma / Cajón Rojo 2',
+            name: 'Hemostatic Gauze and Sealed Dressings',
+            usage: 'Direct compression and blood containment in microgravity',
+            location: 'Trauma Kit / Red Drawer 2',
           ),
           ProcedureSupply(
             itemId: 'SUP-TOURNIQUET',
-            name: 'Torniquete Táctico de Extremidad',
-            usage: 'Control de hemorragia arterial severa que no cede a presión',
-            location: 'Kit Trauma / Cajón Rojo 2',
+            name: 'Tactical Limb Tourniquet',
+            usage: 'Control severe arterial bleeding unresponsive to pressure',
+            location: 'Trauma Kit / Red Drawer 2',
           ),
           ProcedureSupply(
             itemId: 'SUP-BURN-GEL',
-            name: 'Gel y Apósitos Estériles para Quemaduras',
-            usage: 'Enfriamiento y protección estéril de lesiones térmicas',
-            location: 'Kit Trauma / Cajón Amarillo 2',
+            name: 'Sterile Burn Gel and Dressings',
+            usage: 'Cooling and sterile protection of thermal injuries',
+            location: 'Trauma Kit / Yellow Drawer 2',
           ),
         ],
         warnings: [
-          'No usar agua a chorro en microgravedad para lavar heridas abiertas sin bolsa de contención.',
-          'No aflojar un torniquete colocado por hemorragia severa sin indicación médica.',
+          'Do not use running water to irrigate open wounds in microgravity without a containment bag.',
+          'Do not loosen a tourniquet applied for severe bleeding without medical direction.',
         ],
         criterionReference:
             'NASA-ISS Trauma & Fluid Containment Surgical Guidelines',
@@ -767,16 +767,16 @@ class MedicalProceduresData {
       MedicalProcedure(
         id: 'PROC-SANS-CEPHALEA',
         code: 'IMG-NEU-07',
-        title: 'Cefalea Espacial y Congestión Neuro-Ocular (SANS)',
+        title: 'Space Headache and Neuro-Ocular Congestion (SANS)',
         category: 'neuro_ocular',
         priority: TriagePriority.yellow,
         nasaHazard: 'Gravity fields',
         summary:
-            'Evaluación y alivio de dolor de cabeza, congestión facial y cambios visuales asociados al desplazamiento cefálico de fluidos en microgravedad (SANS).',
+            'Assessment and relief of headache, facial congestion, and visual changes associated with headward fluid shifts in microgravity (SANS).',
         whenToActivate: [
-          'Dolor de cabeza frontal o pulsátil persistente en ingravidez',
-          'Sensación de presión facial, congestión nasal o cambios de agudeza visual',
-          'Presión arterial moderadamente elevada (131-155 mmHg) sin síntomas neurológicos focales',
+          'Persistent frontal or throbbing headache in weightlessness',
+          'Facial pressure, nasal congestion, or changes in visual acuity',
+          'Moderately elevated blood pressure (131-155 mmHg) without focal neurological symptoms',
         ],
         vitalTriggers: {
           'maxSystolicBP': 135.0,
@@ -792,49 +792,49 @@ class MedicalProceduresData {
         steps: [
           ProcedureStep(
             step: 1,
-            title: 'Descartar causa ambiental (CO2) o hipertensión severa',
+            title: 'Rule out environmental CO2 or severe hypertension',
             action:
-                'Verificar pCO2 de cabina en el panel ECLSS y tomar presión arterial y SpO2 para descartar hipercapnia o emergencia hipertensiva.',
+                'Check cabin pCO2 on the ECLSS panel and measure blood pressure and SpO2 to rule out hypercapnia or hypertensive emergency.',
             clinicalTip:
-                'Si varios astronautas tienen cefalea a la vez, priorizar protocolo PROC-HYPERCAPNIA-CO2.',
+                'If several astronauts have headaches at the same time, prioritize PROC-HYPERCAPNIA-CO2.',
             durationSeconds: 60,
           ),
           ProcedureStep(
             step: 2,
-            title: 'Evaluación visual básica',
+            title: 'Perform a basic visual assessment',
             action:
-                'Realizar prueba rápida de lectura cercana y cuadrícula de Amsler para detectar borrosidad o distorsión asociada a síndrome neuro-ocular SANS.',
-            clinicalTip: 'Documentar si la visión empeora al despertar.',
+                'Perform a quick near-reading test and Amsler grid check for blurring or distortion associated with SANS neuro-ocular syndrome.',
+            clinicalTip: 'Document whether vision worsens on waking.',
             durationSeconds: 90,
           ),
           ProcedureStep(
             step: 3,
-            title: 'Manejo sintomático e hidratación',
+            title: 'Manage symptoms and maintain hydration',
             action:
-                'Administrar Ibuprofeno 400 mg o Paracetamol 500 mg vía oral con agua, reducir exposición a pantallas brillantes y descansar en área ventilada.',
+                'Give ibuprofen 400 mg or paracetamol 500 mg orally with water, reduce bright screen exposure, and rest in a ventilated area.',
             clinicalTip:
-                'Evitar exceso de sodio en la dieta durante las siguientes 24 horas para disminuir retención cefálica.',
+                'Avoid excess dietary sodium for the next 24 hours to reduce headward fluid retention.',
             durationSeconds: 60,
           ),
         ],
         requiredSupplies: [
           ProcedureSupply(
             itemId: 'MED-IBUPROFEN',
-            name: 'Ibuprofeno 400 mg (Tabletas)',
+            name: 'Ibuprofen 400 mg (Tablets)',
             usage:
-                '1 tableta cada 8 horas con alimentos o agua para cefalea leve-moderada',
-            location: 'Botiquín Principal / Cajón Verde 1',
+                '1 tablet every 8 hours with food or water for mild-to-moderate headache',
+            location: 'Main Medical Kit / Green Drawer 1',
           ),
           ProcedureSupply(
             itemId: 'MED-ACETAMINOPHEN',
-            name: 'Paracetamol 500 mg (Tabletas)',
-            usage: 'Alternativa analgésica (1 tableta cada 6-8 h)',
-            location: 'Botiquín Principal / Cajón Verde 1',
+            name: 'Paracetamol 500 mg (Tablets)',
+            usage: 'Alternative analgesic (1 tablet every 6-8 h)',
+            location: 'Main Medical Kit / Green Drawer 1',
           ),
         ],
         warnings: [
-          'Si aparecen visión doble, debilidad en un lado del cuerpo o confusión, activar evaluación roja inmediata.',
-          'No combinar múltiples dosis de analgésicos del mismo grupo.',
+          'If double vision, one-sided weakness, or confusion develops, activate an immediate red-priority assessment.',
+          'Do not combine multiple doses of analgesics from the same drug class.',
         ],
         criterionReference:
             'NASA HRP Spaceflight-Associated Neuro-ocular Syndrome (SANS) Surveillance',
@@ -842,16 +842,16 @@ class MedicalProceduresData {
       MedicalProcedure(
         id: 'PROC-RENAL-DEHYDRATION',
         code: 'IMG-REN-08',
-        title: 'Deshidratación Severa y Cólico Renal (Nefrolitiasis)',
+        title: 'Severe Dehydration and Renal Colic (Nephrolithiasis)',
         category: 'renal_metabolic',
         priority: TriagePriority.yellow,
         nasaHazard: 'Gravity fields / Space nutrition',
         summary:
-            'Manejo de deshidratación, febrícula o dolor lumbar agudo por riesgo incrementado de cálculos renales debido a pérdida ósea de calcio en microgravedad.',
+            'Management of dehydration, low-grade fever, or acute lower back pain associated with increased kidney stone risk from bone calcium loss in microgravity.',
         whenToActivate: [
-          'Temperatura > 37.3 °C (febrícula o fiebre), boca seca o taquicardia leve',
-          'Dolor intenso en flanco o espalda baja irradiado a abdomen/ingle',
-          'Orina concentrada, ardor al orinar o disminución de ingesta de agua',
+          'Temperature > 37.3 °C (low-grade fever or fever), dry mouth, or mild tachycardia',
+          'Severe flank or lower back pain radiating to the abdomen/groin',
+          'Concentrated urine, painful urination, or reduced water intake',
         ],
         vitalTriggers: {
           'maxTemp': 37.3,
@@ -869,55 +869,55 @@ class MedicalProceduresData {
         steps: [
           ProcedureStep(
             step: 1,
-            title: 'Evaluar temperatura, hidratación y glucemia',
+            title: 'Assess temperature, hydration, and blood glucose',
             action:
-                'Medir temperatura corporal, frecuencia cardíaca, presión arterial y glucosa con i-STAT para descartar infección sistémica o hipovolemia.',
+                'Measure body temperature, heart rate, blood pressure, and glucose with i-STAT to rule out systemic infection or hypovolemia.',
             clinicalTip:
-                'La fiebre > 38.0 °C con dolor lumbar requiere seguimiento estrecho por posible infección urinaria complicada.',
+                'Fever > 38.0 °C with lower back pain requires close follow-up for possible complicated urinary tract infection.',
             durationSeconds: 90,
           ),
           ProcedureStep(
             step: 2,
-            title: 'Iniciar rehidratación oral fraccionada',
+            title: 'Start divided oral rehydration',
             action:
-                'Administrar solución de rehidratación oral en sorbos frecuentes (250-500 mL cada hora hasta alcanzar al menos 2.5 L/día) mediante bolsa con boquilla.',
+                'Give oral rehydration solution in frequent sips (250-500 mL every hour to reach at least 2.5 L/day) through a pouch with a mouthpiece.',
             clinicalTip:
-                'Si hay náuseas que impiden beber, administrar primero Ondansetrón 4 mg.',
+                'If nausea prevents drinking, give ondansetron 4 mg first.',
             durationSeconds: 120,
           ),
           ProcedureStep(
             step: 3,
-            title: 'Control del dolor y fiebre',
+            title: 'Control pain and fever',
             action:
-                'Para dolor tipo cólico o fiebre, administrar Ibuprofeno 400 mg o Paracetamol 500 mg según tolerancia gástrica e hidratación.',
+                'For colicky pain or fever, give ibuprofen 400 mg or paracetamol 500 mg according to gastric tolerance and hydration.',
             clinicalTip:
-                'Evitar dosis altas de AINEs si el paciente está severamente deshidratado; priorizar hidratación primero.',
+                'Avoid high NSAID doses in severe dehydration; prioritize hydration first.',
             durationSeconds: 60,
           ),
         ],
         requiredSupplies: [
           ProcedureSupply(
             itemId: 'MED-ORAL-REHYDRATION',
-            name: 'Solución de Rehidratación Oral con Electrolitos',
-            usage: 'Reposición hídrica fraccionada para diuresis adecuada',
-            location: 'Bahía Médica / Cajón Verde 2',
+            name: 'Oral Rehydration Solution with Electrolytes',
+            usage: 'Divided fluid replacement to maintain adequate urine output',
+            location: 'Medical Bay / Green Drawer 2',
           ),
           ProcedureSupply(
             itemId: 'MED-ACETAMINOPHEN',
             name: 'Paracetamol 500 mg',
-            usage: 'Control térmico y analgesia segura en riesgo renal',
-            location: 'Botiquín Principal / Cajón Verde 1',
+            usage: 'Temperature control and analgesia for patients at renal risk',
+            location: 'Main Medical Kit / Green Drawer 1',
           ),
           ProcedureSupply(
             itemId: 'MED-ONDANSETRON',
-            name: 'Ondansetrón 4 mg',
-            usage: 'Control de náuseas asociadas a cólico renal',
-            location: 'Botiquín Principal / Cajón Amarillo 1',
+            name: 'Ondansetron 4 mg',
+            usage: 'Control nausea associated with renal colic',
+            location: 'Main Medical Kit / Yellow Drawer 1',
           ),
         ],
         warnings: [
-          'No suspender la hidratación salvo indicación médica explícita.',
-          'Vigilar si la temperatura supera 38.0 °C o aparece incapacidad para orinar.',
+          'Do not stop hydration unless explicitly directed by medical personnel.',
+          'Watch for temperature above 38.0 °C or inability to urinate.',
         ],
         criterionReference:
             'NASA HRP Renal Stone Risk & Hydration Countermeasures',
@@ -925,16 +925,16 @@ class MedicalProceduresData {
       MedicalProcedure(
         id: 'PROC-VESTIBULAR-SAS',
         code: 'IMG-VES-09',
-        title: 'Síndrome de Adaptación Espacial (Mareo y Vértigo)',
+        title: 'Space Adaptation Syndrome (Motion Sickness and Vertigo)',
         category: 'vestibular',
         priority: TriagePriority.yellow,
         nasaHazard: 'Gravity fields',
         summary:
-            'Atención de mareo cinético espacial, desorientación vestibular y náuseas durante los primeros días en microgravedad o tras transiciones gravitacionales.',
+            'Care for space motion sickness, vestibular disorientation, and nausea during the first days in microgravity or after gravity transitions.',
         whenToActivate: [
-          'Mareo intenso al girar la cabeza, vértigo o sensación de inversión espacial',
-          'Náuseas, sudoración fría o pérdida de coordinación mano-ojo',
-          'Dificultad para mantener estabilidad en operaciones tras transición de gravedad',
+          'Severe dizziness with head turns, vertigo, or a sensation of spatial inversion',
+          'Nausea, cold sweats, or loss of hand-eye coordination',
+          'Difficulty maintaining operational stability after a gravity transition',
         ],
         vitalTriggers: {
           'keywords': [
@@ -949,49 +949,49 @@ class MedicalProceduresData {
         steps: [
           ProcedureStep(
             step: 1,
-            title: 'Estabilizar referencia visual y reducir giros cefálicos',
+            title: 'Stabilize visual reference and reduce head turns',
             action:
-                'Anclar al tripulante en un punto fijo con orientación vertical clara respecto a los paneles del módulo y evitar movimientos bruscos de la cabeza.',
+                'Secure the crew member at a fixed point with a clear vertical orientation relative to module panels and avoid sudden head movements.',
             clinicalTip:
-                'Fijar la vista en un objeto cercano estático reduce rápidamente el conflicto vestibular.',
+                'Fixating on a nearby stationary object quickly reduces vestibular conflict.',
             durationSeconds: 60,
           ),
           ProcedureStep(
             step: 2,
-            title: 'Medicación antiemética según actividad',
+            title: 'Select antiemetic medication according to activity',
             action:
-                'Si hay náuseas leves durante turno operativo, administrar Ondansetrón 4 mg (no produce sedación). Reservar Prometazina solo si el astronauta puede reposar fuera de tareas críticas.',
+                'For mild nausea during an operational shift, give ondansetron 4 mg (non-sedating). Reserve promethazine for astronauts able to rest away from critical tasks.',
             clinicalTip:
-                'Alistar bolsas de contención de vómito sellables al alcance inmediato.',
+                'Keep sealable emesis containment bags within immediate reach.',
             durationSeconds: 45,
           ),
           ProcedureStep(
             step: 3,
-            title: 'Rehidratación y retorno gradual',
+            title: 'Rehydrate and return gradually',
             action:
-                'Reponer líquidos lentamente y suspender temporalmente tareas de precisión o manejo de consola crítica hasta recuperar estabilidad.',
+                'Replace fluids slowly and temporarily suspend precision tasks or critical console operation until stability returns.',
             clinicalTip:
-                'La mayoría de los síntomas SAS se atenúan en 24-72 horas de adaptación.',
+                'Most SAS symptoms subside within 24-72 hours of adaptation.',
             durationSeconds: 120,
           ),
         ],
         requiredSupplies: [
           ProcedureSupply(
             itemId: 'MED-ONDANSETRON',
-            name: 'Ondansetrón 4 mg (Sin sedación)',
-            usage: 'Primera línea para náuseas operacionales en cabina',
-            location: 'Botiquín Principal / Cajón Amarillo 1',
+            name: 'Ondansetron 4 mg (Non-sedating)',
+            usage: 'First-line treatment for nausea during cabin operations',
+            location: 'Main Medical Kit / Yellow Drawer 1',
           ),
           ProcedureSupply(
             itemId: 'MED-PROMETHAZINE',
-            name: 'Prometazina 25 mg',
-            usage: 'Casos severos de mareo espacial con reposo posterior',
-            location: 'Botiquín Principal / Cajón Amarillo 1',
+            name: 'Promethazine 25 mg',
+            usage: 'Severe space motion sickness followed by rest',
+            location: 'Main Medical Kit / Yellow Drawer 1',
           ),
         ],
         warnings: [
-          'No operar controles críticos, brazo robótico ni EVA después de tomar Prometazina por riesgo de somnolencia.',
-          'Descartar hipoxia o alto CO2 antes de asumir que todo mareo es vestibular.',
+          'Do not operate critical controls or the robotic arm, or perform EVA, after promethazine because of drowsiness risk.',
+          'Rule out hypoxia or high CO2 before assuming dizziness is vestibular.',
         ],
         criterionReference:
             'NASA HRP Sensorimotor & Space Adaptation Syndrome Protocol',
@@ -999,16 +999,16 @@ class MedicalProceduresData {
       MedicalProcedure(
         id: 'PROC-CIRCADIAN-FATIGUE',
         code: 'IMG-BHP-10',
-        title: 'Déficit Crítico de Sueño, Fatiga Cognitiva y Estrés',
+        title: 'Critical Sleep Deficit, Cognitive Fatigue and Stress',
         category: 'behavioral_circadian',
         priority: TriagePriority.green,
         nasaHazard: 'Isolation and confinement',
         summary:
-            'Intervención preventiva ante privación acumulada de sueño (< 6.5 h/día), múltiples despertares nocturnos o fatiga emocional por confinamiento prolongado.',
+            'Preventive intervention for accumulated sleep deprivation (< 6.5 h/day), repeated nighttime awakenings, or emotional fatigue from prolonged confinement.',
         whenToActivate: [
-          'Horas de sueño registradas < 6.5 h en Actiwatch o múltiples despertares (>= 3)',
-          'Ánimo matutino reportado como fatigado o estresado',
-          'Disminución de rendimiento cognitivo, irritabilidad o errores operacionales leves',
+          'Actiwatch sleep duration < 6.5 h or repeated awakenings (>= 3)',
+          'Morning mood reported as fatigued or stressed',
+          'Reduced cognitive performance, irritability, or minor operational errors',
         ],
         vitalTriggers: {
           'maxSleepHours': 6.5,
@@ -1025,44 +1025,44 @@ class MedicalProceduresData {
         steps: [
           ProcedureStep(
             step: 1,
-            title: 'Reestructurar ventana de descanso y luz de cabina',
+            title: 'Restructure the sleep window and cabin lighting',
             action:
-                'Programar un bloque protegido de descanso de al menos 7.5-8 horas, atenuando luz azul en el compartimento de descanso 60 minutos antes de dormir.',
+                'Schedule a protected rest block of at least 7.5-8 hours, dimming blue light in the sleeping compartment 60 minutes before bed.',
             clinicalTip:
-                'En órbita ocurren 16 amaneceres cada 24 horas; el control de iluminación LED azul/cálida es clave para sincronizar el ritmo circadiano.',
+                'Orbit brings 16 sunrises every 24 hours; blue/warm LED lighting control is key to circadian synchronization.',
             durationSeconds: 60,
           ),
           ProcedureStep(
             step: 2,
-            title: 'Técnicas de respiración y reducción de ruido',
+            title: 'Use breathing techniques and reduce noise',
             action:
-                'Realizar 5 minutos de respiración lenta guiada (4 segundos inhalar, 6 segundos exhalar) y usar protección auditiva o antifaz para bloquear ruido de ventiladores.',
+                'Practice 5 minutes of guided slow breathing (inhale for 4 seconds, exhale for 6 seconds) and use hearing protection or an eye mask to limit fan-noise and light disturbance.',
             clinicalTip:
-                'Verificar que el flujo de aire en el saco de dormir esté activo para evitar acumulación nocturna de CO2.',
+                'Check that airflow in the sleeping bag is active to prevent overnight CO2 buildup.',
             durationSeconds: 300,
           ),
           ProcedureStep(
             step: 3,
-            title: 'Soporte circadiano con Melatonina si persiste insomnio',
+            title: 'Provide melatonin support if insomnia persists',
             action:
-                'Si tras 2 noches persiste latencia de sueño prolongada, administrar Melatonina 3 mg 30-60 minutos antes del ciclo de descanso programado.',
+                'If prolonged sleep latency persists after 2 nights, give melatonin 3 mg 30-60 minutes before the scheduled rest cycle.',
             clinicalTip:
-                'Reasignar tareas de alta precisión si el sueño acumulado fue menor a 5 horas.',
+                'Reassign high-precision tasks if total sleep was less than 5 hours.',
             durationSeconds: 30,
           ),
         ],
         requiredSupplies: [
           ProcedureSupply(
             itemId: 'MED-MELATONIN',
-            name: 'Melatonina 3 mg (Tabletas)',
+            name: 'Melatonin 3 mg (Tablets)',
             usage:
-                '1 tableta 30-60 min antes de dormir para resincronización circadiana',
-            location: 'Botiquín Principal / Cajón Verde 3',
+                '1 tablet 30-60 min before bed for circadian resynchronization',
+            location: 'Main Medical Kit / Green Drawer 3',
           ),
         ],
         warnings: [
-          'Evitar cafeína al menos 6 horas antes del bloque de sueño.',
-          'No apagar los ventiladores del compartimento de descanso por ruido; usar tapones auditivos en su lugar.',
+          'Avoid caffeine for at least 6 hours before the sleep block.',
+          'Do not turn off sleeping compartment fans to reduce noise; use earplugs instead.',
         ],
         criterionReference:
             'NASA-STD-3001 Behavioral Health & Circadian Fatigue Management',
@@ -1075,20 +1075,20 @@ class MedicalProceduresData {
     return const [
       ClinicalScenario(
         id: 'SIT-CARDIAC-ARREST',
-        label: 'Paro Cardíaco (RCP)',
+        label: 'Cardiac Arrest (CPR)',
         symptomSummary:
-            'Tripulante inconsciente, no respira o sin pulso detectable',
+            'Crew member unconscious, not breathing, or without a detectable pulse',
         priority: TriagePriority.red,
         recommendedProcedureId: 'PROC-CARDIAC-ARREST',
         first60Seconds: [
-          'Confirmar inconsciencia y ausencia de respiración en 10 segundos.',
-          'Fijar al paciente en camilla CMRS o aplicar abrazo invertido de sujeción.',
-          'Iniciar compresiones torácicas (100-120/min) usando método Handstand o Evetts-Russomano y traer el DEA.',
+          'Confirm unconsciousness and absent breathing within 10 seconds.',
+          'Secure the patient to the CMRS board or use a reverse bear hug restraint.',
+          'Start chest compressions (100-120/min) using the Handstand or Evetts-Russomano method and bring the AED.',
         ],
         verificationQuestions: [
-          '¿Responde al llamado o estímulo firme en los hombros?',
-          '¿Presenta respiración normal o solo jadeo agónico?',
-          '¿El sensor Astroskin/EPM muestra pérdida súbita de pulso o ritmo caótico?',
+          'Does the patient respond to a voice or firm shoulder stimulus?',
+          'Is breathing normal or only agonal gasping?',
+          'Does the Astroskin/EPM sensor show sudden pulse loss or a chaotic rhythm?',
         ],
         emergencySupplies: [
           'CMRS-BOARD',
@@ -1099,94 +1099,94 @@ class MedicalProceduresData {
       ),
       ClinicalScenario(
         id: 'SIT-HYPOXIA',
-        label: 'Hipoxia / Falta de Aire',
+        label: 'Hypoxia / Breathlessness',
         symptomSummary:
-            'Ahogo intenso, SpO2 < 90% o síntomas tras caminata EVA',
+            'Severe breathlessness, SpO2 < 90%, or symptoms after an EVA',
         priority: TriagePriority.red,
         recommendedProcedureId: 'PROC-HYPOXIA-DECOMP',
         first60Seconds: [
-          'Colocar mascarilla con O2 al 100% (10-15 L/min).',
-          'Verificar presión de cabina y sello de escotilla/traje EVA.',
-          'Mantener en reposo y vigilar SpO2 cada 2 minutos.',
+          'Apply a mask with 100% O2 (10-15 L/min).',
+          'Check cabin pressure and hatch/EVA suit seals.',
+          'Keep the patient resting and monitor SpO2 every 2 minutes.',
         ],
         verificationQuestions: [
-          '¿El SpO2 está por debajo de 90%?',
-          '¿Acaba de regresar de una caminata espacial (EVA)?',
-          '¿Presenta dolor articular, mareo o coloración azulada en labios?',
+          'Is SpO2 below 90%?',
+          'Has the patient just returned from a spacewalk (EVA)?',
+          'Is there joint pain, dizziness, or bluish lip discoloration?',
         ],
         emergencySupplies: ['BVM-O2-100', 'MED-ORAL-REHYDRATION'],
       ),
       ClinicalScenario(
         id: 'SIT-RADIATION',
-        label: 'Radiación / Tormenta Solar',
+        label: 'Radiation / Solar Storm',
         symptomSummary:
-            'Alarma del dosímetro HERA o náuseas tras alerta solar (SPE)',
+            'HERA dosimeter alarm or nausea after a solar alert (SPE)',
         priority: TriagePriority.red,
         recommendedProcedureId: 'PROC-RADIATION-ARS',
         first60Seconds: [
-          'Evacuar de inmediato al refugio blindado (Storm Shelter).',
-          'Verificar lectura del dosímetro personal HERA.',
-          'Administrar Ondansetrón 4 mg si presenta náuseas o vómitos.',
+          'Evacuate immediately to the shielded Storm Shelter.',
+          'Check the personal HERA dosimeter reading.',
+          'Give ondansetron 4 mg for nausea or vomiting.',
         ],
         verificationQuestions: [
-          '¿La tasa de dosis supera 150 uSv/h?',
-          '¿Aparecieron náuseas, vómitos o fatiga repentina?',
-          '¿Estuvo en módulo no blindado o en EVA durante el evento?',
+          'Does the dose rate exceed 150 uSv/h?',
+          'Has nausea, vomiting, or sudden fatigue developed?',
+          'Was the patient in an unshielded module or on EVA during the event?',
         ],
         emergencySupplies: ['MED-ONDANSETRON', 'MED-ORAL-REHYDRATION'],
       ),
       ClinicalScenario(
         id: 'SIT-HEMODYNAMIC',
-        label: 'Crisis de Presión / Arritmia',
+        label: 'Blood Pressure Crisis / Arrhythmia',
         symptomSummary:
-            'Presión muy baja o alta, taquicardia severa (>115 bpm) o presíncope',
+            'Very low or high blood pressure, severe tachycardia (>115 bpm), or presyncope',
         priority: TriagePriority.red,
         recommendedProcedureId: 'PROC-HEMODYNAMIC-SYNCOPE',
         first60Seconds: [
-          'Detener actividad y anclar al astronauta en posición de reposo.',
-          'Conectar Astroskin y EPM para vigilar pulso y presión continua.',
-          'Verificar SpO2 y glucemia capilar para descartar hipoxia o hipoglucemia.',
+          'Stop activity and secure the astronaut in a resting position.',
+          'Connect Astroskin and EPM for continuous pulse and pressure monitoring.',
+          'Check SpO2 and capillary glucose to rule out hypoxia or hypoglycemia.',
         ],
         verificationQuestions: [
-          '¿La presión sistólica es < 85 mmHg o > 160 mmHg?',
-          '¿Siente dolor torácico, palpitaciones o visión en túnel?',
-          '¿Mantiene estado de alerta normal y pulso palpable?',
+          'Is systolic pressure < 85 mmHg or > 160 mmHg?',
+          'Is there chest pain, palpitations, or tunnel vision?',
+          'Is the patient normally alert with a palpable pulse?',
         ],
         emergencySupplies: ['MED-ORAL-REHYDRATION', 'AED-SPACE'],
       ),
       ClinicalScenario(
         id: 'SIT-CO2',
-        label: 'Alto CO2 / Aire Viciado',
+        label: 'High CO2 / Stale Air',
         symptomSummary:
-            'Respiración rápida (>22 rpm), confusión o dolor de cabeza en cabina',
+            'Rapid breathing (>22 breaths/min), confusion, or headache in the cabin',
         priority: TriagePriority.red,
         recommendedProcedureId: 'PROC-HYPERCAPNIA-CO2',
         first60Seconds: [
-          'Trasladar al tripulante a un módulo adyacente con ventilación nominal.',
-          'Activar ventiladores de mezcla de aire para disipar bolsas de CO2.',
-          'Suministrar oxígeno si SpO2 cae por debajo de 94%.',
+          'Move the crew member to an adjacent module with nominal ventilation.',
+          'Activate air-mixing fans to disperse CO2 pockets.',
+          'Provide oxygen if SpO2 falls below 94%.',
         ],
         verificationQuestions: [
-          '¿La alarma de pCO2 del sistema ECLSS está activa?',
-          '¿Otros tripulantes en el mismo módulo presentan cefalea o fatiga?',
+          'Is the ECLSS pCO2 alarm active?',
+          'Do other crew members in the same module have headache or fatigue?',
         ],
         emergencySupplies: ['BVM-O2-100', 'MED-ACETAMINOPHEN'],
       ),
       ClinicalScenario(
         id: 'SIT-TRAUMA',
-        label: 'Herida / Quemadura',
+        label: 'Wound / Burn',
         symptomSummary:
-            'Sangrado activo, golpe fuerte o quemadura en piel/extremidades',
+            'Active bleeding, blunt impact, or a skin/limb burn',
         priority: TriagePriority.red,
         recommendedProcedureId: 'PROC-TRAUMA-HEMORRHAGE',
         first60Seconds: [
-          'Colocar guantes y presionar firmemente con gasa hemostática sellada.',
-          'Contener cualquier gota de sangre en microgravedad.',
-          'En quemaduras, enfriar con compresa húmeda estéril y cubrir con gel estéril.',
+          'Put on gloves and apply firm pressure with sealed hemostatic gauze.',
+          'Contain any blood droplets in microgravity.',
+          'For burns, cool with a moist sterile compress and cover with sterile gel.',
         ],
         verificationQuestions: [
-          '¿El sangrado es pulsátil o no se detiene tras 5 minutos de presión?',
-          '¿La lesión afecta cara, ojos o vías respiratorias?',
+          'Is bleeding pulsatile or continuing after 5 minutes of pressure?',
+          'Does the injury involve the face, eyes, or airway?',
         ],
         emergencySupplies: [
           'SUP-HEMOSTATIC-GAUZE',
@@ -1196,37 +1196,37 @@ class MedicalProceduresData {
       ),
       ClinicalScenario(
         id: 'SIT-SANS',
-        label: 'Dolor de Cabeza / Visión',
+        label: 'Headache / Vision',
         symptomSummary:
-            'Cefalea frontal, congestión facial o visión borrosa (SANS)',
+            'Frontal headache, facial congestion, or blurred vision (SANS)',
         priority: TriagePriority.yellow,
         recommendedProcedureId: 'PROC-SANS-CEPHALEA',
         first60Seconds: [
-          'Descartar primero nivel elevado de CO2 y tomar presión arterial.',
-          'Realizar prueba rápida de lectura/rejilla visual.',
-          'Administrar analgésico oral estándar y reducir brillo de pantallas.',
+          'First rule out elevated CO2 and measure blood pressure.',
+          'Perform a quick reading/visual grid test.',
+          'Give a standard oral analgesic and reduce screen brightness.',
         ],
         verificationQuestions: [
-          '¿La visión borrosa es progresiva o reciente?',
-          '¿Presenta fiebre o rigidez cervical?',
+          'Is blurred vision progressive or recent?',
+          'Is there fever or neck stiffness?',
         ],
         emergencySupplies: ['MED-IBUPROFEN', 'MED-ACETAMINOPHEN'],
       ),
       ClinicalScenario(
         id: 'SIT-DEHYDRATION',
-        label: 'Fiebre / Deshidratación',
+        label: 'Fever / Dehydration',
         symptomSummary:
-            'Temperatura elevada (>37.3 °C), dolor lumbar/renal o baja hidratación',
+            'Elevated temperature (>37.3 °C), lower back/renal pain, or low hydration',
         priority: TriagePriority.yellow,
         recommendedProcedureId: 'PROC-RENAL-DEHYDRATION',
         first60Seconds: [
-          'Medir temperatura, frecuencia cardíaca y glucosa capilar.',
-          'Iniciar rehidratación oral en sorbos frecuentes con electrolitos.',
-          'Controlar dolor o fiebre con Paracetamol 500 mg.',
+          'Measure temperature, heart rate, and capillary glucose.',
+          'Start oral rehydration with frequent sips of electrolyte solution.',
+          'Control pain or fever with paracetamol 500 mg.',
         ],
         verificationQuestions: [
-          '¿Presenta dolor en costado lumbar o ardor al orinar?',
-          '¿Tolera líquidos por vía oral sin vomitar?',
+          'Is there flank/lower back pain or burning on urination?',
+          'Can the patient tolerate oral fluids without vomiting?',
         ],
         emergencySupplies: [
           'MED-ORAL-REHYDRATION',
@@ -1236,37 +1236,37 @@ class MedicalProceduresData {
       ),
       ClinicalScenario(
         id: 'SIT-VESTIBULAR',
-        label: 'Mareo / Vértigo Espacial',
+        label: 'Space Motion Sickness / Vertigo',
         symptomSummary:
-            'Desorientación espacial, vértigo o náuseas por microgravedad (SAS)',
+            'Spatial disorientation, vertigo, or nausea from microgravity (SAS)',
         priority: TriagePriority.yellow,
         recommendedProcedureId: 'PROC-VESTIBULAR-SAS',
         first60Seconds: [
-          'Anclar al tripulante mirando una referencia vertical fija y evitar giros de cabeza.',
-          'Tener lista bolsa sellada de contención.',
-          'Administrar Ondansetrón 4 mg si requiere mantener alerta operativa.',
+          'Secure the crew member facing a fixed vertical reference and avoid head turns.',
+          'Keep a sealed containment bag ready.',
+          'Give ondansetron 4 mg if operational alertness must be maintained.',
         ],
         verificationQuestions: [
-          '¿El mareo ocurre al mover la cabeza en los primeros días en órbita?',
-          '¿Los signos vitales (SpO2 y presión) son normales?',
+          'Does dizziness occur with head movement during the first days in orbit?',
+          'Are vital signs (SpO2 and blood pressure) normal?',
         ],
         emergencySupplies: ['MED-ONDANSETRON', 'MED-PROMETHAZINE'],
       ),
       ClinicalScenario(
         id: 'SIT-FATIGUE',
-        label: 'Fatiga / Insomnio',
+        label: 'Fatigue / Insomnia',
         symptomSummary:
-            'Sueño menor a 6.5 horas, despertares frecuentes o agotamiento',
+            'Less than 6.5 hours of sleep, frequent awakenings, or exhaustion',
         priority: TriagePriority.green,
         recommendedProcedureId: 'PROC-CIRCADIAN-FATIGUE',
         first60Seconds: [
-          'Programar bloque protegido de descanso (7.5-8 h) con luz azul atenuada.',
-          'Practicar respiración guiada 4-6 y revisar flujo de aire en el saco de dormir.',
-          'Considerar Melatonina 3 mg si persiste dificultad para conciliar el sueño.',
+          'Schedule a protected rest block (7.5-8 h) with dimmed blue light.',
+          'Practice guided 4-6 breathing and check airflow in the sleeping bag.',
+          'Consider melatonin 3 mg if difficulty falling asleep persists.',
         ],
         verificationQuestions: [
-          '¿Lleva más de 2 ciclos con menos de 6 horas de sueño?',
-          '¿Está asignado a tareas críticas que requieran alta precisión?',
+          'Have there been more than 2 cycles with less than 6 hours of sleep?',
+          'Is the crew member assigned to critical high-precision tasks?',
         ],
         emergencySupplies: ['MED-MELATONIN'],
       ),

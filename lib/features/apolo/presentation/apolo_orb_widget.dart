@@ -74,7 +74,9 @@ class _ApoloOrbWidgetState extends State<ApoloOrbWidget>
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LayoutBuilder(builder: _buildOrb);
+
+  Widget _buildOrb(BuildContext context, BoxConstraints constraints) {
     final palette = ApoloPalette.of(widget.highContrast);
     final severityColor = palette.forSeverity(widget.snapshot.severity);
     final diameter = (widget.baseDiameter * widget.compactScale).clamp(
@@ -84,6 +86,7 @@ class _ApoloOrbWidgetState extends State<ApoloOrbWidget>
     final isAlert = widget.snapshot.severity != ApoloSeverity.ok;
     final disableAnimations = MediaQuery.disableAnimationsOf(context);
     final seed = widget.snapshot.id.index + 1;
+    final expanded = _hovered || widget.highlighted;
 
     return Semantics(
       button: true,
@@ -109,14 +112,13 @@ class _ApoloOrbWidgetState extends State<ApoloOrbWidget>
 
           return Transform.translate(
             offset: Offset(dx, dy),
-            child: SizedBox(
-              width: diameter + 18,
-              height: diameter + 18,
+            child: Padding(
+              padding: const EdgeInsets.all(9),
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  if (isAlert && !disableAnimations)
-                    IgnorePointer(
+                  if (isAlert && !disableAnimations && !expanded)
+                    Positioned.fill(child: IgnorePointer(
                       child: Transform.scale(
                         scale: 1.0 + haloPhase * 0.30,
                         child: Container(
@@ -133,7 +135,7 @@ class _ApoloOrbWidgetState extends State<ApoloOrbWidget>
                           ),
                         ),
                       ),
-                    ),
+                    )),
                   child!,
                 ],
               ),
@@ -143,25 +145,26 @@ class _ApoloOrbWidgetState extends State<ApoloOrbWidget>
         child: MouseRegion(
           onEnter: (_) => setState(() => _hovered = true),
           onExit: (_) => setState(() => _hovered = false),
-          child: AnimatedScale(
-            scale: _hovered || widget.highlighted ? 1.06 : 1.0,
+          child: AnimatedSize(
             duration: disableAnimations
                 ? Duration.zero
                 : const Duration(milliseconds: 220),
-            curve: Curves.easeOutBack,
+            curve: Curves.easeOutCubic,
             child: Material(
               color: Colors.transparent,
-              shape: const CircleBorder(),
+              borderRadius: BorderRadius.circular(expanded ? 28 : diameter),
               child: InkWell(
                 key: ValueKey('apolo_orb_${widget.snapshot.id.name}'),
-                customBorder: const CircleBorder(),
+                borderRadius: BorderRadius.circular(expanded ? 28 : diameter),
                 onTap: widget.onTap,
                 child: Container(
-                  width: diameter,
-                  height: diameter,
+                  // A non-flex Row (the two-column orb rail) gives unbounded
+                  // width. Expand vertically there without widening its columns.
+                  width: expanded && constraints.hasBoundedWidth ? 300 : diameter,
+                  height: expanded ? 250 : diameter,
                   padding: EdgeInsets.all(diameter * 0.075),
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(expanded ? 28 : diameter),
                     color: widget.highContrast
                         ? const Color(0xFF000000)
                         : const Color(0xE61A1C46),
@@ -200,7 +203,33 @@ class _ApoloOrbWidgetState extends State<ApoloOrbWidget>
                             ),
                           ],
                   ),
-                  child: Column(
+                  child: expanded ? SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(apoloModuleIcon(widget.snapshot.id), color: severityColor),
+                        const SizedBox(height: 8),
+                        Text(widget.snapshot.title, style: TextStyle(
+                          color: palette.text, fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 6),
+                        FittedBox(fit: BoxFit.scaleDown,
+                          child: ApoloStatusChip(severity: widget.snapshot.severity,
+                            highContrast: widget.highContrast, compact: true)),
+                        const SizedBox(height: 10),
+                        Text(widget.snapshot.keyMetric, style: TextStyle(
+                          color: palette.text, fontSize: 20, fontWeight: FontWeight.w700)),
+                        Text(widget.snapshot.subMetric, style: TextStyle(color: palette.text2)),
+                        const SizedBox(height: 8),
+                        Text(widget.snapshot.measures.isNotEmpty
+                          ? widget.snapshot.measures
+                          : widget.snapshot.recommendations.where((r) => !r.done).firstOrNull?.text ?? '',
+                          style: TextStyle(color: palette.text2)),
+                        const SizedBox(height: 10),
+                        Text('Click for details', style: TextStyle(
+                          color: severityColor, fontSize: 11)),
+                      ],
+                    ),
+                  ) : Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
