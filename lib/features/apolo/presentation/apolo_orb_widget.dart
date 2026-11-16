@@ -47,45 +47,67 @@ class _ApoloOrbHoverWindowState extends State<ApoloOrbHoverWindow> {
       controller: _portal,
       overlayChildBuilder: (context) {
         final screen = MediaQuery.sizeOf(context);
-        final box = this.context.findRenderObject()! as RenderBox;
-        final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
-        final anchor = box.localToGlobal(Offset.zero);
-        final width = math.min(290.0, math.max(0.0, screen.width - 32));
-        final height = math.min(270.0, math.max(0.0, screen.height - 32));
-        final desiredX = anchor.dx + box.size.width / 2 < screen.width / 2
-            ? anchor.dx + box.size.width + 16
-            : anchor.dx - width - 16;
-        final x = desiredX.clamp(16.0, math.max(16.0, screen.width - width - 16));
-        final y = (anchor.dy + (box.size.height - height) / 2)
-            .clamp(16.0, math.max(16.0, screen.height - height - 16));
-        final position = overlay.globalToLocal(Offset(x.toDouble(), y.toDouble()));
-        return Positioned(
-          left: position.dx,
-          top: position.dy,
-          width: width,
-          height: height,
+        final horizontalMargin = math.min(24.0, screen.width / 4);
+        final verticalMargin = math.min(24.0, screen.height / 4);
+        final width = math.max(0.0, screen.width - horizontalMargin * 2);
+        final height = math.max(0.0, screen.height - verticalMargin * 2);
+        final innerPadding = screen.width < 420 ? 18.0 : 28.0;
+        return Positioned.fill(
           child: IgnorePointer(
-            child: Material(
-              color: Colors.transparent,
-              child: Container(
-                key: widget.windowKey,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  color: widget.highContrast
-                      ? const Color(0xFF000000) : const Color(0xF017193D),
-                  gradient: widget.highContrast ? null : RadialGradient(
-                    center: const Alignment(-0.5, -0.7),
-                    radius: 1.4,
-                    colors: [widget.accent.withValues(alpha: 0.18), const Color(0xF017193D)],
+            child: Container(
+              color: widget.highContrast
+                  ? const Color(0xB3000000)
+                  : const Color(0x88050612),
+              padding: EdgeInsets.symmetric(
+                horizontal: horizontalMargin,
+                vertical: verticalMargin,
+              ),
+              alignment: Alignment.center,
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  key: widget.windowKey,
+                  width: width,
+                  height: height,
+                  padding: EdgeInsets.all(innerPadding),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(32),
+                    color: widget.highContrast
+                        ? const Color(0xFF000000)
+                        : const Color(0xF215173A),
+                    gradient: widget.highContrast
+                        ? null
+                        : RadialGradient(
+                            center: const Alignment(-0.55, -0.7),
+                            radius: 1.35,
+                            colors: [
+                              widget.accent.withValues(alpha: 0.22),
+                              const Color(0xF215173A),
+                              const Color(0xF70D0E26),
+                            ],
+                            stops: const [0.0, 0.55, 1.0],
+                          ),
+                    border: Border.all(
+                      color: widget.accent,
+                      width: widget.highContrast ? 3 : 2,
+                    ),
+                    boxShadow: widget.highContrast
+                        ? null
+                        : [
+                            BoxShadow(
+                              color: widget.accent.withValues(alpha: 0.28),
+                              blurRadius: 36,
+                              spreadRadius: 2,
+                            ),
+                            const BoxShadow(
+                              color: Color(0xAA000000),
+                              blurRadius: 48,
+                              offset: Offset(0, 18),
+                            ),
+                          ],
                   ),
-                  border: Border.all(color: widget.accent,
-                    width: widget.highContrast ? 3 : 2),
-                  boxShadow: [
-                    BoxShadow(color: widget.accent.withValues(alpha: 0.24), blurRadius: 26),
-                  ],
+                  child: SingleChildScrollView(child: widget.content),
                 ),
-                child: SingleChildScrollView(child: widget.content),
               ),
             ),
           ),
@@ -185,6 +207,10 @@ class _ApoloOrbWidgetState extends State<ApoloOrbWidget>
     final disableAnimations = MediaQuery.disableAnimationsOf(context);
     final seed = widget.snapshot.id.index + 1;
     final expanded = (_hovered || widget.highlighted) && !_dismissed;
+    final pendingRecommendations = widget.snapshot.recommendations
+        .where((r) => !r.done)
+        .take(3)
+        .toList();
 
     return Semantics(
       button: true,
@@ -248,32 +274,189 @@ class _ApoloOrbWidgetState extends State<ApoloOrbWidget>
           content: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(apoloModuleIcon(widget.snapshot.id), color: severityColor),
-              const SizedBox(height: 8),
-              Text(widget.snapshot.title, style: TextStyle(
-                color: palette.text, fontWeight: FontWeight.w700)),
+              Wrap(
+                spacing: 14,
+                runSpacing: 10,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: severityColor.withValues(alpha: 0.18),
+                      border: Border.all(
+                        color: severityColor.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    child: Icon(
+                      apoloModuleIcon(widget.snapshot.id),
+                      color: severityColor,
+                      size: 28,
+                    ),
+                  ),
+                  Text(
+                    widget.snapshot.title,
+                    style: TextStyle(
+                      color: palette.text,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
+                    ),
+                  ),
+                  ApoloStatusChip(
+                    severity: widget.snapshot.severity,
+                    highContrast: widget.highContrast,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Text(
+                widget.snapshot.keyMetric,
+                style: TextStyle(
+                  color: palette.text,
+                  fontSize: 40,
+                  fontWeight: FontWeight.w800,
+                  height: 1.1,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
               const SizedBox(height: 6),
-              ApoloStatusChip(severity: widget.snapshot.severity,
-                highContrast: widget.highContrast, compact: true),
-              const SizedBox(height: 10),
-              Text(widget.snapshot.keyMetric, style: TextStyle(
-                color: palette.text, fontSize: 20, fontWeight: FontWeight.w700)),
-              Text(widget.snapshot.subMetric, style: TextStyle(color: palette.text2)),
-              const SizedBox(height: 8),
-              Text(widget.snapshot.measures.isNotEmpty
-                ? widget.snapshot.measures
-                : widget.snapshot.recommendations.where((r) => !r.done).firstOrNull?.text ?? '',
-                style: TextStyle(color: palette.text2)),
-              const SizedBox(height: 10),
-              Text('Click orb for details', style: TextStyle(
-                color: severityColor, fontSize: 11)),
+              Text(
+                widget.snapshot.subMetric,
+                style: TextStyle(
+                  color: palette.text2,
+                  fontSize: 16,
+                  height: 1.35,
+                ),
+              ),
+              if (widget.snapshot.measures.trim().isNotEmpty) ...[
+                const SizedBox(height: 20),
+                Text(
+                  'WHAT THIS MEASURES',
+                  style: TextStyle(
+                    color: severityColor,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  widget.snapshot.measures,
+                  style: TextStyle(
+                    color: palette.text,
+                    fontSize: 16,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+              if (widget.snapshot.whyItMatters.trim().isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(
+                  'WHY IT MATTERS',
+                  style: TextStyle(
+                    color: severityColor,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  widget.snapshot.whyItMatters,
+                  style: TextStyle(
+                    color: palette.text2,
+                    fontSize: 15,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+              if (pendingRecommendations.isNotEmpty) ...[
+                const SizedBox(height: 18),
+                Text(
+                  'PENDING ACTIONS',
+                  style: TextStyle(
+                    color: severityColor,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                for (final rec in pendingRecommendations)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Icon(
+                            Icons.arrow_right_rounded,
+                            color: severityColor,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                rec.text,
+                                style: TextStyle(
+                                  color: palette.text,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.4,
+                                ),
+                              ),
+                              if (rec.why.trim().isNotEmpty)
+                                Text(
+                                  rec.why,
+                                  style: TextStyle(
+                                    color: palette.text2,
+                                    fontSize: 13.5,
+                                    height: 1.35,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+              const SizedBox(height: 24),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.touch_app_outlined,
+                    color: severityColor,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'Click orb for interactive actions',
+                      style: TextStyle(
+                        color: severityColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
           child: MouseRegion(
           onEnter: (_) => setState(() { _hovered = true; _dismissed = false; }),
           onExit: (_) => setState(() => _hovered = false),
           child: AnimatedScale(
-            scale: expanded ? 1.06 : 1.0,
+            scale: expanded ? 1.14 : 1.0,
             duration: disableAnimations
                 ? Duration.zero
                 : const Duration(milliseconds: 220),
@@ -312,10 +495,11 @@ class _ApoloOrbWidgetState extends State<ApoloOrbWidget>
                     border: Border.all(
                       color: widget.highContrast
                           ? severityColor
-                          : severityColor.withValues(alpha: 0.72),
+                          : severityColor.withValues(alpha: expanded ? 1.0 : 0.72),
                       width:
                           widget.highContrast ||
-                              widget.snapshot.severity == ApoloSeverity.crit
+                              widget.snapshot.severity == ApoloSeverity.crit ||
+                              expanded
                           ? 3.0
                           : 2.0,
                     ),
@@ -323,12 +507,16 @@ class _ApoloOrbWidgetState extends State<ApoloOrbWidget>
                         ? null
                         : [
                             BoxShadow(
-                              color: severityColor.withValues(alpha: 0.12),
-                              spreadRadius: 5,
+                              color: severityColor.withValues(
+                                alpha: expanded ? 0.24 : 0.12,
+                              ),
+                              spreadRadius: expanded ? 8 : 5,
                             ),
                             BoxShadow(
-                              color: severityColor.withValues(alpha: 0.22),
-                              blurRadius: 26,
+                              color: severityColor.withValues(
+                                alpha: expanded ? 0.42 : 0.22,
+                              ),
+                              blurRadius: expanded ? 36 : 26,
                             ),
                           ],
                   ),
