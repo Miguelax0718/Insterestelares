@@ -5,6 +5,97 @@ import 'package:flutter/material.dart';
 import '../domain/apolo_models.dart';
 import 'apolo_theme.dart';
 
+/// Shared non-interactive preview; the portal owns its overlay's lifecycle.
+class ApoloOrbHoverWindow extends StatefulWidget {
+  const ApoloOrbHoverWindow({
+    super.key,
+    required this.visible,
+    required this.windowKey,
+    required this.accent,
+    required this.highContrast,
+    required this.content,
+    required this.child,
+  });
+
+  final bool visible;
+  final Key windowKey;
+  final Color accent;
+  final bool highContrast;
+  final Widget content;
+  final Widget child;
+
+  @override
+  State<ApoloOrbHoverWindow> createState() => _ApoloOrbHoverWindowState();
+}
+
+class _ApoloOrbHoverWindowState extends State<ApoloOrbHoverWindow> {
+  final _portal = OverlayPortalController();
+
+  @override
+  Widget build(BuildContext context) {
+    // Minimal widget harnesses may deliberately omit an Overlay.
+    if (Overlay.maybeOf(context) == null) return widget.child;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (widget.visible && !_portal.isShowing) {
+        _portal.show();
+      } else if (!widget.visible && _portal.isShowing) {
+        _portal.hide();
+      }
+    });
+    return OverlayPortal(
+      controller: _portal,
+      overlayChildBuilder: (context) {
+        final screen = MediaQuery.sizeOf(context);
+        final box = this.context.findRenderObject()! as RenderBox;
+        final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
+        final anchor = box.localToGlobal(Offset.zero);
+        final width = math.min(290.0, math.max(0.0, screen.width - 32));
+        final height = math.min(270.0, math.max(0.0, screen.height - 32));
+        final desiredX = anchor.dx + box.size.width / 2 < screen.width / 2
+            ? anchor.dx + box.size.width + 16
+            : anchor.dx - width - 16;
+        final x = desiredX.clamp(16.0, math.max(16.0, screen.width - width - 16));
+        final y = (anchor.dy + (box.size.height - height) / 2)
+            .clamp(16.0, math.max(16.0, screen.height - height - 16));
+        final position = overlay.globalToLocal(Offset(x.toDouble(), y.toDouble()));
+        return Positioned(
+          left: position.dx,
+          top: position.dy,
+          width: width,
+          height: height,
+          child: IgnorePointer(
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                key: widget.windowKey,
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  color: widget.highContrast
+                      ? const Color(0xFF000000) : const Color(0xF017193D),
+                  gradient: widget.highContrast ? null : RadialGradient(
+                    center: const Alignment(-0.5, -0.7),
+                    radius: 1.4,
+                    colors: [widget.accent.withValues(alpha: 0.18), const Color(0xF017193D)],
+                  ),
+                  border: Border.all(color: widget.accent,
+                    width: widget.highContrast ? 3 : 2),
+                  boxShadow: [
+                    BoxShadow(color: widget.accent.withValues(alpha: 0.24), blurRadius: 26),
+                  ],
+                ),
+                child: SingleChildScrollView(child: widget.content),
+              ),
+            ),
+          ),
+        );
+      },
+      child: widget.child,
+    );
+  }
+}
+
 /// Circular floating health orb button (`S` / `M` / `L` by severity, pulsing
 /// alert halo on `warn` / `crit`, icon, `keyMetric` in tabular figures,
 /// `shortLabel`, and accessible status chip).
@@ -39,6 +130,13 @@ class _ApoloOrbWidgetState extends State<ApoloOrbWidget>
   late final AnimationController _controller;
   bool _animationsDisabled = false;
   bool _hovered = false;
+  bool _dismissed = false;
+
+  @override
+  void didUpdateWidget(ApoloOrbWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.highlighted != widget.highlighted) _dismissed = false;
+  }
 
   @override
   void initState() {
@@ -86,7 +184,7 @@ class _ApoloOrbWidgetState extends State<ApoloOrbWidget>
     final isAlert = widget.snapshot.severity != ApoloSeverity.ok;
     final disableAnimations = MediaQuery.disableAnimationsOf(context);
     final seed = widget.snapshot.id.index + 1;
-    final expanded = _hovered || widget.highlighted;
+    final expanded = (_hovered || widget.highlighted) && !_dismissed;
 
     return Semantics(
       button: true,
@@ -142,29 +240,60 @@ class _ApoloOrbWidgetState extends State<ApoloOrbWidget>
             ),
           );
         },
-        child: MouseRegion(
-          onEnter: (_) => setState(() => _hovered = true),
+        child: ApoloOrbHoverWindow(
+          visible: expanded,
+          windowKey: ValueKey('apolo_orb_hover_window_${widget.snapshot.id.name}'),
+          accent: severityColor,
+          highContrast: widget.highContrast,
+          content: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(apoloModuleIcon(widget.snapshot.id), color: severityColor),
+              const SizedBox(height: 8),
+              Text(widget.snapshot.title, style: TextStyle(
+                color: palette.text, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 6),
+              ApoloStatusChip(severity: widget.snapshot.severity,
+                highContrast: widget.highContrast, compact: true),
+              const SizedBox(height: 10),
+              Text(widget.snapshot.keyMetric, style: TextStyle(
+                color: palette.text, fontSize: 20, fontWeight: FontWeight.w700)),
+              Text(widget.snapshot.subMetric, style: TextStyle(color: palette.text2)),
+              const SizedBox(height: 8),
+              Text(widget.snapshot.measures.isNotEmpty
+                ? widget.snapshot.measures
+                : widget.snapshot.recommendations.where((r) => !r.done).firstOrNull?.text ?? '',
+                style: TextStyle(color: palette.text2)),
+              const SizedBox(height: 10),
+              Text('Click orb for details', style: TextStyle(
+                color: severityColor, fontSize: 11)),
+            ],
+          ),
+          child: MouseRegion(
+          onEnter: (_) => setState(() { _hovered = true; _dismissed = false; }),
           onExit: (_) => setState(() => _hovered = false),
-          child: AnimatedSize(
+          child: AnimatedScale(
+            scale: expanded ? 1.06 : 1.0,
             duration: disableAnimations
                 ? Duration.zero
                 : const Duration(milliseconds: 220),
             curve: Curves.easeOutCubic,
             child: Material(
               color: Colors.transparent,
-              borderRadius: BorderRadius.circular(expanded ? 28 : diameter),
+              borderRadius: BorderRadius.circular(diameter),
               child: InkWell(
                 key: ValueKey('apolo_orb_${widget.snapshot.id.name}'),
-                borderRadius: BorderRadius.circular(expanded ? 28 : diameter),
-                onTap: widget.onTap,
+                borderRadius: BorderRadius.circular(diameter),
+                onTap: () {
+                  setState(() { _hovered = false; _dismissed = true; });
+                  widget.onTap();
+                },
                 child: Container(
-                  // A non-flex Row (the two-column orb rail) gives unbounded
-                  // width. Expand vertically there without widening its columns.
-                  width: expanded && constraints.hasBoundedWidth ? 300 : diameter,
-                  height: expanded ? 250 : diameter,
+                  width: diameter,
+                  height: diameter,
                   padding: EdgeInsets.all(diameter * 0.075),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(expanded ? 28 : diameter),
+                    borderRadius: BorderRadius.circular(diameter),
                     color: widget.highContrast
                         ? const Color(0xFF000000)
                         : const Color(0xE61A1C46),
@@ -203,33 +332,7 @@ class _ApoloOrbWidgetState extends State<ApoloOrbWidget>
                             ),
                           ],
                   ),
-                  child: expanded ? SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(apoloModuleIcon(widget.snapshot.id), color: severityColor),
-                        const SizedBox(height: 8),
-                        Text(widget.snapshot.title, style: TextStyle(
-                          color: palette.text, fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 6),
-                        FittedBox(fit: BoxFit.scaleDown,
-                          child: ApoloStatusChip(severity: widget.snapshot.severity,
-                            highContrast: widget.highContrast, compact: true)),
-                        const SizedBox(height: 10),
-                        Text(widget.snapshot.keyMetric, style: TextStyle(
-                          color: palette.text, fontSize: 20, fontWeight: FontWeight.w700)),
-                        Text(widget.snapshot.subMetric, style: TextStyle(color: palette.text2)),
-                        const SizedBox(height: 8),
-                        Text(widget.snapshot.measures.isNotEmpty
-                          ? widget.snapshot.measures
-                          : widget.snapshot.recommendations.where((r) => !r.done).firstOrNull?.text ?? '',
-                          style: TextStyle(color: palette.text2)),
-                        const SizedBox(height: 10),
-                        Text('Click for details', style: TextStyle(
-                          color: severityColor, fontSize: 11)),
-                      ],
-                    ),
-                  ) : Column(
+                  child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
@@ -292,6 +395,7 @@ class _ApoloOrbWidgetState extends State<ApoloOrbWidget>
               ),
             ),
           ),
+        ),
         ),
       ),
     );
