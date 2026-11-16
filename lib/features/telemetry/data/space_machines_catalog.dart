@@ -16,13 +16,13 @@ class SpaceMachinesCatalog {
         category: MachineCategory.biometrics,
         protocol: 'ANT+ / BLE SpaceBus v3.2',
         measurementMethod:
-            'ECG textil de 3 derivaciones, fotopletismografía óptica y pletismografía inductiva torácica',
+            'Three-lead textile ECG, optical photoplethysmography and thoracic inductive plethysmography',
         defaultActivityState: 'active_duty',
         defaultRecordType: 'instrumental',
         algorithm: 'NASA-HRP BioSignalKalman v3.2',
         criterionReference: 'NASA-STD-3001 Vol. 1 & Vol. 2 / MedicalThresholds',
         description:
-            'Chaleco biométrico continuo con sensores textiles de ECG, frecuencia respiratoria, volumen corriente, acelerometría triaxial y temperatura cutánea.',
+            'Continuous biometric vest with textile ECG, respiratory rate, tidal volume, triaxial acceleration and skin temperature sensors.',
         supportedMetrics: [
           'heartRate',
           'respiratoryRate',
@@ -44,13 +44,13 @@ class SpaceMachinesCatalog {
         category: MachineCategory.dosimetry,
         protocol: 'MIL-STD-1553B / Timepix bus',
         measurementMethod:
-            'Espectrometría activa en silicio híbrido Timepix3 (LET)',
+            'Timepix3 hybrid silicon active spectrometry (LET)',
         defaultActivityState: 'active_duty',
         defaultRecordType: 'instrumental',
         algorithm: 'SRAG-LET-Dosimetry v2.4',
         criterionReference: 'NASA-STD-3001 Permissible Exposure Limits (PEL)',
         description:
-            'Dosímetro personal y de área de silicio activo basado en tecnología Timepix. Mide tasa de dosis instantánea en microSieverts por hora y dosis acumulada de partículas pesadas y rayos cósmicos.',
+            'Timepix active silicon personal and area dosimeter. Measures instantaneous dose rate in microSieverts per hour and cumulative heavy-particle and cosmic-ray dose.',
         supportedMetrics: [
           'doseRateMicroSvPerHour',
           'cumulativeDoseMilliSv',
@@ -68,13 +68,13 @@ class SpaceMachinesCatalog {
         category: MachineCategory.hemodynamics,
         protocol: 'SpaceWire / ISS-LAN',
         measurementMethod:
-            'Fotopletismografía arterial de dedo y tonometría cardiovascular no invasiva',
+            'Finger arterial photoplethysmography and non-invasive cardiovascular tonometry',
         defaultActivityState: 'resting',
         defaultRecordType: 'instrumental',
         algorithm: 'ESA-EPM HemodynamicPulseWave v2.0',
         criterionReference: 'NASA-STD-3001 Cardiovascular Health Monitoring',
         description:
-            'Módulo de diagnóstico cardiovascular, ultrasonido vascular periférico y medición no invasiva de presión venosa central y gasto cardíaco.',
+            'Cardiovascular diagnostic module with peripheral vascular ultrasound and non-invasive central venous pressure and cardiac output measurements.',
         supportedMetrics: [
           'systolicBP',
           'diastolicBP',
@@ -93,14 +93,14 @@ class SpaceMachinesCatalog {
         category: MachineCategory.countermeasure,
         protocol: 'CAN-Bus / Space Wireless',
         measurementMethod:
-            'Dinamometría en cilindros de vacío y telemetría cinemática triaxial',
+            'Vacuum-cylinder dynamometry and triaxial kinematic telemetry',
         defaultActivityState: 'exercise',
-        defaultRecordType: 'estimación',
+        defaultRecordType: 'estimation',
         algorithm: 'NASA-CountermeasureMetabolicKinematics v1.8',
         criterionReference:
             'NASA-STD-3001 Musculoskeletal Countermeasure Protocol',
         description:
-            'Dispositivo de ejercicio resistivo avanzado con cilindros de vacío para emular cargas de hasta 270 kg. Registra repeticiones, fuerza de carga pico y gasto calórico.',
+            'Advanced resistive exercise device using vacuum cylinders to emulate loads up to 270 kg. Records repetitions, peak load force and energy expenditure.',
         supportedMetrics: [
           'deviceName',
           'durationMinutes',
@@ -119,13 +119,13 @@ class SpaceMachinesCatalog {
         category: MachineCategory.countermeasure,
         protocol: 'RS-422 / BLE 5.0',
         measurementMethod:
-            'Ergometría electromagnética de cadencia/potencia y estimación de VO2',
+            'Electromagnetic cadence/power ergometry and VO2 estimation',
         defaultActivityState: 'exercise',
-        defaultRecordType: 'estimación',
+        defaultRecordType: 'estimation',
         algorithm: 'NASA-CEVIS AerobicVO2Estimator v1.5',
         criterionReference: 'NASA-STD-3001 Aerobic Countermeasure Protocol',
         description:
-            'Cicloergómetro con aislamiento de vibración para entrenamiento cardiovascular aeróbico en microgravedad. Registra potencia en vatios, cadencia y consumo energético.',
+            'Vibration-isolated cycle ergometer for aerobic cardiovascular training in microgravity. Records power in watts, cadence and energy expenditure.',
         supportedMetrics: [
           'deviceName',
           'durationMinutes',
@@ -145,13 +145,13 @@ class SpaceMachinesCatalog {
         category: MachineCategory.bloodLab,
         protocol: 'Infrared Data / USB Secure Bus',
         measurementMethod:
-            'Electroquímica amperométrica/potenciométrica en cartucho capilar desechable',
+            'Amperometric/potentiometric electrochemistry in a disposable capillary cartridge',
         defaultActivityState: 'resting',
         defaultRecordType: 'instrumental',
         algorithm: 'PointOfCare-Chem8 CalibrationCurve v4.1',
         criterionReference: 'NASA-ISS CHeCS Clinical Blood Lab Standards',
         description:
-            'Analizador de sangre clínico portátil de cartuchos micrométricos. Entrega electrolitos, gases en sangre, lactato, hematocrito y glucemia capilar en 2 minutos.',
+            'Portable clinical blood analyzer using micro-cartridges. Reports electrolytes, blood gases, lactate, hematocrit and capillary blood glucose in 2 minutes.',
         supportedMetrics: [
           'bloodGlucose',
           'spO2',
@@ -168,14 +168,14 @@ class SpaceMachinesCatalog {
         category: MachineCategory.circadian,
         protocol: 'NFC / Optical Sync',
         measurementMethod:
-            'Actigrafía triaxial de muñeca, fotometría ambiental y escala subjetiva matutina',
+            'Triaxial wrist actigraphy, ambient photometry and subjective morning rating',
         defaultActivityState: 'sleep',
         defaultRecordType: 'instrumental',
         algorithm: 'BHP-CircadianColeKripke v2.1',
         criterionReference:
             'NASA-STD-3001 Behavioral Health & Circadian Standard',
         description:
-            'Monitor de muñeca de espectro de luz y actigrafía multieje para seguimiento objetivo de ciclos sueño/vigilia, latencia y episodios de despertar en órbita.',
+            'Wrist light-spectrum and multiaxis actigraphy monitor for objective tracking of sleep/wake cycles, latency and awakening episodes in orbit.',
         supportedMetrics: [
           'sleepHours',
           'wakeEpisodes',
@@ -292,7 +292,7 @@ class SpaceMachinesCatalog {
 
       case 'DEV-ARED':
         final calBonus = ((tick % 6) * 1.5).roundToDouble();
-        metrics['deviceName'] = 'ARED (Resistencia)';
+        metrics['deviceName'] = 'ARED (Resistance)';
         metrics['durationMinutes'] = astronaut.exercise.durationMinutes;
         metrics['caloriesBurned'] = astronaut.exercise.caloriesBurned + calBonus;
         metrics['targetReached'] = astronaut.exercise.targetReached;
@@ -300,7 +300,7 @@ class SpaceMachinesCatalog {
 
       case 'DEV-CEVIS':
         final calBonus = ((tick % 5) * 2.0).roundToDouble();
-        metrics['deviceName'] = 'CEVIS (Bicicleta)';
+        metrics['deviceName'] = 'CEVIS (Cycle)';
         metrics['durationMinutes'] = astronaut.exercise.durationMinutes;
         metrics['caloriesBurned'] = astronaut.exercise.caloriesBurned + calBonus;
         metrics['targetReached'] = astronaut.exercise.targetReached;

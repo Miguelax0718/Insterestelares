@@ -371,6 +371,7 @@ class ApoloRepository {
     int missionDay = 1,
   }) {
     final crew = MockCrewData.getNominalCrew();
+    final now = _clock();
     return {
       for (var i = 0; i < _presets.length; i++)
         crew[i].id: _assembleState(
@@ -393,9 +394,10 @@ class ApoloRepository {
             targetValues: const {},
             count: 1,
             currentMissionDay: missionDay,
+            takenAt: now.subtract(const Duration(hours: 2)),
           ),
           recommendations: const [],
-          now: _clock(),
+          now: now,
           highContrast: highContrast,
           autoTips: autoTips,
           solarStormActive: solarStormActive,
@@ -411,6 +413,8 @@ class ApoloRepository {
     required Map<String, double> targetValues,
     int count = 40,
     int currentMissionDay = defaultMissionDay,
+    // A fresh single-sample baseline must not inherit the historical mission date.
+    DateTime? takenAt,
   }) {
     final r = _createSeededPrng(apoloKey);
     final base = <String, double>{};
@@ -453,7 +457,9 @@ class ApoloRepository {
           id: '$apoloKey-$day',
           astronautId: astronautId,
           missionDay: day,
-          takenAt: startMission.add(Duration(days: day - 1)),
+          takenAt: count == 1 && takenAt != null
+              ? takenAt
+              : startMission.add(Duration(days: day - 1)),
           method: methods[i % methods.length],
           values: Map<String, double>.unmodifiable(values),
         ),
@@ -731,17 +737,21 @@ class ApoloRepository {
 
 class ApoloStateNotifier extends StateNotifier<Map<String, ApoloAstronautState>>
     implements ApoloStateActions {
+  /// Nominal startup is opt-in so historical demo consumers remain compatible.
   ApoloStateNotifier({
     ApoloRepository? repository,
     String initialAstronautId = 'AST-01',
     DateTime Function()? clock,
+    bool initialNominal = false,
   }) : _repository = repository ?? ApoloRepository(clock: clock),
        _clock = clock ?? DateTime.now,
        _activeAstronautId = ApoloRepository.resolveAstronautId(
          initialAstronautId,
        ),
        super(
-         (repository ?? ApoloRepository(clock: clock)).buildInitialStates(),
+          initialNominal
+              ? (repository ?? ApoloRepository(clock: clock)).buildNominalStates()
+              : (repository ?? ApoloRepository(clock: clock)).buildInitialStates(),
        );
 
   final ApoloRepository _repository;

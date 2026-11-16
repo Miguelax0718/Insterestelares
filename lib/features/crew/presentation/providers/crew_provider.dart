@@ -13,9 +13,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 class CrewNotifier extends StateNotifier<List<AstronautProfile>> {
   final CrewDatabaseService _dbService;
 
-  CrewNotifier([CrewDatabaseService? dbService])
+  /// Supply a healthy baseline for nominal startup without a transient alert.
+  /// Omission preserves the historical demo scenarios.
+  CrewNotifier([
+    CrewDatabaseService? dbService,
+    List<AstronautProfile>? initialCrew,
+  ])
       : _dbService = dbService ?? CrewDatabaseService(),
-        super(MockCrewData.getInitialCrew());
+        super(initialCrew ?? MockCrewData.getInitialCrew());
 
   /// Inicializa la tripulación cargando datos desde la base de datos `DB/Users/`
   void initializeNominalMission() => resetAllNominal();
@@ -271,7 +276,7 @@ class CrewNotifier extends StateNotifier<List<AstronautProfile>> {
       exercise: updatedExercise,
       sleep: updatedSleep,
       syncTimestamp: packet.timestamp,
-      sourceLabel: packet.source == 'manual' ? 'evaluación manual' : 'telemetría',
+      sourceLabel: packet.source == 'manual' ? 'manual assessment' : 'telemetry',
     );
 
     _dbService.saveAstronautProfile(updatedProfile);
@@ -294,75 +299,75 @@ class CrewNotifier extends StateNotifier<List<AstronautProfile>> {
 
     // SpO2
     if (vitals.spO2 < 90.0) {
-      alerts.add('SpO2 Crítico: ${vitals.spO2}% (Hipoxia aguda)');
+      alerts.add('Critical SpO2: ${vitals.spO2}% (Acute hypoxia)');
       isCritical = true;
     } else if (vitals.spO2 < MedicalThresholds.minSpO2) {
-      alerts.add('SpO2 Bajo: ${vitals.spO2}% (<${MedicalThresholds.minSpO2}%)');
+      alerts.add('Low SpO2: ${vitals.spO2}% (<${MedicalThresholds.minSpO2}%)');
       isWarning = true;
     }
 
     // Frecuencia Cardíaca
     if (vitals.heartRate > 115.0) {
       alerts.add(
-          'FC Elevada: ${vitals.heartRate.toStringAsFixed(0)} bpm (Taquicardia)');
+          'Elevated HR: ${vitals.heartRate.toStringAsFixed(0)} bpm (Tachycardia)');
       isCritical = true;
     } else if (vitals.heartRate > MedicalThresholds.maxHeartRate) {
       alerts.add(
-          'FC Elevada: ${vitals.heartRate.toStringAsFixed(0)} bpm (Taquicardia)');
+          'Elevated HR: ${vitals.heartRate.toStringAsFixed(0)} bpm (Tachycardia)');
       isWarning = true;
     } else if (vitals.heartRate < 45.0) {
       alerts.add(
-          'FC Crítica: ${vitals.heartRate.toStringAsFixed(0)} bpm (Bradicardia severa)');
+          'Critical HR: ${vitals.heartRate.toStringAsFixed(0)} bpm (Severe bradycardia)');
       isCritical = true;
     } else if (vitals.heartRate < MedicalThresholds.minHeartRate) {
       alerts.add(
-          'FC Baja: ${vitals.heartRate.toStringAsFixed(0)} bpm (Bradicardia)');
+          'Low HR: ${vitals.heartRate.toStringAsFixed(0)} bpm (Bradycardia)');
       isWarning = true;
     }
 
     // Presión Arterial
     if (vitals.systolicBP < 85.0 || vitals.systolicBP > 160.0) {
       alerts.add(
-          'Presión Arterial Crítica: ${vitals.systolicBP.toStringAsFixed(0)}/${vitals.diastolicBP.toStringAsFixed(0)} mmHg');
+          'Critical Blood Pressure: ${vitals.systolicBP.toStringAsFixed(0)}/${vitals.diastolicBP.toStringAsFixed(0)} mmHg');
       isCritical = true;
     } else if (vitals.systolicBP < MedicalThresholds.minSystolicBP) {
       alerts.add(
-          'Presión Arterial Baja: ${vitals.systolicBP.toStringAsFixed(0)}/${vitals.diastolicBP.toStringAsFixed(0)} mmHg');
+          'Low Blood Pressure: ${vitals.systolicBP.toStringAsFixed(0)}/${vitals.diastolicBP.toStringAsFixed(0)} mmHg');
       isWarning = true;
     } else if (vitals.systolicBP > MedicalThresholds.maxSystolicBP ||
         vitals.diastolicBP > 89.0) {
       alerts.add(
-          'Presión Arterial: ${vitals.systolicBP.toStringAsFixed(0)}/${vitals.diastolicBP.toStringAsFixed(0)} mmHg');
+          'Blood Pressure: ${vitals.systolicBP.toStringAsFixed(0)}/${vitals.diastolicBP.toStringAsFixed(0)} mmHg');
       isWarning = true;
     }
 
     // Frecuencia Respiratoria
     if (vitals.respiratoryRate >= 26.0) {
       alerts.add(
-          'Frec. Resp: ${vitals.respiratoryRate.toStringAsFixed(0)} rpm (Polipnea)');
+          'Resp. Rate: ${vitals.respiratoryRate.toStringAsFixed(0)} breaths/min (Tachypnea)');
       isCritical = true;
     } else if (vitals.respiratoryRate > 22.0) {
       alerts.add(
-          'Frec. Resp: ${vitals.respiratoryRate.toStringAsFixed(0)} rpm (Polipnea)');
+          'Resp. Rate: ${vitals.respiratoryRate.toStringAsFixed(0)} breaths/min (Tachypnea)');
       isWarning = true;
     }
 
     // Llenado Capilar
     if (vitals.capillaryRefillSeconds > 2.5) {
       alerts.add(
-          'Llenado Capilar: ${vitals.capillaryRefillSeconds}s (Mala perfusión)');
+          'Capillary Refill: ${vitals.capillaryRefillSeconds}s (Poor perfusion)');
       isCritical = true;
     } else if (vitals.capillaryRefillSeconds > 2.0) {
-      alerts.add('Llenado Capilar: ${vitals.capillaryRefillSeconds}s');
+      alerts.add('Capillary Refill: ${vitals.capillaryRefillSeconds}s');
       isWarning = true;
     }
 
     // Temperatura
     if (vitals.bodyTemp > 38.0) {
-      alerts.add('Fiebre Alta: ${vitals.bodyTemp} °C');
+      alerts.add('High Fever: ${vitals.bodyTemp} °C');
       isCritical = true;
     } else if (vitals.bodyTemp > 37.3) {
-      alerts.add('Temperatura limítrofe: ${vitals.bodyTemp} °C');
+      alerts.add('Borderline Temp: ${vitals.bodyTemp} °C');
       isWarning = true;
     }
 
@@ -370,26 +375,26 @@ class CrewNotifier extends StateNotifier<List<AstronautProfile>> {
     if (radiation.doseRateMicroSvPerHour > 160.0 ||
         radiation.severity == RadiationSeverity.critical) {
       alerts.add(
-          'Tasa de Dosis Crítica: ${radiation.doseRateMicroSvPerHour} uSv/h');
+          'Critical Dose Rate: ${radiation.doseRateMicroSvPerHour} uSv/h');
       isCritical = true;
     } else if (radiation.doseRateMicroSvPerHour > 100.0 ||
         radiation.severity == RadiationSeverity.warning) {
-      alerts.add('Tasa de Dosis: ${radiation.doseRateMicroSvPerHour} uSv/h');
+      alerts.add('Dose Rate: ${radiation.doseRateMicroSvPerHour} uSv/h');
       isWarning = true;
     }
 
     // Sueño y descanso
     if (sleep.sleepHours < 5.0) {
-      alerts.add('Déficit de descanso severo: ${sleep.sleepHours} hrs');
+      alerts.add('Severe Sleep Deficit: ${sleep.sleepHours} hrs');
       isWarning = true;
     } else if (sleep.sleepHours < MedicalThresholds.minRecommendedSleepHours) {
-      alerts.add('Déficit de descanso (${sleep.sleepHours} hrs)');
+      alerts.add('Sleep Deficit (${sleep.sleepHours} hrs)');
       isWarning = true;
     }
 
     // Meta física
     if (!exercise.targetReached) {
-      alerts.add('Meta física incompleta');
+      alerts.add('Exercise target incomplete');
       isWarning = true;
     }
 
@@ -400,22 +405,22 @@ class CrewNotifier extends StateNotifier<List<AstronautProfile>> {
     if (isCritical) {
       riskLevel = CrewRiskLevel.critical;
       riskTitle = alerts.isNotEmpty
-          ? 'ALERTA CRÍTICA: ${alerts.first.split(':').first}'
-          : 'ALERTA CRÍTICA: Emergencia Médica';
+          ? 'CRITICAL ALERT: ${alerts.first.split(':').first}'
+          : 'CRITICAL ALERT: Medical Emergency';
       riskDescription =
-          'Parámetros vitales fuera de rango seguro para la misión. Se requiere intervención y protocolo inmediato.';
+          'Vital signs are outside safe mission limits. Immediate intervention and emergency protocol required.';
     } else if (isWarning) {
       riskLevel = CrewRiskLevel.warning;
       riskTitle = alerts.isNotEmpty
-          ? 'Precaución: ${alerts.first.split(':').first}'
-          : 'Precaución: Parámetros Limítrofes';
+          ? 'Caution: ${alerts.first.split(':').first}'
+          : 'Caution: Borderline Parameters';
       riskDescription =
-          'Parámetros médicos limítrofes detectados por $sourceLabel. Monitorear evolución y descanso.';
+          'Borderline medical parameters detected by $sourceLabel. Monitor trends and rest.';
     } else {
       riskLevel = CrewRiskLevel.nominal;
-      riskTitle = 'Estado Nominal';
+      riskTitle = 'Nominal Status';
       riskDescription =
-          'Biomarcadores estables y adaptación adecuada al vuelo espacial.';
+          'Stable biomarkers and healthy adaptation to spaceflight.';
     }
 
     return profile.copyWith(
@@ -464,8 +469,8 @@ class CrewNotifier extends StateNotifier<List<AstronautProfile>> {
               sleep: profile.sleep,
               syncTimestamp: taggedVitals.timestamp,
               sourceLabel: taggedVitals.source == 'manual'
-                  ? 'evaluación manual'
-                  : 'telemetría',
+                  ? 'manual assessment'
+                  : 'telemetry',
             );
             _dbService.saveAstronautProfile(evaluated);
             return evaluated;
@@ -495,7 +500,7 @@ class CrewNotifier extends StateNotifier<List<AstronautProfile>> {
               exercise: exercise,
               sleep: sleep,
               syncTimestamp: vitals.timestamp,
-              sourceLabel: 'simulación: $eventLabel',
+              sourceLabel: 'simulation: $eventLabel',
             );
             _dbService.saveAstronautProfile(evaluated);
             return evaluated;
