@@ -19,6 +19,9 @@ class MissionSimulatorNotifier extends StateNotifier<MissionSimulatorState> {
   final Ref _ref;
   Timer? _timer;
 
+  /// Episodio leve que cada astronauta tiene aplicado ahora mismo.
+  final Map<String, MissionEpisode> _activeEpisodes = {};
+
   void _log(String message) {
     state = state.copyWith(log: [
       'Day ${state.missionDay}: $message',
@@ -30,6 +33,7 @@ class MissionSimulatorNotifier extends StateNotifier<MissionSimulatorState> {
 
   void resetNominal() {
     setRunning(false);
+    _activeEpisodes.clear();
     _ref.read(crewMembersProvider.notifier).resetAllNominal();
     _ref.read(apoloStateNotifierProvider.notifier).resetAllNominal();
     _ref.read(selectedMissionDayProvider.notifier).state = 1;
@@ -86,7 +90,49 @@ class MissionSimulatorNotifier extends StateNotifier<MissionSimulatorState> {
       );
       _ref.read(selectedMissionDayProvider.notifier).state = day;
       state = state.copyWith(missionDay: day);
+      _applyEpisodes(day);
       _log('Nominal ${state.missionType.name} day');
+    }
+  }
+
+  /// Aplica o retira los episodios leves del día (mareo espacial, mala
+  /// noche, infección leve...). Cada uno se resuelve solo al terminar.
+  void _applyEpisodes(int day) {
+    final crew = _ref.read(crewMembersProvider.notifier);
+    for (final p in List.of(_ref.read(crewMembersProvider))) {
+      final previous = _activeEpisodes[p.id];
+      final current = MissionEpisodes.activeOn(p.id, day);
+      if (previous == null && current == null) continue;
+
+      // Se quita el efecto del episodio anterior y se pone el del actual.
+      double change(double Function(MissionEpisode) of) =>
+          (current == null ? 0 : of(current)) -
+          (previous == null ? 0 : of(previous));
+      crew.applySimulationProfile(
+        astronautId: p.id,
+        vitals: p.vitals.copyWith(
+          heartRate: p.vitals.heartRate + change((e) => e.hr),
+          bodyTemp: p.vitals.bodyTemp + change((e) => e.temp),
+          respiratoryRate:
+              p.vitals.respiratoryRate + change((e) => e.respiratoryRate),
+        ),
+        sleep: p.sleep.copyWith(
+          sleepHours: p.sleep.sleepHours + change((e) => e.sleep),
+        ),
+        radiation: p.radiation,
+        exercise: p.exercise.copyWith(
+          targetReached: !(current?.missesExercise ?? false),
+        ),
+        eventLabel: current?.label ?? 'Mission day $day',
+      );
+
+      if (current == null) {
+        _activeEpisodes.remove(p.id);
+        _log('${previous!.label} resolved → ${p.id}');
+      } else {
+        _activeEpisodes[p.id] = current;
+        if (current != previous) _log('${current.label} → ${p.id}');
+      }
     }
   }
 

@@ -50,6 +50,95 @@ class MissionDrift {
   }
 }
 
+/// Episodio leve y aislado de un tripulante: dura pocos días y se resuelve
+/// solo. Deja al astronauta en "precaución", nunca en estado crítico.
+enum MissionEpisode {
+  /// Mareo espacial al llegar a microgravedad. Afecta a ~60–80 % de los
+  /// astronautas en los primeros 2–3 días (NASA, Space Motion Sickness).
+  spaceMotionSickness('Space motion sickness', 3,
+      hr: 8, missesExercise: true),
+
+  /// Una noche de mal sueño (ruido, turno desplazado, carga de trabajo).
+  poorSleepNight('Poor sleep night', 1, sleep: -2.0),
+
+  /// Infección leve (resfriado, congestión): febrícula y pulso algo alto.
+  minorInfection('Minor infection', 3,
+      hr: 12, temp: 1.0, respiratoryRate: 2, missesExercise: true),
+
+  /// Dolor de espalda por el alargamiento de la columna en microgravedad.
+  backPain('Back pain', 2, missesExercise: true),
+
+  /// Día de trabajo intenso (mantenimiento, preparación de una EVA).
+  heavyWorkday('Heavy workday', 1, hr: 14, respiratoryRate: 3, sleep: -0.8);
+
+  const MissionEpisode(
+    this.label,
+    this.durationDays, {
+    this.hr = 0,
+    this.temp = 0,
+    this.respiratoryRate = 0,
+    this.sleep = 0,
+    this.missesExercise = false,
+  });
+
+  final String label;
+  final int durationDays;
+
+  /// Cambios sobre el estado del día mientras dura el episodio.
+  final double hr;
+  final double temp;
+  final double respiratoryRate;
+  final double sleep;
+  final bool missesExercise;
+}
+
+/// Calendario determinista de episodios: depende solo del astronauta y del
+/// día, así que avanzar 5 días de golpe da lo mismo que avanzar de uno en uno.
+/// La frecuencia (un episodio cada ~5 semanas por persona) es una estimación
+/// del equipo para la demo.
+class MissionEpisodes {
+  const MissionEpisodes._();
+
+  /// Probabilidad diaria de que empiece un episodio esporádico.
+  static const double dailyStartChance = 0.028;
+
+  static const _sporadic = [
+    MissionEpisode.poorSleepNight,
+    MissionEpisode.heavyWorkday,
+    MissionEpisode.backPain,
+    MissionEpisode.minorInfection,
+    MissionEpisode.poorSleepNight,
+    MissionEpisode.heavyWorkday,
+  ];
+
+  static int _crewNumber(String astronautId) =>
+      int.tryParse(astronautId.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+
+  /// Episodio que EMPIEZA ese día, si hay alguno.
+  static MissionEpisode? startingOn(String astronautId, int missionDay) {
+    final n = _crewNumber(astronautId);
+    // Mareo espacial: días 2–4, tres de cada cinco tripulantes.
+    if (missionDay == 2) {
+      return n % 5 == 1 || n % 5 == 3 || n % 5 == 4
+          ? MissionEpisode.spaceMotionSickness
+          : null;
+    }
+    if (missionDay < 8) return null;
+    final rng = math.Random(n * 100003 + missionDay * 7919);
+    if (rng.nextDouble() >= dailyStartChance) return null;
+    return _sporadic[rng.nextInt(_sporadic.length)];
+  }
+
+  /// Episodio activo ese día (el que empezó más recientemente y aún dura).
+  static MissionEpisode? activeOn(String astronautId, int missionDay) {
+    for (var back = 0; back < 3; back++) {
+      final episode = startingOn(astronautId, missionDay - back);
+      if (episode != null && back < episode.durationDays) return episode;
+    }
+    return null;
+  }
+}
+
 enum MissionType { orbital, lunar, transit, surface }
 enum SimulationEvent { sleepLoss, solarParticleEvent, exerciseFailure, workload }
 

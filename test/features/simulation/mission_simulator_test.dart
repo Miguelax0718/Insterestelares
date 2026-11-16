@@ -90,7 +90,8 @@ void main() {
     b.read(missionSimulatorProvider.notifier).setMissionType(MissionType.transit);
     a.read(missionSimulatorProvider.notifier).advanceDays();
     b.read(missionSimulatorProvider.notifier).advanceDays();
-    expect(a.read(crewMembersProvider).every((p) => p.riskLevel == CrewRiskLevel.nominal), isTrue);
+    // Dia 2: puede haber mareo espacial (aviso), pero nadie en estado critico.
+    expect(a.read(crewMembersProvider).every((p) => p.riskLevel != CrewRiskLevel.critical), isTrue);
     expect(b.read(crewMembersProvider).first.radiation.cumulativeDoseMilliSv,
       greaterThan(a.read(crewMembersProvider).first.radiation.cumulativeDoseMilliSv));
   });
