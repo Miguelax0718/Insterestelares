@@ -8,10 +8,101 @@ import 'package:astramed/features/agent/domain/agent_models.dart';
 import 'package:astramed/features/agent/domain/agent_ports.dart';
 import 'package:astramed/features/apolo/domain/apolo_models.dart';
 import 'package:astramed/features/apolo/presentation/apolo_chat_orbs.dart';
+import 'package:astramed/features/apolo/presentation/apolo_orb_widget.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  for (final highContrast in [false, true]) {
+    for (final kind in ['health', 'reply', 'component']) {
+      testWidgets('$kind hover expands and collapses (contrast=$highContrast)', (tester) async {
+        const reply = 'Drink water regularly and keep tracking your hydration throughout the mission.';
+        const snapshot = ApoloModuleSnapshot(
+          id: ApoloModuleId.renal, title: 'Kidney health', shortLabel: 'Renal',
+          measures: 'Tracks kidney function and hydration.',
+          whyItMatters: '', severity: ApoloSeverity.warn,
+          keyMetric: 'Normal', subMetric: 'Latest kidney reading',
+          primaryBiomarkerId: '', primaryBiomarkerName: '',
+          biomarkers: [], trendValues: [], recommendations: [], relatedModules: [],
+        );
+        var taps = 0;
+        final data = ApoloChatOrbData(
+          key: kind, kind: kind == 'reply' ? ApoloChatOrbKind.reply : ApoloChatOrbKind.component,
+          title: 'Mission health information', preview: 'Short preview',
+          icon: Icons.monitor_heart, interactive: kind == 'component',
+          message: const ChatMessage(role: ChatRole.assistant, content: reply),
+        );
+        await tester.pumpWidget(MaterialApp(home: Scaffold(body: Center(
+          child: SizedBox(width: 220, child: Wrap(children: [
+            if (kind == 'health') ApoloOrbWidget(snapshot: snapshot,
+              highContrast: highContrast, onTap: () => taps++)
+            else ApoloChatOrbWidget(data: data,
+              highContrast: highContrast, onTap: () => taps++),
+          ])),
+        ))));
+        await tester.pump(const Duration(seconds: 1));
+        final target = find.byKey(ValueKey(kind == 'health'
+          ? 'apolo_orb_renal' : 'apolo_chat_orb_$kind'));
+        final before = tester.getSize(target);
+        final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+        await mouse.addPointer(location: Offset.zero);
+        await mouse.moveTo(tester.getCenter(target));
+        await tester.pump();
+        // Inspect an intermediate frame as well as the final expanded layout.
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(tester.takeException(), isNull);
+        await tester.pump(const Duration(milliseconds: 400));
+        expect(tester.getSize(target).width, greaterThan(before.width));
+        expect(find.text(kind == 'health' ? snapshot.measures : kind == 'reply'
+          ? reply : 'Needs input · Click to open'), findsOneWidget);
+        if (kind == 'health') {
+          expect(find.text(snapshot.subMetric), findsOneWidget);
+          expect(find.text('Click for details'), findsOneWidget);
+        }
+        expect(tester.takeException(), isNull);
+        await tester.tap(target);
+        expect(taps, 1);
+        await mouse.moveTo(Offset.zero);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+        expect(tester.getSize(target), before);
+        expect(find.text(kind == 'health' ? 'Click for details'
+          : kind == 'reply' ? reply : 'Needs input · Click to open'), findsNothing);
+        expect(tester.takeException(), isNull);
+        await mouse.removePointer();
+      });
+    }
+  }
+  testWidgets('hover grows vertically inside a narrow two-column orb rail', (tester) async {
+    final data = ApoloChatOrbData.fromSession(messages: const [],
+      components: [GenericComponentViewModel(
+        componentId: ComponentIds.pvtTest, title: 'Reaction time assessment',
+      )]).single;
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: Center(
+      child: SizedBox(width: 230, child: SingleChildScrollView(
+        child: Row(children: [
+          for (var i = 0; i < 2; i++) Column(mainAxisSize: MainAxisSize.min, children: [
+            ApoloChatOrbWidget(key: ValueKey(i), data: data,
+              compactScale: 0.7, onTap: () {}),
+          ]),
+        ]),
+      )),
+    ))));
+    await tester.pump(const Duration(seconds: 1));
+    final orb = find.byKey(const ValueKey(0));
+    final before = tester.getSize(orb);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(orb));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(tester.getSize(orb).height, greaterThan(before.height));
+    expect(tester.getSize(orb).width, before.width);
+    expect(find.text('Needs input · Click to open'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await mouse.removePointer();
+  });
   group('ApoloChatOrbData.fromSession', () {
     const messages = [
       ChatMessage(role: ChatRole.user, content: 'How am I?'),

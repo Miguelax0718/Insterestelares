@@ -33,6 +33,25 @@ ToolContext _buildTestContext(ProviderContainer container, _CapturingUiSink ui) 
 }
 
 void main() {
+  test('Spanish and English protocol triggers return the same English procedure', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final ctx = _buildTestContext(container, _CapturingUiSink());
+    final skill = clinicalNavigationAndProceduresSkill();
+    for (final query in ['protocolo rcp', 'cpr protocol']) {
+      expect(skill.triggers.any((trigger) => query.contains(trigger)), isTrue);
+      final result = await const ClinicalNavigationOfflineFlow().startWithQuery(query, ctx);
+      expect(result.verdict!['primary_procedure']['id'], 'PROC-CARDIAC-ARREST');
+      expect(result.prompt, startsWith('Cardiac Arrest and Microgravity CPR'));
+      expect(result.prompt, contains('Check consciousness and breathing within 10 seconds.'));
+    }
+    for (final query in ['medir pulso', 'measure pulse']) {
+      final result = await const ClinicalNavigationOfflineFlow().startWithQuery(query, ctx);
+      expect(result.prompt, contains('15 seconds'));
+      expect(result.uiEvents.whereType<ShowComponentEvent>().map((e) => e.id),
+        contains('manual_vitals'));
+    }
+  });
   test('Spanish and English offline intents open interactive APOLO cards', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
@@ -242,7 +261,7 @@ void main() {
           ctx,
         );
         expect(step2.isTerminal, isTrue);
-        expect(step2.prompt.toLowerCase(), contains('15 segundos'));
+        expect(step2.prompt.toLowerCase(), contains('15 seconds'));
       },
     );
   });

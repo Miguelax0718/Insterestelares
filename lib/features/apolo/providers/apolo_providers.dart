@@ -10,6 +10,9 @@ final apoloRepositoryProvider = Provider<ApoloRepository>((ref) {
   return ApoloRepository();
 });
 
+/// Opt-in healthy demo startup; historical test scenarios remain the default.
+final apoloStartNominalProvider = Provider<bool>((ref) => false);
+
 final apoloStateNotifierProvider =
     StateNotifierProvider<ApoloStateNotifier, Map<String, ApoloAstronautState>>(
       (ref) {
@@ -18,6 +21,7 @@ final apoloStateNotifierProvider =
         final notifier = ApoloStateNotifier(
           repository: repo,
           initialAstronautId: initialId,
+          initialNominal: ref.watch(apoloStartNominalProvider),
         );
         ref.listen<String>(selectedAstronautIdProvider, (_, nextId) {
           notifier.setActiveAstronautId(nextId);

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:astramed/core/theme/space_theme.dart';
+import 'package:astramed/features/apolo/presentation/apolo_theme.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 import 'package:astramed/features/telemetry/models/telemetry_machine.dart';
@@ -40,6 +40,7 @@ class TelemetryConfigModal extends ConsumerStatefulWidget {
 }
 
 class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
+  static const _palette = ApoloPalette.standard;
   late String _targetAstronautId;
 
   @override
@@ -69,10 +70,10 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
       constraints: BoxConstraints(maxHeight: maxHeight, maxWidth: 880),
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
-        color: SpaceTheme.surface,
+        color: _palette.bg2,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: SpaceTheme.cyan.withValues(alpha: 0.45),
+          color: _palette.border,
           width: 1.5,
         ),
         boxShadow: [
@@ -105,7 +106,7 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                   children: [
                     Expanded(
                       child: Text(
-                        'Equipos y Sensores de Cabina (${telemetryState.machines.length})',
+                        'Cabin Equipment & Sensors (${telemetryState.machines.length})',
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
@@ -116,10 +117,10 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      '${connectedMachines.length} vinculados a ${targetAstronaut.callsign}',
-                      style: const TextStyle(
+                      '${connectedMachines.length} linked to ${targetAstronaut.callsign}',
+                      style: TextStyle(
                         fontSize: 12,
-                        color: SpaceTheme.cyan,
+                        color: _palette.mint,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -157,13 +158,13 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: SpaceTheme.cyan.withValues(alpha: 0.15),
+              color: _palette.lav.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: SpaceTheme.cyan.withValues(alpha: 0.5)),
+              border: Border.all(color: _palette.border),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.settings_input_antenna,
-              color: SpaceTheme.cyan,
+              color: _palette.lav2,
               size: 22,
             ),
           ),
@@ -173,7 +174,7 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Configuración de Telemetría y Máquinas',
+                  'Telemetry & Hardware Configuration',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -182,7 +183,7 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Perfil: ${targetAstronaut.name} (${targetAstronaut.id}) • $connectedCount activas',
+                  'Profile: ${targetAstronaut.name} (${targetAstronaut.id}) • $connectedCount active',
                   style: const TextStyle(fontSize: 12, color: Colors.white70),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -190,7 +191,7 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
             ),
           ),
           IconButton(
-            tooltip: 'Cerrar',
+            tooltip: 'Close',
             icon: const Icon(Icons.close, color: Colors.white70),
             onPressed: () => Navigator.of(context).pop(),
           ),
@@ -206,7 +207,7 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
   ) {
     return Container(
       width: double.infinity,
-      color: SpaceTheme.background.withValues(alpha: 0.65),
+      color: _palette.bg2,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -221,10 +222,10 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
               padding: const EdgeInsets.only(right: 8),
               child: ChoiceChip(
                 selected: isSelected,
-                selectedColor: SpaceTheme.cyan.withValues(alpha: 0.2),
-                backgroundColor: SpaceTheme.card,
+                selectedColor: _palette.lav.withValues(alpha: 0.2),
+                backgroundColor: _palette.surface,
                 side: BorderSide(
-                  color: isSelected ? SpaceTheme.cyan : Colors.white12,
+                  color: isSelected ? _palette.lav2 : _palette.border,
                   width: isSelected ? 1.5 : 1,
                 ),
                 avatar: CircleAvatar(
@@ -244,7 +245,7 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                    color: isSelected ? SpaceTheme.cyan : Colors.white,
+                    color: isSelected ? _palette.mint : _palette.text,
                   ),
                 ),
                 onSelected: (_) {
@@ -269,12 +270,12 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: SpaceTheme.card,
+        color: _palette.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: telemetryState.isLiveStreaming
-              ? SpaceTheme.green.withValues(alpha: 0.7)
-              : Colors.white12,
+              ? _palette.ok.withValues(alpha: 0.7)
+              : _palette.border,
         ),
       ),
       child: Column(
@@ -287,7 +288,7 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                     ? Icons.sensors
                     : Icons.sensors_off,
                 color: telemetryState.isLiveStreaming
-                    ? SpaceTheme.green
+                    ? _palette.ok
                     : Colors.white60,
                 size: 20,
               ),
@@ -297,7 +298,7 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Transmisión en Vivo (Live Stream 3s)',
+                      'Live Stream (3s)',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
@@ -305,7 +306,7 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                       ),
                     ),
                     Text(
-                      'Recibe paquetes automáticos de las máquinas vinculadas',
+                      'Receive automatic telemetry packets from linked hardware',
                       style: TextStyle(fontSize: 11, color: Colors.white60),
                     ),
                   ],
@@ -313,8 +314,8 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
               ),
               Switch(
                 value: telemetryState.isLiveStreaming,
-                activeThumbColor: SpaceTheme.green,
-                activeTrackColor: SpaceTheme.green.withValues(alpha: 0.35),
+                activeThumbColor: _palette.ok,
+                activeTrackColor: _palette.ok.withValues(alpha: 0.35),
                 onChanged: (_) {
                   ref
                       .read(telemetryProvider.notifier)
@@ -330,23 +331,23 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
             children: [
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: SpaceTheme.cyan,
-                  side: const BorderSide(color: SpaceTheme.cyan),
+                  foregroundColor: _palette.mint,
+                  side: BorderSide(color: _palette.border),
                 ),
                 icon: telemetryState.isScanning
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 14,
                         height: 14,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: SpaceTheme.cyan,
+                          color: _palette.mint,
                         ),
                       )
                     : const Icon(Icons.radar, size: 16),
                 label: Text(
                   telemetryState.isScanning
-                      ? 'Escaneando Bus...'
-                      : 'Escanear Bus Espacial',
+                      ? 'Scanning Bus...'
+                      : 'Scan Space Bus',
                   style: const TextStyle(fontSize: 12),
                 ),
                 onPressed: telemetryState.isScanning
@@ -359,7 +360,7 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                'Escaneo completo: ${telemetryState.machines.length} equipos detectados en cabina para ${targetAstronaut.name}.',
+                                'Scan complete: ${telemetryState.machines.length} cabin devices detected for ${targetAstronaut.name}.',
                               ),
                               duration: const Duration(seconds: 2),
                             ),
@@ -369,12 +370,12 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
               ),
               FilledButton.icon(
                 style: FilledButton.styleFrom(
-                  backgroundColor: SpaceTheme.cyan,
+                  backgroundColor: _palette.mint,
                   foregroundColor: Colors.black,
                 ),
                 icon: const Icon(Icons.download_for_offline, size: 16),
                 label: Text(
-                  'Leer Todas ($connectedCount)',
+                  'Read All ($connectedCount)',
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
@@ -389,7 +390,7 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                              'Telemetría recibida de $readCount máquina(s) para ${targetAstronaut.name} (${targetAstronaut.id}).',
+                              'Telemetry received from $readCount device(s) for ${targetAstronaut.name} (${targetAstronaut.id}).',
                             ),
                             duration: const Duration(seconds: 2),
                           ),
@@ -403,7 +404,7 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                 ),
                 icon: const Icon(Icons.data_object, size: 16),
                 label: const Text(
-                  'Inspeccionar JSON DB',
+                  'Inspect DB JSON',
                   style: TextStyle(fontSize: 12),
                 ),
                 onPressed: () => _showJsonPreviewDialog(context, targetAstronaut),
@@ -420,24 +421,24 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: SpaceTheme.background.withValues(alpha: 0.7),
+        color: _palette.bg2,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: SpaceTheme.cyan.withValues(alpha: 0.25)),
+        border: Border.all(color: _palette.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.verified_user, size: 14, color: SpaceTheme.cyan),
-              SizedBox(width: 6),
+              Icon(Icons.verified_user, size: 14, color: _palette.mint),
+              const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  'Metadatos Activos de Trazabilidad Telemétrica',
+                  'Active Telemetry Traceability Metadata',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: SpaceTheme.cyan,
+                    color: _palette.mint,
                   ),
                 ),
               ),
@@ -470,7 +471,7 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: SpaceTheme.card,
+        color: _palette.surface,
         borderRadius: BorderRadius.circular(6),
         border: Border.all(color: Colors.white12),
       ),
@@ -506,13 +507,13 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      color: SpaceTheme.card,
+      color: _palette.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
         side: BorderSide(
           color: isConnected
-              ? SpaceTheme.cyan.withValues(alpha: 0.65)
-              : Colors.white12,
+              ? _palette.lav2.withValues(alpha: 0.65)
+              : _palette.border,
           width: isConnected ? 1.4 : 1.0,
         ),
       ),
@@ -558,17 +559,17 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                             ),
                             decoration: BoxDecoration(
                               color: isConnected
-                                  ? SpaceTheme.green.withValues(alpha: 0.18)
+                                  ? _palette.ok.withValues(alpha: 0.18)
                                   : Colors.white10,
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
-                              isConnected ? 'STREAMING' : 'DESCONECTADA',
+                              isConnected ? 'STREAMING' : 'DISCONNECTED',
                               style: TextStyle(
                                 fontSize: 9,
                                 fontWeight: FontWeight.bold,
                                 color: isConnected
-                                    ? SpaceTheme.green
+                                    ? _palette.ok
                                     : Colors.white54,
                               ),
                             ),
@@ -578,9 +579,9 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                       const SizedBox(height: 3),
                       Text(
                         '${machine.id} • ${machine.protocol} • ${machine.defaultRecordType}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
-                          color: SpaceTheme.cyan,
+                          color: _palette.mint,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -593,7 +594,7 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Método: ${machine.measurementMethod} | Estado: ${machine.defaultActivityState} | Algoritmo: ${machine.algorithm} | Criterio: ${machine.criterionReference}',
+                        'Method: ${machine.measurementMethod} | State: ${machine.defaultActivityState} | Algorithm: ${machine.algorithm} | Criterion: ${machine.criterionReference}',
                         style: const TextStyle(
                           fontSize: 10,
                           color: Colors.white54,
@@ -604,8 +605,8 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                 ),
                 Switch(
                   value: isConnected,
-                  activeThumbColor: SpaceTheme.cyan,
-                  activeTrackColor: SpaceTheme.cyan.withValues(alpha: 0.35),
+                  activeThumbColor: _palette.lav2,
+                  activeTrackColor: _palette.lav.withValues(alpha: 0.35),
                   onChanged: (_) {
                     ref
                         .read(telemetryProvider.notifier)
@@ -631,21 +632,21 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                     ),
                     const SizedBox(width: 3),
                     Text(
-                      'Bat ${machine.batteryPercent}%',
+                      'Battery ${machine.batteryPercent}%',
                       style: const TextStyle(
                         fontSize: 11,
                         color: Colors.white70,
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Icon(
+                    Icon(
                       Icons.signal_cellular_alt,
                       size: 13,
-                      color: SpaceTheme.cyan,
+                      color: _palette.mint,
                     ),
                     const SizedBox(width: 3),
                     Text(
-                      'Señal ${machine.signalPercent}%',
+                      'Signal ${machine.signalPercent}%',
                       style: const TextStyle(
                         fontSize: 11,
                         color: Colors.white70,
@@ -655,12 +656,12 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                 ),
                 TextButton.icon(
                   style: TextButton.styleFrom(
-                    foregroundColor: SpaceTheme.cyan,
+                    foregroundColor: _palette.mint,
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                   ),
                   icon: const Icon(Icons.bolt, size: 16),
                   label: Text(
-                    isConnected ? 'Capturar Lectura Ahora' : 'Conectar y Leer',
+                    isConnected ? 'Capture Reading Now' : 'Connect & Read',
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -708,20 +709,20 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: SpaceTheme.background,
+                  color: _palette.bg2,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: SpaceTheme.green.withValues(alpha: 0.3),
+                    color: _palette.ok.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Último paquete: astronautId=${lastPacket.astronautId} | source=${lastPacket.source} | device=${lastPacket.device.isNotEmpty ? lastPacket.device : lastPacket.machineId} | recordType=${lastPacket.recordType} | activityState=${lastPacket.activityState} | signalQuality=${lastPacket.signalQuality} | method=${lastPacket.measurementMethod} | algorithm=${lastPacket.algorithm} | criterion=${lastPacket.criterionReference}',
-                      style: const TextStyle(
+                      'Latest packet: astronautId=${lastPacket.astronautId} | source=${lastPacket.source} | device=${lastPacket.device.isNotEmpty ? lastPacket.device : lastPacket.machineId} | recordType=${lastPacket.recordType} | activityState=${lastPacket.activityState} | signalQuality=${lastPacket.signalQuality} | method=${lastPacket.measurementMethod} | algorithm=${lastPacket.algorithm} | criterion=${lastPacket.criterionReference}',
+                      style: TextStyle(
                         fontSize: 10,
-                        color: SpaceTheme.green,
+                        color: _palette.ok,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -751,21 +752,21 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
     final syncTime =
         telemetryState.lastSyncAt ?? targetAstronaut.lastTelemetrySync;
     final syncLabel =
-        syncTime != null ? _formatTime(syncTime) : 'Sin sincronizar';
+        syncTime != null ? _formatTime(syncTime) : 'Not synced';
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
-      decoration: const BoxDecoration(
-        color: SpaceTheme.background,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(18)),
+      decoration: BoxDecoration(
+        color: _palette.bg2,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(18)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.storage, size: 16, color: SpaceTheme.cyan),
+          Icon(Icons.storage, size: 16, color: _palette.mint),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'DB/Users/${targetAstronaut.id} • Sync: $syncLabel • ${telemetryState.recentLogs.length} paquetes',
+              'DB/Users/${targetAstronaut.id} • Sync: $syncLabel • ${telemetryState.recentLogs.length} packets',
               style: const TextStyle(fontSize: 11, color: Colors.white70),
               overflow: TextOverflow.ellipsis,
             ),
@@ -773,13 +774,13 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
           const SizedBox(width: 8),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-              backgroundColor: SpaceTheme.green,
+              backgroundColor: _palette.mint,
               foregroundColor: Colors.black,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
             icon: const Icon(Icons.save, size: 16),
             label: const Text(
-              'Sincronizar DB/Users',
+              'Sync DB/Users',
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
             ),
             onPressed: () async {
@@ -790,7 +791,7 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      'Perfil ${targetAstronaut.id} (${targetAstronaut.linkedMachineIds.length} máquinas) sincronizado en almacenamiento local DB/Users.',
+                      'Profile ${targetAstronaut.id} (${targetAstronaut.linkedMachineIds.length} devices) synced to local DB/Users storage.',
                     ),
                     duration: const Duration(seconds: 2),
                   ),
@@ -813,10 +814,10 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: SpaceTheme.surface,
+        backgroundColor: _palette.bg2,
         title: Row(
           children: [
-            const Icon(Icons.data_object, color: SpaceTheme.cyan),
+            Icon(Icons.data_object, color: _palette.mint),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -846,20 +847,20 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
               Clipboard.setData(ClipboardData(text: jsonString));
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('JSON copiado al portapapeles'),
+                  content: Text('JSON copied to clipboard'),
                   duration: Duration(seconds: 2),
                 ),
               );
             },
-            icon: const Icon(Icons.copy, size: 16, color: SpaceTheme.cyan),
-            label: const Text(
-              'Copiar JSON',
-              style: TextStyle(color: SpaceTheme.cyan),
+            icon: Icon(Icons.copy, size: 16, color: _palette.mint),
+            label: Text(
+              'Copy JSON',
+              style: TextStyle(color: _palette.mint),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cerrar', style: TextStyle(color: Colors.white70)),
+            child: const Text('Close', style: TextStyle(color: Colors.white70)),
           ),
         ],
       ),
@@ -880,28 +881,28 @@ class _TelemetryConfigModalState extends ConsumerState<TelemetryConfigModal> {
   Color _getRiskColor(CrewRiskLevel level) {
     switch (level) {
       case CrewRiskLevel.critical:
-        return SpaceTheme.dangerRed;
+        return _palette.crit;
       case CrewRiskLevel.warning:
-        return SpaceTheme.warningYellow;
+        return _palette.warn;
       case CrewRiskLevel.nominal:
-        return SpaceTheme.green;
+        return _palette.ok;
     }
   }
 
   Color _getCategoryColor(MachineCategory category) {
     switch (category) {
       case MachineCategory.biometrics:
-        return Colors.redAccent;
+        return _palette.crit;
       case MachineCategory.dosimetry:
-        return Colors.amberAccent;
+        return _palette.warn;
       case MachineCategory.hemodynamics:
-        return SpaceTheme.cyan;
+        return _palette.mint;
       case MachineCategory.countermeasure:
-        return SpaceTheme.green;
+        return _palette.ok;
       case MachineCategory.bloodLab:
-        return Colors.pinkAccent;
+        return _palette.lav2;
       case MachineCategory.circadian:
-        return SpaceTheme.neonPurple;
+        return _palette.lav2;
     }
   }
 

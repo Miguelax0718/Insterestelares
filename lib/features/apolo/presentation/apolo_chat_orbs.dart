@@ -292,7 +292,9 @@ class _ApoloChatOrbWidgetState extends State<ApoloChatOrbWidget>
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LayoutBuilder(builder: _buildOrb);
+
+  Widget _buildOrb(BuildContext context, BoxConstraints constraints) {
     final palette = ApoloPalette.of(widget.highContrast);
     final data = widget.data;
     final accent = data.severity != null
@@ -306,19 +308,24 @@ class _ApoloChatOrbWidgetState extends State<ApoloChatOrbWidget>
     final pulse = data.interactive || data.severity == ApoloSeverity.crit;
     final seed = _seed;
 
-    final body = Material(
+    final body = AnimatedSize(
+      duration: disable ? Duration.zero : const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      child: Material(
       color: Colors.transparent,
-      shape: const CircleBorder(),
+      borderRadius: BorderRadius.circular(_hovered ? 26 : diameter),
       child: InkWell(
         key: ValueKey('apolo_chat_orb_${data.key}'),
-        customBorder: const CircleBorder(),
+        borderRadius: BorderRadius.circular(_hovered ? 26 : diameter),
         onTap: widget.onTap,
         child: Container(
-          width: diameter,
-          height: diameter,
+          // Preserve the width of non-flex side-rail columns; bounded Wrap
+          // layouts can also expand horizontally.
+          width: _hovered && constraints.hasBoundedWidth ? 300 : diameter,
+          height: _hovered ? 250 : diameter,
           padding: EdgeInsets.all(diameter * 0.1),
           decoration: BoxDecoration(
-            shape: BoxShape.circle,
+            borderRadius: BorderRadius.circular(_hovered ? 26 : diameter),
             color: widget.highContrast
                 ? const Color(0xFF000000)
                 : const Color(0xE61A1C46),
@@ -355,7 +362,34 @@ class _ApoloChatOrbWidgetState extends State<ApoloChatOrbWidget>
                     ),
                   ],
           ),
-          child: Column(
+          child: _hovered ? SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(data.icon, color: accent),
+                const SizedBox(height: 8),
+                Text(data.title.isNotEmpty ? data.title : 'Apolo reply',
+                  style: TextStyle(color: palette.text, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 6),
+                if (data.severity != null)
+                  FittedBox(fit: BoxFit.scaleDown,
+                    child: ApoloStatusChip(severity: data.severity!,
+                      highContrast: widget.highContrast, compact: true))
+                else Text(data.kind == ApoloChatOrbKind.reply ? 'Apolo reply'
+                  : data.interactive ? 'Needs input' : 'Ready',
+                  style: TextStyle(color: accent, fontSize: 11)),
+                const SizedBox(height: 12),
+                Text(data.kind == ApoloChatOrbKind.reply
+                  ? _expandedReply(data.message?.content ?? data.preview)
+                  : data.preview,
+                  maxLines: 4, overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: palette.text2)),
+                const SizedBox(height: 12),
+                Text(data.interactive ? 'Needs input · Click to open' : 'Click to open',
+                  style: TextStyle(color: accent, fontSize: 11)),
+              ],
+            ),
+          ) : Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
@@ -405,7 +439,7 @@ class _ApoloChatOrbWidgetState extends State<ApoloChatOrbWidget>
           ),
         ),
       ),
-    );
+    ));
 
     return Semantics(
       button: true,
@@ -430,14 +464,13 @@ class _ApoloChatOrbWidgetState extends State<ApoloChatOrbWidget>
               offset: Offset(dx, dy),
               child: Transform.scale(
                 scale: 0.2 + 0.8 * e,
-                child: SizedBox(
-                  width: diameter + 16,
-                  height: diameter + 16,
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      if (pulse && !disable)
-                        IgnorePointer(
+                      if (pulse && !disable && !_hovered)
+                        Positioned.fill(child: IgnorePointer(
                           child: Transform.scale(
                             scale: 1.0 + phase * 0.28,
                             child: Container(
@@ -454,7 +487,7 @@ class _ApoloChatOrbWidgetState extends State<ApoloChatOrbWidget>
                               ),
                             ),
                           ),
-                        ),
+                        )),
                       child!,
                     ],
                   ),
@@ -466,17 +499,15 @@ class _ApoloChatOrbWidgetState extends State<ApoloChatOrbWidget>
         child: MouseRegion(
           onEnter: (_) => setState(() => _hovered = true),
           onExit: (_) => setState(() => _hovered = false),
-          child: AnimatedScale(
-            scale: _hovered ? 1.06 : 1.0,
-            duration: disable
-                ? Duration.zero
-                : const Duration(milliseconds: 200),
-            curve: Curves.easeOutBack,
-            child: body,
-          ),
+          child: body,
         ),
       ),
     );
+  }
+
+  String _expandedReply(String content) {
+    final text = content.trim();
+    return text.length > 150 ? '${text.substring(0, 150)}…' : text;
   }
 }
 

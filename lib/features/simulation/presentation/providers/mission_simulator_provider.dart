@@ -8,6 +8,8 @@ import '../../domain/mission_simulator_state.dart';
 
 export '../../domain/mission_simulator_state.dart';
 
+final simulationResetCounterProvider = StateProvider<int>((ref) => 0);
+
 final missionSimulatorProvider =
     StateNotifierProvider<MissionSimulatorNotifier, MissionSimulatorState>(
       (ref) => MissionSimulatorNotifier(ref),
@@ -35,6 +37,7 @@ class MissionSimulatorNotifier extends StateNotifier<MissionSimulatorState> {
     _ref.read(selectedMissionDayProvider.notifier).state = 1;
     state = MissionSimulatorState(missionType: state.missionType);
     _log('Nominal baseline restored');
+    _ref.read(simulationResetCounterProvider.notifier).state++;
   }
 
   void setMissionType(MissionType type) {

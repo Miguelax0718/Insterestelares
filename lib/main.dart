@@ -8,6 +8,7 @@ import 'package:astramed/features/agent/providers/agent_providers.dart';
 import 'package:astramed/features/apolo/presentation/apolo_home_screen.dart';
 import 'package:astramed/features/apolo/providers/apolo_providers.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
+import 'package:astramed/features/crew/data/mock_crew_data.dart';
 import 'package:astramed/features/simulation/presentation/providers/mission_simulator_provider.dart';
 import 'package:astramed/features/telemetry/presentation/providers/telemetry_provider.dart';
 
@@ -26,7 +27,14 @@ class ApoloApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ProviderScope(
-      overrides: [...radiationIntegrationOverrides, ...apoloProviderOverrides],
+      overrides: [
+        ...radiationIntegrationOverrides,
+        ...apoloProviderOverrides,
+        apoloStartNominalProvider.overrideWithValue(true),
+        crewMembersProvider.overrideWith((ref) => CrewNotifier(
+          ref.watch(crewDatabaseServiceProvider), MockCrewData.getNominalCrew(),
+        )),
+      ],
       child: MaterialApp(
         title: 'APOLO',
         debugShowCheckedModeBanner: false,
@@ -52,9 +60,7 @@ class _ApoloHomeShellState extends ConsumerState<ApoloHomeShell> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() async {
-      if (!mounted) return;
-      await ref.read(crewMembersProvider.notifier).initializeFromDatabase();
+    Future.microtask(() {
       if (!mounted) return;
       ref.read(missionSimulatorProvider.notifier).initializeNominal();
       final crew = ref.read(crewMembersProvider);

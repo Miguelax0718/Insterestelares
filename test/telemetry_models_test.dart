@@ -1,5 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:astramed/features/apolo/data/apolo_repository.dart';
+import 'package:astramed/features/apolo/providers/apolo_providers.dart';
+import 'package:astramed/features/apolo/presentation/apolo_theme.dart';
+import 'package:astramed/features/telemetry/presentation/widgets/telemetry_config_modal.dart';
+import 'package:astramed/features/telemetry/presentation/providers/telemetry_provider.dart';
 import 'package:astramed/core/storage/crew_database_service.dart';
 import 'package:astramed/features/01_general_health/models/vitals_record.dart';
 import 'package:astramed/features/02_radiation/models/radiation_dose.dart';
@@ -14,6 +21,146 @@ import 'package:astramed/features/telemetry/data/space_machines_catalog.dart';
 import 'package:astramed/features/telemetry/models/telemetry_machine.dart';
 
 void main() {
+  testWidgets('English telemetry modal preserves profile selection and JSON inspection',
+      (tester) async {
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        crewMembersProvider.overrideWith(
+          (ref) => CrewNotifier(null, MockCrewData.getNominalCrew()),
+        ),
+      ],
+      child: MaterialApp(
+        theme: buildApoloTheme(),
+        home: const Scaffold(body: TelemetryConfigModal()),
+      ),
+    ));
+    expect(find.text('Telemetry & Hardware Configuration'), findsOneWidget);
+    expect(find.text('Live Stream (3s)'), findsOneWidget);
+    expect(find.text('Scan Space Bus'), findsOneWidget);
+    expect(find.text('Read All (4)'), findsOneWidget);
+    expect(find.text('Sync DB/Users'), findsOneWidget);
+    await tester.tap(find.text('ATHENA (4)'));
+    await tester.pump();
+    expect(find.textContaining('Profile: Dra. Elena Ramos (AST-02)'), findsOneWidget);
+    await tester.tap(find.text('Read All (4)'));
+    await tester.pump();
+    final container = ProviderScope.containerOf(
+        tester.element(find.byType(TelemetryConfigModal)));
+    expect(container.read(telemetryProvider).recentLogs, hasLength(4));
+    await tester.tap(find.text('Inspect DB JSON'));
+    await tester.pumpAndSettle();
+    expect(find.text('DB/Users/AST-02.json'), findsOneWidget);
+    expect(find.text('Copy JSON'), findsOneWidget);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+    expect(find.text('Inspect DB JSON'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  test('Nominal constructors start healthy without replacing legacy defaults', () {
+    final crew = CrewNotifier(null, MockCrewData.getNominalCrew());
+    addTearDown(crew.dispose);
+    expect(crew.state, hasLength(5));
+    for (final member in crew.state) {
+      expect(member.riskLevel, CrewRiskLevel.nominal);
+      expect(member.riskTitle, 'Nominal Status');
+      expect(member.activeAlerts, isEmpty);
+    }
+    final legacyCrew = CrewNotifier();
+    addTearDown(legacyCrew.dispose);
+    expect(legacyCrew.state[2].riskLevel, CrewRiskLevel.critical);
+
+    final now = DateTime.utc(2026, 11, 15, 12);
+    final repo = ApoloRepository(clock: () => now);
+    final nominal = ApoloStateNotifier(repository: repo, initialNominal: true);
+    addTearDown(nominal.dispose);
+    for (final state in nominal.state.values) {
+      expect(state.missionDay, 1);
+      expect(state.samples, hasLength(1));
+      expect(state.samples.single.takenAt, now.subtract(const Duration(hours: 2)));
+      expect(state.sampleSchedule.isDue, isFalse);
+    }
+    final legacy = ApoloStateNotifier(repository: repo);
+    addTearDown(legacy.dispose);
+    expect(legacy.state['AST-01']!.missionDay, ApoloRepository.defaultMissionDay);
+
+    final container = ProviderContainer(overrides: [
+      apoloRepositoryProvider.overrideWithValue(repo),
+      apoloStartNominalProvider.overrideWithValue(true),
+    ]);
+    addTearDown(container.dispose);
+    expect(container.read(apoloStateNotifierProvider)['AST-01']!.missionDay, 1);
+    final defaultContainer = ProviderContainer();
+    addTearDown(defaultContainer.dispose);
+    expect(defaultContainer.read(apoloStartNominalProvider), isFalse);
+    expect(defaultContainer.read(apoloStateNotifierProvider)['AST-01']!.missionDay,
+        ApoloRepository.defaultMissionDay);
+  });
+
+  test('Nominal reset refreshes sample schedule using the repository clock', () {
+    final now = DateTime.utc(2026, 11, 15, 12);
+    final notifier = ApoloStateNotifier(
+      repository: ApoloRepository(clock: () => now),
+    );
+    addTearDown(notifier.dispose);
+    notifier.resetAllNominal();
+    for (final state in notifier.state.values) {
+      expect(state.sampleSchedule.isDue, isFalse);
+      expect(state.samples.single.takenAt, now.subtract(const Duration(hours: 2)));
+    }
+  });
+
+  test('Historical sample dates remain unchanged without a fresh baseline', () {
+    final samples = ApoloRepository.generateMockSamples(
+      apoloKey: 'alex',
+      astronautId: 'AST-01',
+      targetValues: const {},
+      count: 1,
+      currentMissionDay: 1,
+    );
+    expect(samples.single.takenAt, DateTime.utc(2026, 6, 26, 7, 30));
+    final crew = MockCrewData.getInitialCrew();
+    expect(crew.map((p) => p.role), [
+      'Mission Commander',
+      'Chief Medical Officer (CMO)',
+      'Flight / EVA Engineer',
+      'Biochemistry & Payloads Specialist',
+      'Robotics & Life Support (ECLSS)',
+    ]);
+    expect(crew.map((p) => p.callsign),
+        ['ARES-1', 'ATHENA', 'SPARK', 'NOVA', 'TITAN']);
+    expect(crew[2].riskTitle, 'CRITICAL ALERT: Post-EVA Hypoxia');
+    expect(crew[2].vitals.spO2, 89.0);
+  });
+
+  test('Clinical telemetry emits English alerts and keeps nominal vitals quiet', () {
+    final notifier = CrewNotifier(null, MockCrewData.getNominalCrew());
+    addTearDown(notifier.dispose);
+    final baseline = notifier.state.first;
+    notifier.applyTelemetryPacket(baseline.id, TelemetryPacket(
+      timestamp: DateTime.utc(2026, 11, 15),
+      machineId: 'DEV-ASTROSKIN',
+      astronautId: baseline.id,
+      metrics: const {'spO2': 89.0},
+    ));
+    expect(notifier.state.first.riskLevel, CrewRiskLevel.critical);
+    expect(notifier.state.first.activeAlerts,
+        ['Critical SpO2: 89.0% (Acute hypoxia)']);
+    expect(notifier.state.first.riskTitle, 'CRITICAL ALERT: Critical SpO2');
+    notifier.applyTelemetryPacket(baseline.id, TelemetryPacket(
+      timestamp: DateTime.utc(2026, 11, 15),
+      machineId: 'DEV-ASTROSKIN',
+      astronautId: baseline.id,
+      metrics: const {'spO2': 99.0},
+    ));
+    expect(notifier.state.first.riskLevel, CrewRiskLevel.nominal);
+    expect(notifier.state.first.activeAlerts, isEmpty);
+    expect(notifier.state.first.riskTitle, 'Nominal Status');
+    expect(notifier.state.skip(1).map((p) => p.id),
+        MockCrewData.getNominalCrew().skip(1).map((p) => p.id));
+  });
+
   test('Domain models preserve and round-trip all 9 telemetry and clinical metadata fields', () {
     final vitals = VitalsRecord(
       timestamp: DateTime.parse('2026-11-14T12:00:00Z'),
@@ -188,7 +335,7 @@ void main() {
     expect(packet.astronautId, 'AST-01');
     expect(packet.source, 'telemetry');
     expect(packet.device, 'Bio-Monitor Astroskin');
-    expect(packet.measurementMethod, contains('ECG textil'));
+    expect(packet.measurementMethod, contains('textile ECG'));
     expect(packet.activityState, 'active_duty');
     expect(packet.signalQuality, contains('98%'));
     expect(packet.recordType, 'instrumental');
@@ -246,7 +393,7 @@ void main() {
       'NASA-STD-3001 Vol. 1 & Vol. 2 / MedicalThresholds',
     );
     expect(
-      ast3AfterVitals.activeAlerts.any((a) => a.contains('SpO2 Crítico')),
+      ast3AfterVitals.activeAlerts.any((a) => a.contains('Critical SpO2')),
       isFalse,
     );
 

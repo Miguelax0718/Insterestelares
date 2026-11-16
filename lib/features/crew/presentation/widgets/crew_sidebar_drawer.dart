@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:astramed/core/theme/space_theme.dart';
 import 'package:astramed/features/01_general_health/presentation/cockpit_widgets/vitals_cockpit_cards.dart';
 import 'package:astramed/features/05_clinical_triage/presentation/cockpit_widgets/medical_procedures_card.dart';
 import 'package:astramed/features/agent/providers/agent_providers.dart';
 import 'package:astramed/features/apolo/presentation/apolo_assessment_launcher_sheet.dart';
 import 'package:astramed/features/apolo/presentation/apolo_theme.dart';
+import 'package:astramed/features/apolo/domain/apolo_models.dart';
+import 'package:astramed/features/apolo/providers/apolo_contract_providers.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
 import 'package:astramed/features/simulation/presentation/mission_simulator_card.dart';
@@ -14,8 +15,7 @@ import 'package:astramed/features/simulation/presentation/providers/mission_simu
 import 'package:astramed/features/telemetry/presentation/providers/telemetry_provider.dart';
 import 'package:astramed/features/telemetry/presentation/widgets/telemetry_config_modal.dart';
 
-/// Sidebar (Drawer) lateral izquierdo para alternar entre los 5 perfiles de astronautas
-/// y visualizar de un vistazo el estado de riesgo y telemetría de cada uno.
+/// APOLO crew hub with offline cockpit tools and live crew status.
 class CrewSidebarDrawer extends ConsumerWidget {
   const CrewSidebarDrawer({super.key});
 
@@ -28,14 +28,23 @@ class CrewSidebarDrawer extends ConsumerWidget {
     final criticalCount = ref.watch(criticalCrewCountProvider);
     final warningCount = ref.watch(warningCrewCountProvider);
     final nominalCount = ref.watch(nominalCrewCountProvider);
+    final apoloState = ref.watch(apoloActiveStateProvider);
+    final palette = ApoloPalette.of(apoloState.highContrast);
 
-    return Drawer(
-      backgroundColor: SpaceTheme.surface,
+    return Theme(
+      data: buildApoloTheme(highContrast: apoloState.highContrast),
+      child: Drawer(
+      width: 360,
+      backgroundColor: palette.bg,
+      shape: RoundedRectangleBorder(
+        borderRadius: const BorderRadius.horizontal(right: Radius.circular(28)),
+        side: BorderSide(color: palette.border),
+      ),
       child: SafeArea(
         child: Column(
           children: [
             // ── CABECERA DEL CREW HUB ──
-            _buildDrawerHeader(context, criticalCount, warningCount, nominalCount),
+            _buildDrawerHeader(context, criticalCount, warningCount, nominalCount, palette),
             const Divider(color: Colors.white24, height: 1),
 
             // ── LISTA DE LOS 5 PERFILES ──
@@ -67,6 +76,7 @@ class CrewSidebarDrawer extends ConsumerWidget {
           ],
         ),
       ),
+      ),
     );
   }
 
@@ -76,10 +86,13 @@ class CrewSidebarDrawer extends ConsumerWidget {
     int criticalCount,
     int warningCount,
     int nominalCount,
+    ApoloPalette palette,
   ) {
     return Container(
       padding: const EdgeInsets.all(16.0),
-      color: SpaceTheme.background,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [palette.bg2, palette.surface]),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -88,11 +101,11 @@ class CrewSidebarDrawer extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: SpaceTheme.cyan.withValues(alpha: 0.15),
+                  color: palette.lav2.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
-                  border: Border.all(color: SpaceTheme.cyan, width: 1.5),
+                  border: Border.all(color: palette.lav2, width: 1.5),
                 ),
-                child: const Icon(Icons.groups, color: SpaceTheme.cyan, size: 24),
+                child: Icon(Icons.groups, color: palette.lav2, size: 24),
               ),
               const SizedBox(width: 12),
               const Expanded(
@@ -100,7 +113,7 @@ class CrewSidebarDrawer extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'TRIPULACIÓN ARTEMIS',
+                       'ARTEMIS CREW',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -109,7 +122,7 @@ class CrewSidebarDrawer extends ConsumerWidget {
                       ),
                     ),
                     Text(
-                      'AstraMed Crew Hub (5 Tripulantes)',
+                       'APOLO Crew Hub (5 Astronauts)',
                       style: TextStyle(fontSize: 12, color: Colors.white60),
                     ),
                   ],
@@ -123,20 +136,20 @@ class CrewSidebarDrawer extends ConsumerWidget {
           Row(
             children: [
               _buildStatusPill(
-                label: '$criticalCount Crítico',
-                color: SpaceTheme.dangerRed,
+                label: '$criticalCount Critical',
+                color: palette.crit,
                 icon: Icons.error_outline,
               ),
               const SizedBox(width: 6),
               _buildStatusPill(
-                label: '$warningCount Atención',
-                color: SpaceTheme.warningYellow,
+                label: '$warningCount Attention',
+                color: palette.warn,
                 icon: Icons.warning_amber_rounded,
               ),
               const SizedBox(width: 6),
               _buildStatusPill(
-                label: '$nominalCount Estable',
-                color: SpaceTheme.green,
+                label: '$nominalCount Nominal',
+                color: palette.ok,
                 icon: Icons.check_circle_outline,
               ),
             ],
@@ -154,28 +167,35 @@ class CrewSidebarDrawer extends ConsumerWidget {
     bool isSelected,
     int connectedMachinesCount,
   ) {
-    final statusColor = _getRiskColor(astronaut.riskLevel);
+    final highContrast = ref.watch(apoloActiveStateProvider).highContrast;
+    final palette = ApoloPalette.of(highContrast);
+    final severity = switch (astronaut.riskLevel) {
+      CrewRiskLevel.critical => ApoloSeverity.crit,
+      CrewRiskLevel.warning => ApoloSeverity.warn,
+      CrewRiskLevel.nominal => ApoloSeverity.ok,
+    };
+    final statusColor = palette.forSeverity(severity);
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
       elevation: isSelected ? 4 : 1,
       color: isSelected
-          ? SpaceTheme.cyan.withValues(alpha: 0.12)
-          : SpaceTheme.card,
+          ? palette.elev
+          : palette.surface.withValues(alpha: highContrast ? 1 : 0.78),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         side: BorderSide(
           color: isSelected
-              ? SpaceTheme.cyan
+              ? palette.lav2
               : (astronaut.riskLevel == CrewRiskLevel.critical
-                  ? SpaceTheme.dangerRed
-                  : Colors.white12),
+                   ? palette.crit
+                   : palette.border),
           width: isSelected ? 2.0 : (astronaut.riskLevel == CrewRiskLevel.critical ? 1.5 : 1.0),
         ),
       ),
       child: InkWell(
         key: ValueKey('crew_drawer_item_${astronaut.id}'),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         onTap: () {
           // Cambia el astronauta activo en crew y en el agente APOLO
           ref.read(selectedAstronautIdProvider.notifier).state = astronaut.id;
@@ -194,7 +214,16 @@ class CrewSidebarDrawer extends ConsumerWidget {
                   // Avatar con aro del color de riesgo
                   Stack(
                     children: [
-                      CircleAvatar(
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: statusColor, width: 1.5),
+                          boxShadow: highContrast ? null : [
+                            BoxShadow(color: statusColor.withValues(alpha: 0.25),
+                                blurRadius: 18),
+                          ],
+                        ),
+                        child: CircleAvatar(
                         radius: 22,
                         backgroundColor: statusColor.withValues(alpha: 0.2),
                         child: Text(
@@ -205,7 +234,7 @@ class CrewSidebarDrawer extends ConsumerWidget {
                             color: statusColor,
                           ),
                         ),
-                      ),
+                      )),
                       Positioned(
                         right: 0,
                         bottom: 0,
@@ -215,7 +244,7 @@ class CrewSidebarDrawer extends ConsumerWidget {
                           decoration: BoxDecoration(
                             color: statusColor,
                             shape: BoxShape.circle,
-                            border: Border.all(color: SpaceTheme.surface, width: 2),
+                            border: Border.all(color: palette.surface, width: 2),
                           ),
                         ),
                       ),
@@ -233,7 +262,7 @@ class CrewSidebarDrawer extends ConsumerWidget {
                             Flexible(
                               child: Text(
                                 astronaut.name,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 14,
                                   color: Colors.white,
@@ -250,10 +279,10 @@ class CrewSidebarDrawer extends ConsumerWidget {
                               ),
                               child: Text(
                                 astronaut.callsign,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 9,
                                   fontWeight: FontWeight.bold,
-                                  color: SpaceTheme.cyan,
+                                  color: palette.lav2,
                                 ),
                               ),
                             ),
@@ -277,11 +306,11 @@ class CrewSidebarDrawer extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: SpaceTheme.cyan,
+                        color: palette.mint,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Text(
-                        'ACTIVO',
+                        'ACTIVE',
                         style: TextStyle(
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
@@ -294,7 +323,10 @@ class CrewSidebarDrawer extends ConsumerWidget {
 
               const SizedBox(height: 10),
 
-              // ── BADGE DE RIESGO / ESTADO DE SALUD ──
+              ApoloStatusChip(
+                severity: severity, highContrast: highContrast, compact: true,
+              ),
+              const SizedBox(height: 6),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -329,7 +361,7 @@ class CrewSidebarDrawer extends ConsumerWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.black26,
+                  color: palette.bg2,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: FittedBox(
@@ -339,7 +371,7 @@ class CrewSidebarDrawer extends ConsumerWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       _buildMiniMetric(
-                        label: 'FC',
+                        label: 'HR',
                         value: '${astronaut.vitals.heartRate.toInt()} bpm',
                         isWarning: astronaut.vitals.heartRate > 100 ||
                             astronaut.vitals.heartRate < 50,
@@ -358,7 +390,7 @@ class CrewSidebarDrawer extends ConsumerWidget {
                         child: Text('|', style: TextStyle(color: Colors.white24, fontSize: 10)),
                       ),
                       _buildMiniMetric(
-                        label: 'PA',
+                        label: 'BP',
                         value:
                             '${astronaut.vitals.systolicBP.toInt()}/${astronaut.vitals.diastolicBP.toInt()}',
                         isWarning: astronaut.vitals.systolicBP > 130 ||
@@ -400,17 +432,17 @@ class CrewSidebarDrawer extends ConsumerWidget {
                     Icons.sensors,
                     size: 13,
                     color: connectedMachinesCount > 0
-                        ? SpaceTheme.cyan
+                        ? palette.mint
                         : Colors.white38,
                   ),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      '$connectedMachinesCount máq. activas • ${astronaut.vitals.source.toUpperCase()}',
+                      '$connectedMachinesCount active • ${astronaut.vitals.source.toUpperCase()}',
                       style: TextStyle(
                         fontSize: 10,
                         color: connectedMachinesCount > 0
-                            ? SpaceTheme.cyan
+                            ? palette.mint
                             : Colors.white54,
                         fontWeight: FontWeight.w500,
                       ),
@@ -434,19 +466,19 @@ class CrewSidebarDrawer extends ConsumerWidget {
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: SpaceTheme.cyan.withValues(alpha: 0.14),
+                        color: palette.elev,
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: SpaceTheme.cyan.withValues(alpha: 0.45),
+                          color: palette.border,
                         ),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
                             Icons.settings_input_antenna,
                             size: 11,
-                            color: SpaceTheme.cyan,
+                            color: palette.lav2,
                           ),
                           SizedBox(width: 3),
                           Text(
@@ -454,7 +486,7 @@ class CrewSidebarDrawer extends ConsumerWidget {
                             style: TextStyle(
                               fontSize: 9,
                               fontWeight: FontWeight.bold,
-                              color: SpaceTheme.cyan,
+                              color: palette.lav2,
                             ),
                           ),
                         ],
@@ -487,7 +519,7 @@ class CrewSidebarDrawer extends ConsumerWidget {
           style: TextStyle(
             fontSize: 10,
             fontWeight: FontWeight.bold,
-            color: isWarning ? SpaceTheme.dangerRed : Colors.white,
+            color: isWarning ? ApoloPalette.standard.crit : Colors.white,
           ),
         ),
       ],
@@ -536,6 +568,8 @@ class CrewSidebarDrawer extends ConsumerWidget {
     WidgetRef ref,
     String selectedId,
   ) {
+    final highContrast = ref.watch(apoloActiveStateProvider).highContrast;
+    final palette = ApoloPalette.of(highContrast);
     void openCockpitSheet(Widget Function(BuildContext sheetContext) builder) {
       final rootContext = Navigator.of(context, rootNavigator: true).context;
       Navigator.of(context).pop();
@@ -544,7 +578,7 @@ class CrewSidebarDrawer extends ConsumerWidget {
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
         builder: (sheetContext) => Theme(
-          data: buildApoloTheme(),
+          data: buildApoloTheme(highContrast: highContrast),
           child: SafeArea(
             child: ConstrainedBox(
               constraints: BoxConstraints(
@@ -553,9 +587,9 @@ class CrewSidebarDrawer extends ConsumerWidget {
               child: Container(
                 margin: const EdgeInsets.fromLTRB(10, 10, 10, 10),
                 decoration: BoxDecoration(
-                  color: ApoloPalette.standard.bg2,
+                  color: palette.bg2,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: ApoloPalette.standard.border),
+                  border: Border.all(color: palette.border),
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: builder(sheetContext),
@@ -576,14 +610,14 @@ class CrewSidebarDrawer extends ConsumerWidget {
                 child: OutlinedButton.icon(
                   key: const ValueKey('sidebar_mission_simulator_button'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: SpaceTheme.neonPurple,
-                    side: const BorderSide(color: SpaceTheme.neonPurple),
+                    foregroundColor: palette.lav2,
+                    side: BorderSide(color: palette.border),
                     minimumSize: const Size(0, 36),
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                   ),
                   icon: const Icon(Icons.rocket_launch_outlined, size: 15),
                   label: const Text(
-                    'Simulador',
+                    'Simulator',
                     style: TextStyle(fontSize: 11.5),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -599,8 +633,8 @@ class CrewSidebarDrawer extends ConsumerWidget {
                 child: OutlinedButton.icon(
                   key: const ValueKey('sidebar_assessments_button'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: SpaceTheme.cyan,
-                    side: const BorderSide(color: SpaceTheme.cyan),
+                    foregroundColor: palette.lav2,
+                    side: BorderSide(color: palette.border),
                     minimumSize: const Size(0, 36),
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                   ),
@@ -611,17 +645,15 @@ class CrewSidebarDrawer extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   onPressed: () {
+                    final orchestrator = ref.read(agentOrchestratorProvider.notifier);
+                    final speakReply = ref.read(agentVoiceRepliesEnabledProvider);
                     final rootContext =
                         Navigator.of(context, rootNavigator: true).context;
                     Navigator.of(context).pop();
                     ApoloAssessmentLauncherSheet.show(
                       rootContext,
                       onLaunch: (descriptor) {
-                        final speakReply =
-                            ref.read(agentVoiceRepliesEnabledProvider);
-                        ref
-                            .read(agentOrchestratorProvider.notifier)
-                            .launchGuidedAssessment(
+                        orchestrator.launchGuidedAssessment(
                               descriptor,
                               speakReply: speakReply,
                             );
@@ -639,14 +671,14 @@ class CrewSidebarDrawer extends ConsumerWidget {
                 child: OutlinedButton.icon(
                   key: const ValueKey('sidebar_manual_vitals_button'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: SpaceTheme.green,
-                    side: const BorderSide(color: SpaceTheme.green),
+                    foregroundColor: palette.mint,
+                    side: BorderSide(color: palette.border),
                     minimumSize: const Size(0, 36),
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                   ),
                   icon: const Icon(Icons.touch_app_outlined, size: 15),
                   label: const Text(
-                    'Toma Manual',
+                    'Manual Vitals',
                     style: TextStyle(fontSize: 11.5),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -667,14 +699,14 @@ class CrewSidebarDrawer extends ConsumerWidget {
                 child: OutlinedButton.icon(
                   key: const ValueKey('sidebar_procedures_button'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: SpaceTheme.warningYellow,
-                    side: const BorderSide(color: SpaceTheme.warningYellow),
+                    foregroundColor: palette.lav2,
+                    side: BorderSide(color: palette.border),
                     minimumSize: const Size(0, 36),
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                   ),
                   icon: const Icon(Icons.medical_services_outlined, size: 15),
                   label: const Text(
-                    'Protocolos',
+                    'Procedures',
                     style: TextStyle(fontSize: 11.5),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -701,7 +733,7 @@ class CrewSidebarDrawer extends ConsumerWidget {
             ),
             icon: const Icon(Icons.show_chart_rounded, size: 16),
             label: const Text(
-              'Tendencias de Signos Vitales',
+              'Vitals Trends',
               style: TextStyle(fontSize: 12),
             ),
             onPressed: () => openCockpitSheet(
@@ -718,13 +750,13 @@ class CrewSidebarDrawer extends ConsumerWidget {
           ElevatedButton.icon(
             key: const ValueKey('sidebar_telemetry_config_button'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: SpaceTheme.cyan,
-              foregroundColor: Colors.black,
+              backgroundColor: palette.elev,
+              foregroundColor: palette.text,
               minimumSize: const Size(double.infinity, 36),
             ),
             icon: const Icon(Icons.settings_input_antenna, size: 16),
             label: const Text(
-              'Configurar Máquinas de Telemetría',
+              'Configure Telemetry Machines',
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
             ),
             onPressed: () {
@@ -741,13 +773,13 @@ class CrewSidebarDrawer extends ConsumerWidget {
           OutlinedButton.icon(
             key: const ValueKey('sidebar_reset_nominal_button'),
             style: OutlinedButton.styleFrom(
-              foregroundColor: SpaceTheme.cyan,
-              side: const BorderSide(color: SpaceTheme.cyan),
+              foregroundColor: palette.mint,
+              side: BorderSide(color: palette.border),
               minimumSize: const Size(double.infinity, 36),
             ),
             icon: const Icon(Icons.sync, size: 16),
             label: const Text(
-              'Restablecer Tripulación Nominal',
+              'Reset All Nominal',
               style: TextStyle(fontSize: 12),
             ),
             onPressed: () {
@@ -756,7 +788,7 @@ class CrewSidebarDrawer extends ConsumerWidget {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text(
-                    'Tripulación reiniciada a estado nominal (Día 1)',
+                    'Crew reset to nominal (Day 1)',
                   ),
                   duration: Duration(seconds: 2),
                 ),
@@ -766,17 +798,6 @@ class CrewSidebarDrawer extends ConsumerWidget {
         ],
       ),
     );
-  }
-
-  Color _getRiskColor(CrewRiskLevel level) {
-    switch (level) {
-      case CrewRiskLevel.critical:
-        return SpaceTheme.dangerRed;
-      case CrewRiskLevel.warning:
-        return SpaceTheme.warningYellow;
-      case CrewRiskLevel.nominal:
-        return SpaceTheme.green;
-    }
   }
 
   IconData _getRiskIcon(CrewRiskLevel level) {

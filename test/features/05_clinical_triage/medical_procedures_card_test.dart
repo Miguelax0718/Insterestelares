@@ -5,6 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('offline catalog and scenarios expose English clinical content', () {
+    expect(MedicalProceduresData.getProcedures().first.title,
+      'Cardiac Arrest and Microgravity CPR (Space ACLS)');
+    expect(MedicalProceduresData.getScenarios().first.label, 'Cardiac Arrest (CPR)');
+    expect(MedicalProceduresData.getProcedures().last.title,
+      'Critical Sleep Deficit, Cognitive Fatigue and Stress');
+  });
   testWidgets('situation selector switches protocols using the shared catalog', (tester) async {
     await tester.pumpWidget(ProviderScope(child: MaterialApp(home: Scaffold(
       body: SingleChildScrollView(child: MedicalProceduresCockpitCard(onDismiss: () {})),
