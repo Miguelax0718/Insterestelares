@@ -9,6 +9,7 @@ import 'package:astramed/features/01_general_health/models/vitals_record.dart';
 import 'package:astramed/features/03_microgravity/presentation/cockpit_widgets/cockpit_card.dart';
 import 'package:astramed/features/crew/models/astronaut_profile.dart';
 import 'package:astramed/features/crew/presentation/providers/crew_provider.dart';
+import 'package:astramed/features/agent/providers/agent_providers.dart';
 import 'package:astramed/features/telemetry/presentation/providers/telemetry_provider.dart';
 
 AstronautProfile? _target(WidgetRef ref, String? id) {
@@ -216,6 +217,20 @@ class _ManualFormState extends ConsumerState<_ManualForm> {
       Text('${widget.astronaut.callsign} • ${widget.astronaut.id}'),
       const Text('Pulse: radial artery, 15s ×4. Respiration: chest rises, 30s ×2. '
         'Capillary refill: press nail for 5s, release, then time color return.'),
+      OutlinedButton.icon(
+        key: const ValueKey('manual_vitals_ask_apolo_button'),
+        icon: const Icon(Icons.pets),
+        label: const Text('Ask Apolo how to measure manually'),
+        onPressed: () {
+          final orchestrator = ref.read(agentOrchestratorProvider.notifier);
+          final speakReply = ref.read(agentVoiceRepliesEnabledProvider);
+          widget.onDismiss();
+          unawaited(orchestrator.sendUserMessage(
+            'How do I measure vital signs manually without sensors?',
+            speakReply: speakReply,
+          ));
+        },
+      ),
       for (var i = 0; i < 2; i++) ...[
         Text('${i == 0 ? 'Pulse' : 'Respiration'}: ${_remaining[i]}s • ${_taps[i]} taps'),
         Wrap(spacing: 8, children: [

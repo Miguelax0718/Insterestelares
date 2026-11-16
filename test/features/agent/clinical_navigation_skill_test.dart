@@ -33,6 +33,46 @@ ToolContext _buildTestContext(ProviderContainer container, _CapturingUiSink ui) 
 }
 
 void main() {
+  test('manual how-to returns every guide without reopening the form', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final ctx = _buildTestContext(container, _CapturingUiSink());
+    for (final query in [
+      'How do I measure vital signs manually without sensors?',
+      'measure vital signs manually',
+      'without sensors',
+      'how to measure pulse',
+      'explain manual vitals',
+      'como medir manualmente',
+    ]) {
+      final flow = container.read(skillRegistryProvider).findOfflineFlow(query)
+          as QueryAwareDeterministicFlow?;
+      expect(flow, isNotNull, reason: query);
+      final step = await flow!.startWithQuery(query, ctx);
+      expect(step.verdict!['opened_manual_dialog'], false, reason: query);
+      final ids = step.uiEvents.whereType<ShowComponentEvent>().map((e) => e.id);
+      expect(ids, isNot(contains('manual_vitals')));
+      expect(ids, contains(ComponentIds.statusReport));
+      expect(step.isTerminal, true);
+      expect(step.prompt, contains('15 seconds'));
+      if (query == 'How do I measure vital signs manually without sensors?') {
+        for (final text in [
+          'radial artery', '×4', '30 seconds', '×2', 'nail bed',
+          '< 2.0 seconds', 'thermometer', 'cuff at heart level',
+        ]) {
+          expect(step.prompt, contains(text));
+        }
+        expect(step.verdict!['guides'], hasLength(5));
+      }
+    }
+    for (final query in ['Open manual vitals', 'start manual vitals',
+      'record manual vitals', 'open manual vitals and explain how to measure']) {
+      final step = await const ClinicalNavigationOfflineFlow().advance(query, ctx);
+      expect(step.verdict!['opened_manual_dialog'], true);
+      expect(step.uiEvents.whereType<ShowComponentEvent>().map((e) => e.id),
+          contains('manual_vitals'));
+    }
+  });
   test('Spanish and English protocol triggers return the same English procedure', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
@@ -49,7 +89,7 @@ void main() {
       final result = await const ClinicalNavigationOfflineFlow().startWithQuery(query, ctx);
       expect(result.prompt, contains('15 seconds'));
       expect(result.uiEvents.whereType<ShowComponentEvent>().map((e) => e.id),
-        contains('manual_vitals'));
+        isNot(contains('manual_vitals')));
     }
   });
   test('Spanish and English offline intents open interactive APOLO cards', () async {
@@ -57,10 +97,6 @@ void main() {
     addTearDown(container.dispose);
     final ctx = _buildTestContext(container, _CapturingUiSink());
     for (final entry in {
-      'medir pulso': 'manual_vitals',
-      'toma manual': 'manual_vitals',
-      'take pulse': 'manual_vitals',
-      'measure pulse': 'manual_vitals',
       'record manual vitals': 'manual_vitals',
       'grafica vitales': ComponentIds.telemetryChart,
       'vitals trend': ComponentIds.telemetryChart,
